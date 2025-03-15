@@ -38,6 +38,7 @@
 #define EEPROM_ADDRESS_SERIAL_NUM 0x00 // Page 1, Serial number is uint64_6
 #define EEPROM_ADDRESS_RELAY_STAT 0x08 // Page 2, Data is uint8_t
 #define LONG_PRESS_THRESHOLD 40
+#define RESET_PRESS_THRESHOLD 400
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -195,7 +196,16 @@ int main(void)
     // Detect the transition from pressed to released.
     if (current_button_state == GPIO_PIN_SET && last_button_state == GPIO_PIN_RESET) {
         // The button was released. Check the counter.
-        if (button_press_counter >= LONG_PRESS_THRESHOLD) {
+    	if (button_press_counter >= RESET_PRESS_THRESHOLD){
+//    		HAL_GPIO_WritePin(GPIOA, GO_DFU_Pin, GPIO_PIN_SET);
+//    		GPIO_InitTypeDef GPIO_InitStruct = {0};
+//    		  GPIO_InitStruct.Pin = GO_DFU_Pin;
+//    		  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_OD;
+//    		  GPIO_InitStruct.Pull = GPIO_PULLUP;
+//    		  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+//    		  HAL_GPIO_Init(GO_DFU_GPIO_Port, &GPIO_InitStruct);
+    		HAL_Delay (10000);  //Go to reset
+    	} else if (button_press_counter >= LONG_PRESS_THRESHOLD) {
             // Long press detected: enable Timer16 to display battery level.
             initial_blink = (battery_percent / 25) + 1;
             HAL_TIM_Base_Start_IT(&htim16);
@@ -418,7 +428,7 @@ static void MX_IWDG_Init(void)
 
   /* USER CODE END IWDG_Init 1 */
   hiwdg.Instance = IWDG;
-  hiwdg.Init.Prescaler = IWDG_PRESCALER_128;
+  hiwdg.Init.Prescaler = IWDG_PRESCALER_32;
   hiwdg.Init.Window = 1250;
   hiwdg.Init.Reload = 1250;
   if (HAL_IWDG_Init(&hiwdg) != HAL_OK)
@@ -622,6 +632,12 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Pull = GPIO_PULLUP;
   HAL_GPIO_Init(button_GPIO_Port, &GPIO_InitStruct);
 
+  /*Configure GPIO pins : PA10 PA11 */
+  GPIO_InitStruct.Pin = GPIO_PIN_10|GPIO_PIN_11;
+  GPIO_InitStruct.Mode = GPIO_MODE_ANALOG;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
+
   /*Configure GPIO pin : ee_en_Pin */
   GPIO_InitStruct.Pin = ee_en_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
@@ -633,13 +649,13 @@ static void MX_GPIO_Init(void)
   HAL_PWREx_DisableGPIOPullUp(PWR_GPIO_B, PWR_GPIO_BIT_3|PWR_GPIO_BIT_1);
 
   /**/
-  HAL_PWREx_DisableGPIOPullUp(PWR_GPIO_A, PWR_GPIO_BIT_0|PWR_GPIO_BIT_8);
+  HAL_PWREx_DisableGPIOPullUp(PWR_GPIO_A, PWR_GPIO_BIT_0|PWR_GPIO_BIT_8|PWR_GPIO_BIT_10|PWR_GPIO_BIT_11);
 
   /**/
   HAL_PWREx_DisableGPIOPullDown(PWR_GPIO_B, PWR_GPIO_BIT_3|PWR_GPIO_BIT_1);
 
   /**/
-  HAL_PWREx_DisableGPIOPullDown(PWR_GPIO_A, PWR_GPIO_BIT_0|PWR_GPIO_BIT_8);
+  HAL_PWREx_DisableGPIOPullDown(PWR_GPIO_A, PWR_GPIO_BIT_0|PWR_GPIO_BIT_8|PWR_GPIO_BIT_10|PWR_GPIO_BIT_11);
 
   /**/
   HAL_PWREx_EnableGPIOPullDown(PWR_GPIO_B, PWR_GPIO_BIT_2);
