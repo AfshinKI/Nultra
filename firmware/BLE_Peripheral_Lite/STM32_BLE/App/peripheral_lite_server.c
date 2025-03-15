@@ -66,7 +66,7 @@ typedef struct{
 #define SWITCH_SIZE        1	/* SWITCH Characteristic size */
 #define SWITCH_C_SIZE        1	/* SWITCH C Characteristic size */
 #define VBATT_SIZE        1	/* VBATT Characteristic size */
-#define SERIAL_NUM_SIZE        8	/* SERIAL NUM Characteristic size */
+#define SERIAL_NUM_SIZE        11	/* SERIAL NUM Characteristic size */
 #define PASSWORD_SIZE        8	/* PASSWORD Characteristic size */
 /* USER CODE BEGIN PM */
 

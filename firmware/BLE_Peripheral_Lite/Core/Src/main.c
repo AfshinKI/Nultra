@@ -6,7 +6,7 @@
   ******************************************************************************
   * @attention
   *
-  * Copyright (c) 2024 STMicroelectronics.
+  * INNOVERTON.COM
   * All rights reserved.
   *
   * This software is licensed under terms that can be found in the LICENSE file
@@ -28,7 +28,10 @@
 
 /* Private typedef -----------------------------------------------------------*/
 /* USER CODE BEGIN PTD */
-
+//Firmware Version
+const uint8_t majorVer = 1;
+const uint8_t minorVer = 2;
+const uint8_t patchVer = 0;
 /* USER CODE END PTD */
 
 /* Private define ------------------------------------------------------------*/
@@ -165,9 +168,19 @@ int main(void)
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   // Prepare the data structure to update the VBATT characteristic.
+  uint8_t serialNumAndVersion[11];
+  for (int i = 0; i < 8; i++) {
+      serialNumAndVersion[i] = (uint8_t)(serial_num >> (i * 8));
+  }
+
+  // Append the version bytes
+  serialNumAndVersion[8]  = majorVer;
+  serialNumAndVersion[9]  = minorVer;
+  serialNumAndVersion[10] = patchVer;
+
   PERIPHERAL_LITE_SERVER_Data_t serial_numData;
-  serial_numData.p_Payload = (uint64_t *)&serial_num;
-  serial_numData.Length = sizeof(serial_num);
+  serial_numData.p_Payload = (uint64_t *)&serialNumAndVersion;
+  serial_numData.Length = sizeof(serialNumAndVersion);
 
   PERIPHERAL_LITE_SERVER_UpdateValue(PERIPHERAL_LITE_SERVER_SERIAL_NUM, &serial_numData);
   UpdateBatteryStatus();
