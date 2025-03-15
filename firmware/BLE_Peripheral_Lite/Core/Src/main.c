@@ -31,7 +31,7 @@
 //Firmware Version
 const uint8_t majorVer = 1;
 const uint8_t minorVer = 2;
-const uint8_t patchVer = 0;
+const uint8_t patchVer = 2;
 /* USER CODE END PTD */
 
 /* Private define ------------------------------------------------------------*/

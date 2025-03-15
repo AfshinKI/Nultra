@@ -149,7 +149,7 @@ static ble_gatt_val_buffer_def_t password_val_buffer_def = {
 /* Peripheral Lite Server service SWITCH (write without response), SWITCH_C (notification) characteristics definition */
 static const ble_gatt_chr_def_t peripheral_lite_server_chars[] = {
 	{
-        .properties = BLE_GATT_SRV_CHAR_PROP_READ | BLE_GATT_SRV_CHAR_PROP_WRITE_NO_RESP,
+        .properties = BLE_GATT_SRV_CHAR_PROP_READ | BLE_GATT_SRV_CHAR_PROP_WRITE_NO_RESP | BLE_GATT_SRV_CHAR_PROP_WRITE,
         .permissions = BLE_GATT_SRV_PERM_NONE,
         .min_key_size = 0x10,
         .uuid = BLE_UUID_INIT_128(SWITCH_UUID),

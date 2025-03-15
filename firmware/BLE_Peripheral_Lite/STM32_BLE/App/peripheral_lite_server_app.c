@@ -136,6 +136,12 @@ void PERIPHERAL_LITE_SERVER_Notification(PERIPHERAL_LITE_SERVER_NotificationEvt_
       /* USER CODE END Service1Char1_WRITE_NO_RESP_EVT */
       break;
 
+    case PERIPHERAL_LITE_SERVER_SWITCH_WRITE_EVT:
+      /* USER CODE BEGIN Service1Char1_WRITE_EVT */
+
+      /* USER CODE END Service1Char1_WRITE_EVT */
+      break;
+
     case PERIPHERAL_LITE_SERVER_SWITCH_C_NOTIFY_ENABLED_EVT:
       /* USER CODE BEGIN Service1Char2_NOTIFY_ENABLED_EVT */
       PERIPHERAL_LITE_SERVER_APP_Context.Switch_c_Notification_Status = Switch_c_NOTIFICATION_ON;
@@ -180,7 +186,7 @@ void PERIPHERAL_LITE_SERVER_Notification(PERIPHERAL_LITE_SERVER_NotificationEvt_
         }
 
         // Check that the write event payload length is 8 bytes
-        if (p_Notification->DataTransfered.Length == sizeof(uint64_t)) {
+        if (p_Notification->DataTransfered.Length == 11) {
             uint64_t newSerial = 0;
             // Assuming the serial number is sent in Big-Endian format:
             for (int i = 7; i >= 0; i--) {
