@@ -31,7 +31,7 @@
 //Firmware Version
 const uint8_t majorVer = 1;
 const uint8_t minorVer = 2;
-const uint8_t patchVer = 2;
+const uint8_t patchVer = 3;
 /* USER CODE END PTD */
 
 /* Private define ------------------------------------------------------------*/
@@ -185,7 +185,7 @@ int main(void)
   PERIPHERAL_LITE_SERVER_UpdateValue(PERIPHERAL_LITE_SERVER_SERIAL_NUM, &serial_numData);
   UpdateBatteryStatus();
   initial_blink = (battery_percent/25)+1;
-  HAL_TIM_Base_Start_IT(&htim16);
+//  HAL_TIM_Base_Start_IT(&htim16);
   while (1)
   {
     /* USER CODE END WHILE */
@@ -441,9 +441,9 @@ static void MX_IWDG_Init(void)
 
   /* USER CODE END IWDG_Init 1 */
   hiwdg.Instance = IWDG;
-  hiwdg.Init.Prescaler = IWDG_PRESCALER_32;
-  hiwdg.Init.Window = 1250;
-  hiwdg.Init.Reload = 1250;
+  hiwdg.Init.Prescaler = IWDG_PRESCALER_4;
+  hiwdg.Init.Window = 750;
+  hiwdg.Init.Reload = 750;
   if (HAL_IWDG_Init(&hiwdg) != HAL_OK)
   {
     Error_Handler();
