@@ -30,8 +30,8 @@
 /* USER CODE BEGIN PTD */
 //Firmware Version
 const uint8_t majorVer = 1;
-const uint8_t minorVer = 2;
-const uint8_t patchVer = 3;
+const uint8_t minorVer = 3;
+const uint8_t patchVer = 1;
 /* USER CODE END PTD */
 
 /* Private define ------------------------------------------------------------*/
@@ -152,6 +152,16 @@ int main(void)
   MX_NVIC_Init();
   /* USER CODE BEGIN 2 */
   EEPROM_ReadSerialNumber(&serial_num);
+  if (serial_num = 0xffffffffffffffff){
+	  serial_num = 0x2A2D79746D70652D;
+      // Optionally, store the new serial number in EEPROM
+      if (EEPROM_WriteSerialNumber(serial_num) != HAL_OK) {
+          APP_DBG_MSG("Failed to store serial number to EEPROM\n");
+      } else {
+          APP_DBG_MSG("Serial number updated to: 0x%llX\n", serial_num);
+      }
+      serial_num = 0x524F5252452D4545;
+  }
   relay_status = read_relay_status();
   relay_status_old = relay_status;
   PERIPHERAL_LITE_SERVER_Data_t relay_statusData;
@@ -938,10 +948,12 @@ void Timer16_Callback(void)
             // LED is currently off, so turn it on.
             // Select color based on battery level:
             // Use green if battery level is 3 or above; otherwise, red.
-            if (battery_percent >= 30)
+            if (battery_percent >= 50)
                 Set_LED("green");
+            else if (battery_percent >= 25)
+                Set_LED("orange");
             else
-                Set_LED("red");
+            	Set_LED("red");
 
             led_on = 1;
         }
