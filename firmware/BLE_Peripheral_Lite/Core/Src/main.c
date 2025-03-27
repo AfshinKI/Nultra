@@ -31,7 +31,7 @@
 //Firmware Version
 const uint8_t majorVer = 1;
 const uint8_t minorVer = 3;
-const uint8_t patchVer = 1;
+const uint8_t patchVer = 2;
 /* USER CODE END PTD */
 
 /* Private define ------------------------------------------------------------*/
@@ -152,7 +152,7 @@ int main(void)
   MX_NVIC_Init();
   /* USER CODE BEGIN 2 */
   EEPROM_ReadSerialNumber(&serial_num);
-  if (serial_num = 0xffffffffffffffff){
+  if (serial_num == 0xffffffffffffffff){
 	  serial_num = 0x2A2D79746D70652D;
       // Optionally, store the new serial number in EEPROM
       if (EEPROM_WriteSerialNumber(serial_num) != HAL_OK) {
