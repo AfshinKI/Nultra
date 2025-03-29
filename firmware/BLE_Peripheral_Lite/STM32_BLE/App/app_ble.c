@@ -67,7 +67,7 @@ static const char a_GapDeviceName[] = {  'N', 'u', 'l', 't', 'r', 'a' }; /* Gap 
 uint8_t a_AdvData[] =
 {
   2, AD_TYPE_FLAGS, FLAG_BIT_LE_GENERAL_DISCOVERABLE_MODE|FLAG_BIT_BR_EDR_NOT_SUPPORTED,
-  7, AD_TYPE_COMPLETE_LOCAL_NAME, 'N', 'u', 'l', 't', 'r', 'a',  /* Complete name */
+  11, AD_TYPE_COMPLETE_LOCAL_NAME, 'N', 'u', 'l', 't', 'r', 'a', '_', '_', '_', '_',  /* Complete name */
   15, AD_TYPE_MANUFACTURER_SPECIFIC_DATA, 0x30, 0x00, 0x00 /*  */, 0x00 /*  */, 0x00 /*  */, 0x00 /*  */, 0x00 /*  */, 0x00 /*  */, 0x00 /*  */, 0x00 /*  */, 0x00 /*  */, 0x00 /*  */, 0x00 /*  */, 0x00 /*  */,
 };
 
@@ -88,6 +88,7 @@ static void connection_complete_event(uint8_t Status,
 static void Adv_Connection(void *arg);
 static void Notification_Flow(void *arg);
 static void fill_advData(uint8_t *p_adv_data, uint8_t tab_size, const uint8_t*p_bd_addr);
+void UpdateAdvDataName(const char *newName, uint8_t nameLength);
 /* USER CODE END PFP */
 
 /* External variables --------------------------------------------------------*/
@@ -1134,6 +1135,49 @@ static void fill_advData(uint8_t *p_adv_data, uint8_t tab_size, const uint8_t* p
     i += ad_length + 1; /* increment the iterator to go on next element*/
   }
 }
+
+void UpdateAdvDataName(const char *newName, uint8_t nameLength)
+{
+    // For example, if the complete local name field in a_AdvData starts at index 2:
+    // First, update the length byte for the name field.
+    // In your a_AdvData, index 2 (0-based) is part of the Flags field,
+    // so determine the proper index for the local name.
+
+    // Let's assume:
+    // index 0: Length for flags field (2)
+    // index 1: AD_TYPE_FLAGS
+    // index 2: Flags value
+    // index 3: Length for the local name field (e.g., 8)
+    // index 4: AD_TYPE_COMPLETE_LOCAL_NAME
+    // index 5: first character of the name
+    // Adjust the indices based on your advertisement data layout.
+
+    uint8_t localNameFieldIndex = 5; // starting index for name characters
+    uint8_t nameFieldLength = nameLength; // number of characters in the name
+
+    // Update the name field in the array
+    for (uint8_t i = 0; i < nameFieldLength; i++)
+    {
+        a_AdvData[localNameFieldIndex + i] = newName[i];
+    }
+
+    // If needed, update the length byte (at index 3) to reflect the new length.
+    // For example, if your current advertisement data uses:
+    // a_AdvData[3] = nameLength + 1; // (name + AD type)
+    a_AdvData[3] = nameLength + 1;
+
+    // Now, if your BLE stack supports dynamic update of advertisement data, call:
+    tBleStatus ret = aci_gap_set_advertising_data(0, ADV_COMPLETE_DATA, sizeof(a_AdvData), a_AdvData);
+    if (ret != BLE_STATUS_SUCCESS)
+    {
+        APP_DBG_MSG("Failed to update adv data, ret: 0x%02X\n", ret);
+    }
+    else
+    {
+        APP_DBG_MSG("Advertisement data updated with new name: %s\n", newName);
+    }
+}
+
 /* USER CODE END FD_LOCAL_FUNCTION */
 
 /* USER CODE BEGIN FD_WRAP_FUNCTIONS */

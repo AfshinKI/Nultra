@@ -24,14 +24,15 @@
 #include "peripheral_lite_server.h"
 #include "peripheral_lite_server_app.h"
 #include <stdbool.h>
+#include "app_ble.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
 /* USER CODE BEGIN PTD */
 //Firmware Version
 const uint8_t majorVer = 1;
-const uint8_t minorVer = 3;
-const uint8_t patchVer = 2;
+const uint8_t minorVer = 4;
+const uint8_t patchVer = 0;
 /* USER CODE END PTD */
 
 /* Private define ------------------------------------------------------------*/
@@ -59,6 +60,7 @@ uint8_t user_password_received[PASSWORD_SIZE] = {0};
 
 // Flag to indicate whether the password was verified.
 bool password_verified = false;
+
 /* USER CODE END PM */
 
 /* Private variables ---------------------------------------------------------*/
@@ -251,6 +253,8 @@ int main(void)
       relay_statusData.Length = sizeof(relay_status);
 
       PERIPHERAL_LITE_SERVER_UpdateValue(PERIPHERAL_LITE_SERVER_SWITCH, &relay_statusData);
+
+
     }
     UpdateBatteryStatus();
 
@@ -733,8 +737,6 @@ void UpdateBatteryStatus(void)
     HAL_ADC_Stop(&hadc1);
 
     // Map the battery voltage (vBatt in Volts) to a percentage.
-    // 0.5 V  ->  0%
-    // 1.5 V  ->  100%
     float batteryPercentage = 0;
 
     // Use a piecewise linear approximation based on typical AA battery discharge characteristics
@@ -757,9 +759,40 @@ void UpdateBatteryStatus(void)
         batteryPercentage = 0.0f;
     }
 
-
     // Convert to an unsigned 16-bit integer
     battery_percent = (uint16_t)batteryPercentage;
+
+    // --- New code to update the local name metadata based on battery percentage ---
+
+    // Create a temporary string to hold the battery percentage in 3-digit format.
+    char batteryStr[4]; // 3 digits + null terminator
+    // Format battery_percent as a three-digit number with leading zeros (e.g., "075")
+    sprintf(batteryStr, "%03d", battery_percent);
+    char localNameMetaData[] = {  'N', 'u', 'l', 't', 'r', 'a', '0','0','0', '0'}; /* Gap Device Name */
+    // Update characters 7, 8, and 9 in the localNameMetaData array.
+    // (Note: Using 0-based indexing, these are indices 6, 7, and 8.)
+    localNameMetaData[7] = batteryStr[0];
+    localNameMetaData[8] = batteryStr[1];
+    localNameMetaData[9] = batteryStr[2];
+
+    // Update the advertisement name based on relay status
+    if (relay_status) {
+        // If relay is ON, use "Nultra1" (from your predefined array)
+  	  localNameMetaData[6]='1';
+    } else {
+        // If relay is OFF, use "Nultra0"
+  	  localNameMetaData[6]='0';
+    }
+
+    // Optionally, you can update localNameMetaData[9] as needed (e.g., leave it as is or set a fixed value).
+    // For example, if you want to ensure a null terminator, you can do:
+    // localNameMetaData[9] = '\0';  // (Only if your advertisement processing expects a null-terminated string)
+
+    // Now push the updated name into your advertisement data.
+    // Assume you have a function UpdateAdvDataName() that updates the advertisement data with a new local name.
+    UpdateAdvDataName((uint8_t *)localNameMetaData, sizeof(localNameMetaData));
+
+    // --- End of new code ---
 
     // Debug print (optional)
     APP_DBG_MSG("Battery Voltage: %.2f V, Percentage: %d%%\n", vBatt, battery_percent);
@@ -772,6 +805,7 @@ void UpdateBatteryStatus(void)
     // Update the VBATT characteristic in the GATT database.
     PERIPHERAL_LITE_SERVER_UpdateValue(PERIPHERAL_LITE_SERVER_VBATT, &vbattData);
 }
+
 
 HAL_StatusTypeDef EEPROM_Write(uint16_t mem_address, uint8_t *data,
                                uint16_t length) {
@@ -907,7 +941,7 @@ void Control_Relay(bool state) {
   if (store_relay_status(state) == HAL_OK) {
     Set_LED("");
   } else {
-    Set_LED("red");
+    Set_LED("");
   }
 }
 

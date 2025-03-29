@@ -248,7 +248,7 @@ void NVM_Process(void );
 void SERVICE_APP_Process(void);
 
 /* USER CODE BEGIN EF */
-
+void UpdateAdvDataName(const char *newName, uint8_t nameLength);
 /* USER CODE END EF */
 
 #ifdef __cplusplus
