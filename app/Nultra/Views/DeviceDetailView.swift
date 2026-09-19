@@ -47,11 +47,16 @@ struct DeviceDetailView: View {
                             Spacer()
                             metric("FIRMWARE", device.firmware ?? "—")
                         }.panel()
-                        if let confirmed = device.lastConfirmed {
+                        if device.stateSource == .advertisement, let date = device.lastBroadcast {
+                            HStack {
+                                Text("Last broadcast · \(device.powerLabel)")
+                                Text(date, style: .relative)
+                            }.font(.caption).foregroundColor(Theme.muted)
+                        } else if let confirmed = device.lastConfirmed {
                             Text("Last read \(confirmed.formatted(date: .omitted, time: .shortened)) · \(device.isOn == true ? "On" : "Off")")
                                 .font(.caption).foregroundColor(Theme.muted)
                         } else {
-                            Text("Advertisement values are estimates until connected.")
+                            Text("Connect to read the switch directly. Broadcasts do not confirm commands.")
                                 .font(.caption).foregroundColor(Theme.muted)
                         }
                         if !active && !bluetooth.demo && hasSavedPassword {

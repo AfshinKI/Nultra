@@ -3,7 +3,7 @@
 
 ## Discovery and identity
 
-`BLEManager._scan_devices` performs a 3-second unrestricted scan and filters names containing `Nultra`. Known devices can advertise `NultraXYYY`: X is one decimal switch-state digit and YYY is decimal battery percent. The iPhone should scan without a service filter so devices that omit service UUIDs from advertisements remain visible; accept Nultra names or the service UUID, then validate the GATT service on connection. Advertisement values are hints, not confirmation of a control operation.
+`BLEManager._scan_devices` performs a 3-second unrestricted scan and filters names containing `Nultra`. Known devices can advertise `NultraXYYY`: X is one decimal switch-state digit and YYY is decimal battery percent. The iPhone should scan without a service filter so devices that omit service UUIDs from advertisements remain visible; accept Nultra names or the service UUID, then validate the GATT service on connection. Each fresh local-name packet updates the disconnected card immediately, including small battery changes. These are observed broadcast values, not confirmation of a control operation. Never use the cached `CBPeripheral.name` as a fresh state packet. Preserve the learned display name separately. During an active connection, GATT reads take precedence over broadcasts. Scanning continues in the foreground until stopped or backgrounded; retained cards show the age of the last broadcast.
 
 iOS exposes a CoreBluetooth peripheral UUID, not the Linux Bluetooth MAC address. Use that UUID as local identity. Do not import Pi addresses as iPhone identities. Names are not unique IDs.
 

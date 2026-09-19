@@ -27,7 +27,7 @@ struct DashboardView: View {
                     if bluetooth.devices.isEmpty { emptyState }
                     else {
                         LazyVStack(spacing: 14) {
-                            ForEach(bluetooth.devices) { device in
+                            ForEach(bluetooth.devices.sorted { $0.name.localizedStandardCompare($1.name) == .orderedAscending }) { device in
                                 DeviceCard(device: device, active: bluetooth.activeID == device.id,
                                            phase: bluetooth.phase) { selected = device }
                             }
@@ -78,13 +78,17 @@ struct DashboardView: View {
             Text(bluetooth.demo ? "Explore your switches, without connecting a thing." : bluetooth.radio)
                 .font(.subheadline).foregroundColor(Theme.muted).fixedSize(horizontal: false, vertical: true)
             if !bluetooth.demo {
+                if bluetooth.scanning {
+                    Text("Listening for state and battery broadcasts while Nultra is open.")
+                        .font(.caption).foregroundColor(Theme.mint)
+                }
                 Button {
                     bluetooth.scanning ? bluetooth.stopScan() : bluetooth.startScan()
                 } label: {
                     HStack(spacing: 10) {
                         if bluetooth.scanning { ProgressView().tint(Theme.background) }
                         else { Image(systemName: "dot.radiowaves.left.and.right") }
-                        Text(bluetooth.scanning ? "Stop scanning" : "Find switches")
+                        Text(bluetooth.scanning ? "Stop listening" : "Find switches")
                     }
                 }.buttonStyle(PrimaryButton())
             }
@@ -129,7 +133,7 @@ private struct DeviceCard: View {
                         .frame(width: 48, height: 48)
                         .background(Theme.mint.opacity(device.isOn == true ? 0.12 : 0.04), in: RoundedRectangle(cornerRadius: 16))
                     Spacer()
-                    Label(device.battery.map { "\($0)%" } ?? "—", systemImage: "battery.100")
+                    Label(device.battery.map { "\($0)%" } ?? "—", systemImage: device.batterySymbol)
                         .font(.caption.monospacedDigit()).foregroundColor(Theme.muted)
                 }
                 HStack {
@@ -139,11 +143,24 @@ private struct DeviceCard: View {
                             .font(.caption).foregroundColor(active ? Theme.mint : Theme.muted)
                     }
                     Spacer()
-                    Image(systemName: "arrow.up.right").font(.body.weight(.medium)).foregroundColor(Theme.mint)
+                    Text(device.powerLabel.uppercased())
+                        .font(.caption.bold()).foregroundColor(device.isOn == true ? Theme.mint : Theme.muted)
+                        .padding(.horizontal, 12).padding(.vertical, 8)
+                        .background(Theme.mint.opacity(0.06), in: Capsule())
                 }
+                HStack {
+                    Text(device.signal)
+                    Spacer()
+                    if device.stateSource == .advertisement, let date = device.lastBroadcast {
+                        Text("Broadcast")
+                        Text(date, style: .relative)
+                    } else if device.stateSource == .gatt {
+                        Text("Last read from switch")
+                    }
+                }.font(.caption2).foregroundColor(Theme.muted)
             }.panel()
         }.buttonStyle(.plain)
-        .accessibilityLabel("\(device.name), \(active ? phase.label : "tap to connect")")
+        .accessibilityLabel("\(device.name), \(device.powerLabel), \(active ? phase.label : "tap to connect")")
         .accessibilityIdentifier("device.\(device.name)")
     }
 }

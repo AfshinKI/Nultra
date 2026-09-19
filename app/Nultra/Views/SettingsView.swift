@@ -32,7 +32,7 @@ struct SettingsView: View {
                         Text("Keep your switch nearby and powered on. If it won’t connect, disconnect it from the Raspberry Pi first. Nultra controls one switch at a time and disconnects when it goes into the background.")
                             .font(.subheadline).foregroundColor(Theme.muted)
                     }.panel()
-                    Text("VERSION 0.1 · PERSONAL EDITION").font(.system(size: 10, weight: .medium, design: .monospaced))
+                    Text("VERSION 0.2 · PERSONAL EDITION").font(.system(size: 10, weight: .medium, design: .monospaced))
                         .tracking(1.5).foregroundColor(Theme.muted).frame(maxWidth: .infinity)
                 }.padding(24)
             }.background(Theme.background.ignoresSafeArea())

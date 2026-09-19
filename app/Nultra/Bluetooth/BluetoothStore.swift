@@ -41,7 +41,6 @@ final class BluetoothStore: NSObject, ObservableObject {
     private var targetName: String?
     private var writeQueued = false
     private var deadline: DispatchWorkItem?
-    private var scanDeadline: DispatchWorkItem?
     private var scanWhenReady = false
     private let credentials = CredentialStore()
 
@@ -63,20 +62,14 @@ final class BluetoothStore: NSObject, ObservableObject {
             return
         }
         stopScan()
-        // Keep only the active device. A new scan should not present old devices as nearby.
-        devices.removeAll { $0.id != activeID }
-        peripherals = peripherals.filter { $0.key == activeID }
+        // Keep known names and last observations across scans. The UI labels
+        // those values as last observed, never as proof a switch is reachable.
         scanning = true
         central?.scanForPeripherals(withServices: nil, options: [CBCentralManagerScanOptionAllowDuplicatesKey: true])
-        let task = DispatchWorkItem { [weak self] in self?.stopScan() }
-        scanDeadline = task
-        DispatchQueue.main.asyncAfter(deadline: .now() + 8, execute: task)
     }
 
     func stopScan() {
         scanWhenReady = false
-        scanDeadline?.cancel()
-        scanDeadline = nil
         central?.stopScan()
         scanning = false
     }
@@ -106,7 +99,6 @@ final class BluetoothStore: NSObject, ObservableObject {
                 password = data
             }
         } catch { errorMessage = error.localizedDescription; return }
-        stopScan()
         errorMessage = nil
         current = peripheral
         activeID = id
@@ -135,7 +127,7 @@ final class BluetoothStore: NSObject, ObservableObject {
     func setPower(_ value: Bool) {
         guard phase == .ready, let id = activeID else { return }
         if demo {
-            update(id) { $0.isOn = value; $0.lastConfirmed = Date() }
+            update(id) { $0.isOn = value; $0.lastConfirmed = Date(); $0.stateSource = .demo }
             return
         }
         phase = .changing
@@ -181,9 +173,9 @@ final class BluetoothStore: NSObject, ObservableObject {
         stopScan()
         demo = enabled
         devices = enabled ? [
-            SwitchDevice(id: UUID(), name: "DESKLAMP", rssi: -48, battery: 92, isOn: true, firmware: "v1.0.0", lastConfirmed: Date()),
-            SwitchDevice(id: UUID(), name: "CORNER01", rssi: -65, battery: 78, isOn: false, firmware: "v1.0.0", lastConfirmed: Date()),
-            SwitchDevice(id: UUID(), name: "SHELFLED", rssi: -57, battery: 86, isOn: true, firmware: "v1.0.0", lastConfirmed: Date())
+            SwitchDevice(id: UUID(), name: "DESKLAMP", rssi: -48, battery: 92, isOn: true, firmware: "v1.0.0", lastConfirmed: Date(), stateSource: .demo),
+            SwitchDevice(id: UUID(), name: "CORNER01", rssi: -65, battery: 78, isOn: false, firmware: "v1.0.0", lastConfirmed: Date(), stateSource: .demo),
+            SwitchDevice(id: UUID(), name: "SHELFLED", rssi: -57, battery: 86, isOn: true, firmware: "v1.0.0", lastConfirmed: Date(), stateSource: .demo)
         ] : []
         peripherals.removeAll()
         errorMessage = nil
@@ -264,17 +256,20 @@ extension BluetoothStore: CBCentralManagerDelegate {
     func centralManager(_ central: CBCentralManager, didDiscover peripheral: CBPeripheral,
                         advertisementData: [String: Any], rssi RSSI: NSNumber) {
         guard scanning, !demo else { return }
-        let advertisedName = advertisementData[CBAdvertisementDataLocalNameKey] as? String ?? peripheral.name ?? ""
+        let localName = advertisementData[CBAdvertisementDataLocalNameKey] as? String
+        let advertisedName = localName ?? peripheral.name ?? ""
         let services = advertisementData[CBAdvertisementDataServiceUUIDsKey] as? [CBUUID] ?? []
         guard advertisedName.contains("Nultra") || services.contains(serviceID) else { return }
         peripherals[peripheral.identifier] = peripheral
-        if let index = devices.firstIndex(where: { $0.id == peripheral.identifier }) {
-            devices[index].rssi = RSSI.intValue
-        } else {
-            let hint = SwitchProtocol.advertisement(advertisedName)
-            devices.append(SwitchDevice(id: peripheral.identifier, name: advertisedName.isEmpty ? "Nultra switch" : advertisedName,
-                                        rssi: RSSI.intValue, battery: hint?.battery, isOn: hint?.isOn))
+        if !devices.contains(where: { $0.id == peripheral.identifier }) {
+            let label = "Nultra · " + peripheral.identifier.uuidString.prefix(4)
+            devices.append(SwitchDevice(id: peripheral.identifier, name: label, rssi: RSSI.intValue))
         }
+        update(peripheral.identifier) {
+            $0.observe(localName: localName, rssi: RSSI.intValue, at: Date(),
+                       acceptsState: activeID != peripheral.identifier)
+        }
+
     }
 
     func centralManager(_ central: CBCentralManager, didConnect peripheral: CBPeripheral) {
@@ -344,7 +339,7 @@ extension BluetoothStore: CBPeripheralDelegate {
             switch characteristic.uuid {
             case stateID:
                 let value = try SwitchProtocol.power(data)
-                update(id) { $0.isOn = value; $0.lastConfirmed = Date() }
+                update(id) { $0.isOn = value; $0.lastConfirmed = Date(); $0.stateSource = .gatt }
                 if phase == .changing {
                     guard value == targetPower else {
                         fail("The requested power state was not confirmed. Check the password and try again."); return

@@ -39,6 +39,24 @@ struct ProtocolChecks {
         for value in ["Nultra", "Nultra1999", "Nultra2092", "Nultra1-01", "Other1092"] {
             require(SwitchProtocol.advertisement(value) == nil, "Invalid advertisement accepted")
         }
+        var device = SwitchDevice(id: UUID(), name: "DESKLAMP", rssi: -80)
+        let first = Date(timeIntervalSince1970: 100)
+        device.observe(localName: "Nultra1092", rssi: -50, at: first)
+        require(device.isOn == true && device.battery == 92, "Initial broadcast missing")
+        device.observe(localName: "Nultra0091", rssi: -60, at: first.addingTimeInterval(1))
+        require(device.isOn == false && device.battery == 91, "Repeated broadcast not applied")
+        require(device.name == "DESKLAMP" && device.lastConfirmed == nil, "Broadcast overwrote identity or confirmation")
+        for value: String? in [nil, "Nultra1999"] {
+            device.observe(localName: value, rssi: -70, at: first.addingTimeInterval(2))
+            require(device.isOn == false && device.battery == 91, "Invalid packet overwrote state")
+            require(device.lastBroadcast == first.addingTimeInterval(1), "Invalid packet refreshed broadcast age")
+        }
+        device.stateSource = .gatt
+        device.lastConfirmed = first
+        device.observe(localName: "Nultra1001", rssi: -40, at: first.addingTimeInterval(3), acceptsState: false)
+        require(device.isOn == false && device.battery == 91 && device.stateSource == .gatt, "Broadcast replaced active GATT state")
+        require(device.rssi == -40 && device.lastSeen == first.addingTimeInterval(3), "Presence not updated during GATT session")
+        require(device.lastConfirmed == first, "Broadcast confirmed a command")
         print("Passed \(checks) protocol checks")
     }
 }

@@ -44,7 +44,7 @@ The app implements discovery, per-switch password storage in Keychain, connectio
 
 1. If using demo mode, disconnect the sample switch, then turn off **Settings → Explore demo mode**.
 2. Power your Nultra switch and place it near the iPhone. Release its Raspberry Pi BLE connection during the first test; some firmware may accept only one controller.
-3. Tap **Find switches** and allow Bluetooth access. Scan takes up to eight seconds.
+3. Tap **Find switches** and allow Bluetooth access. The app keeps listening for state and battery broadcasts while open. Tap **Stop listening** to stop. After returning from the background, tap **Find switches** again. Cards retain their last observed values and show their age.
 4. Tap your switch. Enter its actual **8-character ASCII password**, then **Save & connect**. Use the credential configured in your switch/reference server; it is intentionally not copied into the app or this README.
 5. Wait for **Connected** and the name/battery/state readings. Tap **On**, confirm the physical switch changes, then test **Off**. The app checks the state reported by the switch before confirming a command.
 6. Rename uses exactly eight printable ASCII characters, such as `DESKLAMP`. Disconnect before choosing another switch.
@@ -75,3 +75,6 @@ bash scripts/check.sh
 ```
 
 That runs portable protocol checks and macOS type checking; it does not build an iPhone IPA. Project structure changes can be regenerated with `python3 scripts/generate_project.py`.
+
+
+The BLE implementation follows the latest `fancy` branch of the reference server. See [broadcast behavior and web UI adaptations](docs/FANCY_REFERENCE.md).

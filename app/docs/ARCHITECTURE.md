@@ -28,7 +28,7 @@ The server has no authentication-status characteristic. The UI says “Connected
 
 ## Data freshness
 
-Scanning runs for eight seconds or until stopped. Starting a new scan drops inactive discovery results so old devices are not presented as nearby. Power and battery from advertisements are unconfirmed hints. Connected controls show the last read value while waiting; controls remain disabled during operations. Disconnected cards are labeled “Tap to connect,” and the detail view includes the last read time. Refresh explicitly reads name, battery, and state. Notifications are not implemented because the reference client does not define their payload.
+Scanning continues in the foreground until stopped or backgrounded. Repeated packets update power, battery, RSSI, and last-seen time. Missing or malformed local names update presence only. Cached peripheral names never refresh state. Learned display names and discovered devices are retained for the session; cards show their last broadcast age. Active connections ignore broadcast state so a packet cannot replace GATT readback or confirm a command. Connected controls show the last read value while waiting; controls remain disabled during operations. Disconnected cards are labeled “Tap to connect,” and the detail view includes the last read time. Refresh explicitly reads name, battery, and state. Notifications are not implemented because the reference client does not define their payload.
 
 ## Deliberate MVP boundaries
 

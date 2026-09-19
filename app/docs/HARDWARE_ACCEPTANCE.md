@@ -8,7 +8,10 @@ Status: **not yet run**. Record iPhone model, iOS version, app commit, switch fi
 | Bluetooth denied | Clear Settings guidance; no crash or write | Pending |
 | Bluetooth off | Clear status; scanning possible after radio restored | Pending |
 | Discovery | Nearby Nultra appears even if advertisement omits service UUID | Pending |
-| Empty scan | Scan stops after eight seconds; can retry | Pending |
+| Foreground listening | Continues until Stop listening or background; can restart | Pending |
+| Repeated broadcasts | Change switch from Pi; disconnected card updates power and battery without connecting | Pending |
+| State freshness | Stop broadcasting; last-broadcast age increases, learned name remains | Pending |
+| Active command | Broadcast does not override connected readback or confirm a write | Pending |
 | Correct credential | Name, version, battery and power read successfully | Pending |
 | Wrong credential | Report firmware error or unconfirmed command; never assert verified authentication | Pending |
 | Explicit On | Send byte 1; confirm read-back and physical output | Pending |
