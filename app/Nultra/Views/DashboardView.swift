@@ -65,7 +65,7 @@ struct DashboardView: View {
             .sheet(item: $selected) { device in DeviceDetailView(deviceID: device.id).environmentObject(bluetooth) }
             .sheet(isPresented: $showingSettings) { SettingsView().environmentObject(bluetooth) }
             .alert("Switch needs attention", isPresented: Binding(
-                get: { bluetooth.errorMessage != nil && selected == nil },
+                get: { bluetooth.errorMessage != nil && selected == nil && !showingSettings },
                 set: { if !$0 { bluetooth.errorMessage = nil } }
             )) { Button("OK", role: .cancel) { bluetooth.errorMessage = nil } }
             message: { Text(bluetooth.errorMessage ?? "") }

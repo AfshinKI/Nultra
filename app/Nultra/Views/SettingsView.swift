@@ -65,7 +65,7 @@ struct SettingsView: View {
                 .navigationTitle("Menu").navigationBarTitleDisplayModeCompat()
                 .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } } }
                 .onDisappear { password = "" }
-                .alert("Password could not be saved", isPresented: Binding(
+                .alert("Needs attention", isPresented: Binding(
                     get: { bluetooth.errorMessage != nil }, set: { if !$0 { bluetooth.errorMessage = nil } }
                 )) { Button("OK") { bluetooth.errorMessage = nil } }
                 message: { Text(bluetooth.errorMessage ?? "") }
