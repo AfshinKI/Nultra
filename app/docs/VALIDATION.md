@@ -16,7 +16,7 @@
 
 ## iPhone 13 mini / iOS 26.2 interface
 
-Both UI tests passed. The packaged app, project and UI test sources matched the tested revision. Only packaging and documentation changed between those revisions.
+Both UI tests passed on the packaged source revision. The device-package and interface jobs completed successfully. The screenshots came from the preceding successful run with identical app and UI test sources.
 
 
 Simulator tests do not validate physical BLE transport or personal provisioning. The earlier generic simulator startup issue does not apply to these successful device-specific checks.
