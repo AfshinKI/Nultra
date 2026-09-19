@@ -6,8 +6,9 @@ android {
         applicationId 'com.afshinki.nultra'
         minSdk 26
         targetSdk 35
-        versionCode 7
-        versionName '0.7.0'
+        testInstrumentationRunner 'androidx.test.runner.AndroidJUnitRunner'
+        versionCode 8
+        versionName '0.8.0'
     }
     signingConfigs {
         release {
@@ -27,4 +28,9 @@ android {
     buildFeatures { buildConfig true }
     lint { abortOnError true }
 }
-dependencies { testImplementation 'junit:junit:4.13.2' }
+dependencies {
+    testImplementation 'junit:junit:4.13.2'
+    testImplementation 'org.json:json:20240303'
+    androidTestImplementation 'androidx.test:runner:1.6.2'
+    androidTestImplementation 'junit:junit:4.13.2'
+}

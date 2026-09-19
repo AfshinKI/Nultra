@@ -9,19 +9,269 @@ import android.content.pm.PackageManager;
 import android.location.LocationManager;
 import android.os.*;
 import java.util.*;
+import java.util.concurrent.*;
 import org.json.*;
 
 @SuppressLint(
     "MissingPermission") // All entry points require foreground runtime grants; security failures
 // close sessions.
 final class BleStore {
+  private static BleStore instance;
+
+  static synchronized BleStore get(Context context) {
+    if (instance == null) instance = new BleStore(context);
+    return instance;
+  }
+
+  final ServerSettings server;
+  final ExecutorService network = Executors.newFixedThreadPool(3);
+  final Map<String, Remote> remote = new LinkedHashMap<>();
+  List<ServerClient.Row> serverRows = new ArrayList<>();
+  long serverSeen = -1;
+  String serverStatus = "Not checked";
+  ServerClient pollClient;
+  Future<?> pollFuture;
+  int generation;
+  boolean backgroundCommand;
+  java.util.function.Consumer<String> completion;
+  int bulkQueued;
+  final Runnable poll = () -> checkServer();
+  final Runnable pollTimeout = () -> finishPollTimeout();
+
+  boolean bluetoothReady() {
+    try {
+      return adapter != null
+          && (Build.VERSION.SDK_INT < 31
+              || context.checkSelfPermission(Manifest.permission.BLUETOOTH_CONNECT)
+                  == PackageManager.PERMISSION_GRANTED)
+          && adapter.isEnabled();
+    } catch (SecurityException e) {
+      return false;
+    }
+  }
+
+  boolean online(Device d) {
+    if (d.online(SystemClock.elapsedRealtime())) return true;
+    if (!server.enabled()
+        || demo
+        || serverSeen < 0
+        || SystemClock.elapsedRealtime() - serverSeen >= 30000) return false;
+    try {
+      match(d, serverRows);
+      return true;
+    } catch (Exception e) {
+      return false;
+    }
+  }
+
+  ServerClient.Row match(Device d, List<ServerClient.Row> rows) throws java.io.IOException {
+    long same = visible().stream().filter(x -> x.name.equals(d.name)).count();
+    return ServerClient.resolve(d.address, d.name, server.mapping(d.address), same == 1, rows);
+  }
+
+  void serverChanged() {
+    generation++;
+    cancelPoll();
+    for (Remote r : new ArrayList<>(remote.values())) r.finish("Server settings changed.", false);
+    serverRows.clear();
+    serverSeen = -1;
+    serverStatus = "Not checked";
+    if (foreground && !demo) checkServer();
+    notifyUI();
+  }
+
+  void cancelPoll() {
+    main.removeCallbacks(poll);
+    main.removeCallbacks(pollTimeout);
+    if (pollFuture != null) pollFuture.cancel(true);
+    if (pollClient != null) pollClient.cancel();
+    pollClient = null;
+    pollFuture = null;
+  }
+
+  void finishPollTimeout() {
+    cancelPoll();
+    serverSeen = -1;
+    serverStatus = "Server check timed out.";
+    notifyUI();
+    schedulePoll();
+  }
+
+  void schedulePoll() {
+    main.removeCallbacks(poll);
+    if (foreground && !demo && server.enabled()) main.postDelayed(poll, 15000);
+  }
+
+  void checkServer() {
+    if (!foreground || demo || !server.enabled() || pollClient != null) return;
+    if (anyBusy()) {
+      schedulePoll();
+      return;
+    }
+    final ServerClient client = new ServerClient(server.url());
+    pollClient = client;
+    serverStatus = "Checking server…";
+    main.postDelayed(pollTimeout, 8000);
+    pollFuture =
+        network.submit(
+            () -> {
+              List<ServerClient.Row> rows = null;
+              String error = null;
+              try {
+                rows = client.devices();
+              } catch (Exception e) {
+                error = "Server unavailable. Check address and network.";
+              }
+              final List<ServerClient.Row> result = rows;
+              final String failure = error;
+              main.post(
+                  () -> {
+                    if (pollClient != client) return;
+                    main.removeCallbacks(pollTimeout);
+                    pollClient = null;
+                    pollFuture = null;
+                    if (failure != null) {
+                      serverSeen = -1;
+                      serverStatus = failure;
+                    } else {
+                      serverRows = result;
+                      serverSeen = SystemClock.elapsedRealtime();
+                      serverStatus = result.size() + " server switches loaded";
+                      for (Device d : visible())
+                        try {
+                          ServerClient.Row row = match(d, result);
+                          if (server.mapping(d.address) == null) server.map(d.address, row.address);
+                          if (!d.online(SystemClock.elapsedRealtime()) && !busy(d)) {
+                            d.power = row.power;
+                            d.battery = row.battery;
+                            d.serverReported = true;
+                          }
+                        } catch (Exception ignored) {
+                        }
+                    }
+                    notifyUI();
+                    schedulePoll();
+                  });
+            });
+  }
+
+  void remotePower(Device d, Transaction t) {
+    Remote r = new Remote(d, t);
+    remote.put(d.address, r);
+    r.start();
+  }
+
+  final class Remote {
+    final Device d;
+    final Transaction t;
+    final ServerClient client;
+    final String pinned;
+    final boolean unique;
+    final int epoch;
+    Future<?> future;
+    final Runnable timeout =
+        () -> finish("Server timed out; command may already be queued.", false);
+
+    Remote(Device d, Transaction t) {
+      this.d = d;
+      this.t = t;
+      client = new ServerClient(server.url());
+      pinned = server.mapping(d.address);
+      unique = visible().stream().filter(x -> x.name.equals(d.name)).count() == 1;
+      epoch = generation;
+    }
+
+    void start() {
+      main.postDelayed(timeout, 8000);
+      future =
+          network.submit(
+              () -> {
+                String error = null;
+                ServerClient.Row row = null;
+                try {
+                  row = ServerClient.resolve(d.address, d.name, pinned, unique, client.devices());
+                  client.power(row.address, t.target);
+                } catch (Exception e) {
+                  error =
+                      e instanceof java.io.IOException
+                          ? (e.getMessage() == null ? "Server request failed." : e.getMessage())
+                          : "Invalid server response.";
+                }
+                final String failure = error;
+                final ServerClient.Row selected = row;
+                main.post(
+                    () -> {
+                      if (remote.get(d.address) != this || epoch != generation) return;
+                      if (selected != null && pinned == null)
+                        server.map(d.address, selected.address);
+                      finish(failure, failure == null);
+                    });
+              });
+    }
+
+    void finish(String error, boolean queued) {
+      if (remote.remove(d.address) != this) return;
+      main.removeCallbacks(timeout);
+      client.cancel();
+      if (future != null) future.cancel(true);
+      message = d.name + (queued ? ": queued by server; awaiting reported state." : ": " + error);
+      finishPower(error, queued);
+      pump();
+      notifyUI();
+    }
+  }
+
+  void finishPower(String error, boolean queued) {
+    if (bulkRemaining > 0) {
+      if (error != null) bulkFailed++;
+      if (queued) bulkQueued++;
+      if (--bulkRemaining == 0)
+        message =
+            bulkFailed > 0
+                ? bulkFailed + " switches failed; " + bulkQueued + " queued by server."
+                : bulkQueued > 0
+                    ? bulkQueued + " queued by server; other switches confirmed over Bluetooth."
+                    : "All switches confirmed.";
+    }
+    if (backgroundCommand && bulkRemaining == 0 && !anyBusy()) {
+      java.util.function.Consumer<String> done = completion;
+      completion = null;
+      backgroundCommand = false;
+      schedulePoll();
+      if (done != null) done.accept(message);
+    }
+  }
+
+  boolean backgroundPower(String address, boolean on, java.util.function.Consumer<String> done) {
+    if (demo || anyBusy() || backgroundCommand) return false;
+    List<Device> list = visible();
+    if (!address.equals("*")) list.removeIf(d -> !d.address.equals(address));
+    if (list.isEmpty()) return false;
+    cancelPoll();
+    backgroundCommand = true;
+    completion = done;
+    bulkRemaining = list.size();
+    bulkFailed = 0;
+    bulkQueued = 0;
+    for (Device d : list) queue.put(d.address, new Transaction(Transaction.Kind.POWER, on, null));
+    pump();
+    return true;
+  }
+
+  void cancelBackground() {
+    if (!backgroundCommand) return;
+    backgroundCommand = false;
+    completion = null;
+    cancelAll("Background action timed out or stopped.");
+  }
+
   static final class Device {
     final String address;
     String name = "", firmware = "";
     Boolean power;
     int battery = -1, rssi = -100;
     long seen = -1, signalAt = -1;
-    boolean attempted;
+    boolean attempted, serverReported;
 
     Device(String a) {
       address = a;
@@ -67,7 +317,9 @@ final class BleStore {
           if (permissions() && adapter != null && adapter.isEnabled()) startScan();
           else {
             stopScan();
-            cancelAll("Bluetooth is off.");
+            for (Session session : new ArrayList<>(sessions.values()))
+              session.apply(session.t.fail("Bluetooth is off."));
+            pump();
             message = "Turn on Bluetooth to listen for switches.";
             notifyUI();
           }
@@ -77,6 +329,7 @@ final class BleStore {
   BleStore(Context c) {
     context = c.getApplicationContext();
     credentials = new CredentialStore(context);
+    server = new ServerSettings(context);
     BluetoothManager manager = context.getSystemService(BluetoothManager.class);
     adapter = manager == null ? null : manager.getAdapter();
     try {
@@ -131,6 +384,7 @@ final class BleStore {
     context.registerReceiver(radio, new IntentFilter(BluetoothAdapter.ACTION_STATE_CHANGED));
     startScan();
     main.post(tick);
+    checkServer();
   }
 
   void pause() {
@@ -139,7 +393,8 @@ final class BleStore {
     context.unregisterReceiver(radio);
     main.removeCallbacks(tick);
     stopScan();
-    cancelAll("Operation interrupted when Nultra left the foreground.");
+    cancelPoll();
+    if (!backgroundCommand) cancelAll("Operation interrupted when Nultra left the foreground.");
     for (Device d : devices.values()) d.seen = -1;
   }
 
@@ -241,6 +496,7 @@ final class BleStore {
     if (!sessions.containsKey(address)) {
       int[] state = Protocol.advertisement(advertised);
       if (state != null) {
+        d.serverReported = false;
         d.power = state[0] == 1;
         d.battery = state[1];
       }
@@ -259,11 +515,13 @@ final class BleStore {
   }
 
   boolean busy(Device d) {
-    return sessions.containsKey(d.address) || queue.containsKey(d.address);
+    return sessions.containsKey(d.address)
+        || queue.containsKey(d.address)
+        || remote.containsKey(d.address);
   }
 
   boolean anyBusy() {
-    return !sessions.isEmpty() || !queue.isEmpty();
+    return !sessions.isEmpty() || !queue.isEmpty() || !remote.isEmpty();
   }
 
   void enqueue(Device d, Transaction t) {
@@ -274,13 +532,24 @@ final class BleStore {
   }
 
   void pump() {
-    if (!foreground || demo || !permissions() || adapter == null || !adapter.isEnabled()) return;
-    while (sessions.size() < 3 && !queue.isEmpty()) {
+    if ((!foreground && !backgroundCommand) || demo) return;
+    while (sessions.size() + remote.size() < 3 && !queue.isEmpty()) {
       String address = queue.keySet().iterator().next();
       Transaction t = queue.remove(address);
-      Session s = new Session(devices.get(address), t);
-      sessions.put(address, s);
-      s.start();
+      Device d = devices.get(address);
+      if (t.kind == Transaction.Kind.POWER
+          && server.enabled()
+          && (!bluetoothReady()
+              || (!backgroundCommand && !d.online(SystemClock.elapsedRealtime())))) {
+        remotePower(d, t);
+      } else if (bluetoothReady()) {
+        Session session = new Session(d, t);
+        sessions.put(address, session);
+        session.start();
+      } else {
+        message = "Bluetooth unavailable. Enable Bluetooth or configure a backup server.";
+        if (t.kind == Transaction.Kind.POWER) finishPower(message, false);
+      }
     }
   }
 
@@ -290,7 +559,7 @@ final class BleStore {
       notifyUI();
       return;
     }
-    if (!ready() || busy(d)) return;
+    if (!foreground || backgroundCommand || busy(d)) return;
     enqueue(d, new Transaction(Transaction.Kind.POWER, on, null));
   }
 
@@ -301,7 +570,7 @@ final class BleStore {
       notifyUI();
       return;
     }
-    if (!ready() || busy(d)) return;
+    if (backgroundCommand || !ready() || busy(d)) return;
     enqueue(d, new Transaction(Transaction.Kind.RENAME, false, n));
   }
 
@@ -322,9 +591,10 @@ final class BleStore {
       notifyUI();
       return;
     }
-    if (!ready() || list.isEmpty()) return;
+    if ((!foreground && !backgroundCommand) || list.isEmpty()) return;
     bulkRemaining = list.size();
     bulkFailed = 0;
+    bulkQueued = 0;
     message = "";
     for (Device d : list) queue.put(d.address, new Transaction(Transaction.Kind.POWER, on, null));
     pump();
@@ -334,7 +604,12 @@ final class BleStore {
   void cancelAll(String reason) {
     queue.clear();
     bulkRemaining = 0;
-    for (Session s : new ArrayList<>(sessions.values())) s.apply(s.t.fail(reason));
+    for (Session s : new ArrayList<>(sessions.values())) {
+      s.cancelled = true;
+      s.apply(s.t.fail(reason));
+      s.closed();
+    }
+    for (Remote r : new ArrayList<>(remote.values())) r.finish(reason, false);
     notifyUI();
   }
 
@@ -347,6 +622,8 @@ final class BleStore {
   void demo(boolean enabled) {
     if (demo == enabled) return;
     stopScan();
+    cancelPoll();
+    cancelBackground();
     cancelAll("Mode changed.");
     demo = enabled;
     // Real devices stay intact in storage; demo never writes the catalog.
@@ -368,6 +645,7 @@ final class BleStore {
       devices.putAll(restored.devices);
       message = "";
       startScan();
+      checkServer();
     }
     notifyUI();
   }
@@ -378,12 +656,18 @@ final class BleStore {
     BluetoothGatt gatt;
     BluetoothGattCharacteristic password, target;
     byte[] credential;
+    boolean cancelled;
+    final Runnable connectTimeout;
     final Runnable timeout;
     final Runnable cleanup = () -> closed();
 
     Session(Device d, Transaction t) {
       this.d = d;
       this.t = t;
+      connectTimeout =
+          () -> {
+            if (this.t.stage == Transaction.Stage.CONNECT) apply(this.t.fail("Switch not nearby."));
+          };
       timeout = () -> apply(this.t.fail("Switch timed out."));
     }
 
@@ -391,6 +675,7 @@ final class BleStore {
       try {
         credential = Protocol.ascii(credentials.get(d.address));
         main.postDelayed(timeout, 8000);
+        if (backgroundCommand && server.enabled()) main.postDelayed(connectTimeout, 2000);
         gatt =
             adapter
                 .getRemoteDevice(d.address)
@@ -428,6 +713,7 @@ final class BleStore {
             break;
           case DISCONNECT:
             main.removeCallbacks(timeout);
+            main.removeCallbacks(connectTimeout);
             credential = null;
             if (gatt != null) {
               main.postDelayed(cleanup, 1500);
@@ -461,6 +747,7 @@ final class BleStore {
       if (sessions.get(d.address) != this) return;
       main.removeCallbacks(timeout);
       main.removeCallbacks(cleanup);
+      main.removeCallbacks(connectTimeout);
       t.disconnected();
       if (gatt != null)
         try {
@@ -469,24 +756,29 @@ final class BleStore {
         }
       sessions.remove(d.address);
       credential = null;
-      if (!demo && devices.get(d.address) == d) {
+      if (!cancelled && !demo && devices.get(d.address) == d) {
+        if (t.error != null
+            && t.kind == Transaction.Kind.POWER
+            && server.enabled()
+            && (foreground || backgroundCommand)) {
+          remotePower(d, t);
+          pump();
+          notifyUI();
+          return;
+        }
         if (t.error == null) {
           if (t.identity != null) {
             d.name = t.identity.name;
             d.firmware = t.identity.firmware;
             save();
           }
-          if (t.power != null) d.power = t.power;
+          if (t.power != null) {
+            d.power = t.power;
+            d.serverReported = false;
+            message = d.name + ": confirmed.";
+          }
         } else message = (d.name.isEmpty() ? "New switch" : d.name) + ": " + t.error;
-        if (bulkRemaining > 0 && t.kind == Transaction.Kind.POWER) {
-          if (t.error != null) bulkFailed++;
-          bulkRemaining--;
-          if (bulkRemaining == 0)
-            message =
-                bulkFailed == 0
-                    ? "All switches confirmed."
-                    : bulkFailed + " switches could not be changed.";
-        }
+        if (t.kind == Transaction.Kind.POWER) finishPower(t.error, false);
       }
       pump();
       notifyUI();

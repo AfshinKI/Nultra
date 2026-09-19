@@ -1,3 +1,20 @@
+# Validation record — v0.8.0
+
+Android adds optional server fallback and home-screen background controls. iPhone behaviour is unchanged; only its version/build changes to 0.8.0 (8).
+
+Local validation passed:
+
+- **24 Java unit tests**: existing protocol/transaction checks plus configured URL validation, stable-MAC matching, pinned mappings, duplicate/stale/invalid-address rejection, unknown state/battery handling, exact GET/POST routes, queue error rejection, and cancelled-client suppression.
+- **Two Android 15/API 35 emulator instrumentation tests**: the widget-equivalent foreground-service PendingIntent sends GET then explicit Off without opening MainActivity, does not mistake queue admission for confirmed power, and clears active work; cancelling while a server GET is in flight prevents a subsequent POST.
+- **Signed release APK UI smoke**: first launch, six compact demo cards, all/individual power, details, encrypted password persistence/reset, optional backup URL and enabled-state persistence across force-stop/relaunch, disabling fallback, and no runtime crash. Menu and server settings screenshots were visually reviewed.
+- Release lint: zero errors; three advisories for the test runner version and existing launcher resource refinements. Signing matches the pinned existing certificate; package ID, API 26 minimum, versionCode 8, non-debuggable status, and new network/service permissions pass packaging checks.
+- 1,300 portable Swift protocol checks, macOS type checking, plist/project validation, and five distribution tests. The distribution socket fixture required running outside the filesystem/network sandbox.
+
+
+Physical Samsung BLE timing, launcher widget placement, locked-phone execution, and real server-controlled lights require [Android hardware acceptance](ANDROID.md). The emulator tests use only fictional switches and local fixture servers. No VPN is implemented.
+
+---
+
 # Validation record — v0.7.0
 
 

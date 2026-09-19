@@ -32,7 +32,7 @@ public final class MainActivity extends Activity implements BleStore.Listener {
   @Override
   public void onCreate(Bundle state) {
     super.onCreate(state);
-    store = new BleStore(this);
+    store = BleStore.get(this);
     store.listener = this;
     LinearLayout root = column();
     root.setBackgroundColor(BG);
@@ -100,7 +100,7 @@ public final class MainActivity extends Activity implements BleStore.Listener {
 
   @Override
   protected void onDestroy() {
-    store.listener = null;
+    if (store.listener == this) store.listener = null;
     super.onDestroy();
   }
 
@@ -227,7 +227,7 @@ public final class MainActivity extends Activity implements BleStore.Listener {
       glyph.d = device;
       glyph.invalidate();
       glyph.setContentDescription(
-          (device.online(SystemClock.elapsedRealtime()) ? "Online" : "Offline")
+          (store.online(device) ? "Online" : "Offline")
               + ", "
               + (device.battery >= 0
                   ? (device.battery < 10 ? "Low battery" : "Battery available")
@@ -282,6 +282,7 @@ public final class MainActivity extends Activity implements BleStore.Listener {
                 (d.power == null
                         ? "Power unknown"
                         : Boolean.TRUE.equals(d.power) ? "Power is on" : "Power is off")
+                    + (d.serverReported ? "\nReported by backup server" : "")
                     + "\n\nBattery  "
                     + (d.battery < 0 ? "—" : d.battery + "%")
                     + "\nFirmware  "
@@ -359,11 +360,19 @@ public final class MainActivity extends Activity implements BleStore.Listener {
           (dialog, index) -> switchCredential(devices.get(index))).show();
     }));
     space(v, 20);
+    v.addView(button("Backup server", MINT, this::serverSettings));
+    v.addView(
+        text(
+            "Background controls: add the Nultra widget from your home screen. Choose all switches"
+                + " or one saved light; Off/On runs without opening the app.",
+            15,
+            MUTED));
+    space(v, 20);
     v.addView(text("Discovery", 20, INK));
     v.addView(
         text(
-            "Blue means recently seen; gray means offline. Real names stay saved. No idle"
-                + " connections.",
+            "Blue means recently seen by Bluetooth or the enabled server; gray means offline. Real"
+                + " names stay saved. No idle connections.",
             15,
             MUTED));
     v.addView(
@@ -411,6 +420,112 @@ public final class MainActivity extends Activity implements BleStore.Listener {
           dialog.dismiss();
         });
     dialog.show();
+  }
+
+  void serverSettings() {
+    ScrollView scroll = new ScrollView(this);
+    LinearLayout v = column();
+    v.setPadding(dp(20), dp(8), dp(20), dp(16));
+    scroll.addView(v);
+    Switch enabled = new Switch(this);
+    enabled.setText("Enable backup server");
+    enabled.setTextColor(INK);
+    enabled.setChecked(store.server.enabled());
+    v.addView(enabled);
+    EditText url = edit(store.server.url(), false);
+    url.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_URI);
+    url.setHint("http://your-server:port");
+    url.setContentDescription("Backup server URL");
+    v.addView(url);
+    v.addView(
+        text(
+            "Bluetooth is preferred. If a saved switch is not nearby, Nultra can ask your"
+                + " Nultra_web fancy server to change it. Use a trusted network; HTTP is not"
+                + " encrypted. Renaming and discovery still use Bluetooth.",
+            15,
+            MUTED));
+    TextView state = text("", 15, MINT);
+    v.addView(state);
+    v.addView(
+        button(
+            "Save and check",
+            MINT,
+            () -> {
+              if (store.anyBusy()) {
+                toast("Wait for the current action to finish");
+                return;
+              }
+              try {
+                store.server.save(enabled.isChecked(), url.getText().toString());
+                store.serverChanged();
+                toast("Server settings saved");
+              } catch (IllegalArgumentException e) {
+                url.setError(e.getMessage());
+              }
+            }));
+    v.addView(text("Switch mapping", 20, INK));
+    v.addView(
+        text(
+            "Matches the Bluetooth address first, then a unique exact name. Select a mapping if"
+                + " your server uses a different address. Saved mappings never silently change.",
+            14,
+            MUTED));
+    for (BleStore.Device d : store.visible())
+      v.addView(
+          button(
+              d.name + " · Choose server switch",
+              MUTED,
+              () -> {
+                if (store.anyBusy()) {
+                  toast("Wait for the current action to finish");
+                  return;
+                }
+                List<ServerClient.Row> rows = new ArrayList<>(store.serverRows);
+                if (rows.isEmpty()) {
+                  toast("Enable, save and check the server first");
+                  return;
+                }
+                String[] labels = new String[rows.size() + 1];
+                labels[0] = "Automatic matching";
+                for (int i = 0; i < rows.size(); i++)
+                  labels[i + 1] = rows.get(i).name + " · " + rows.get(i).address;
+                new AlertDialog.Builder(this)
+                    .setTitle(d.name)
+                    .setItems(
+                        labels,
+                        (dialog, index) -> {
+                          if (store.anyBusy()) {
+                            toast("Wait for the current action to finish");
+                            return;
+                          }
+                          store.server.map(
+                              d.address, index == 0 ? null : rows.get(index - 1).address);
+                          toast("Mapping saved");
+                          store.notifyUI();
+                        })
+                    .show();
+              }));
+    AlertDialog dialog =
+        new AlertDialog.Builder(this)
+            .setTitle("Backup server")
+            .setView(scroll)
+            .setPositiveButton("Done", null)
+            .create();
+    Handler handler = new Handler(Looper.getMainLooper());
+    Runnable refresh =
+        new Runnable() {
+          public void run() {
+            if (!dialog.isShowing()) return;
+            state.setText(
+                store.demo
+                    ? "Demo mode: server requests disabled"
+                    : !store.server.enabled() ? "Disabled" : store.serverStatus);
+            handler.postDelayed(this, 500);
+          }
+        };
+    dialog.setOnDismissListener(x -> handler.removeCallbacks(refresh));
+    dialog.show();
+    handler.post(refresh);
   }
 
   EditText edit(String value, boolean secret) {
@@ -551,11 +666,11 @@ public final class MainActivity extends Activity implements BleStore.Listener {
       c.save();
       c.scale(scale, scale);
       float w = getWidth() / scale;
-      boolean online = d.online(SystemClock.elapsedRealtime());
+      boolean online = store.online(d);
       p.setStyle(Paint.Style.FILL);
       p.setColor(online ? BLUE : GRAY);
       c.drawCircle(4, 8, 3, p);
-      int bars = online ? Protocol.bars(d.rssi) : 0;
+      int bars = d.online(SystemClock.elapsedRealtime()) ? Protocol.bars(d.rssi) : 0;
       for (int i = 0; i < 3; i++) {
         p.setColor(i < bars ? MUTED : 0xff26343f);
         c.drawRoundRect(w - 58 + i * 6, 15 - (i + 1) * 4, w - 54 + i * 6, 15, 1, 1, p);

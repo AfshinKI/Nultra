@@ -79,10 +79,19 @@ The private HTTPS leaf certificate lasts one year; renewal commands are in the P
 
 Actions use the phone's BLE first, with optional backup-server fallback. Open the app once to grant permissions and learn names; unlock once after a phone restart. iOS controls background execution time, so locked-phone execution needs device testing. Demo mode is rejected.
 
-### Optional backup server (iPhone)
+### Optional backup server (iPhone and Android)
 
 
-A nearby switch uses phone Bluetooth. If unavailable, an enabled reachable server that recently saw the switch can receive the on/off command. Server replies mean **queued**, not physically confirmed. The server is checked every 15 seconds while the app is open; Shortcuts use on-demand requests. Rename stays Bluetooth-only. Android remains direct-BLE-only. See [server behavior, limits, and phone checks](docs/SERVER_FALLBACK.md).
+A nearby switch uses phone Bluetooth. If unavailable, an enabled reachable server that recently saw the switch can receive the on/off command. Server replies mean **queued**, not physically confirmed. The server is checked every 15 seconds while the app is open; Shortcuts use on-demand requests. Rename stays Bluetooth-only. Android widgets also use bounded on-demand requests. See [server behavior, limits, and phone checks](docs/SERVER_FALLBACK.md).
+
+### Android background controls
+
+1. Install the new `Nultra.apk` **over the existing app** to retain switches, password, and settings. Do not uninstall first.
+2. Open Nultra, grant Nearby devices, and discover your real switches. Leave demo mode off. Configure the optional server under **Menu → Backup server**.
+3. On your Samsung home screen, long-press an empty area → **Widgets → Nultra**. Add the widget and choose **All switches** or a saved switch.
+4. Tap **Off** or **On** on the widget. Nultra runs a short foreground service without opening its app window. The widget reports the result; Android may show an active-task notification. No service, scan, or server polling remains running after the action.
+
+A widget action has a 24-second limit, up to three concurrent operations, and no automatic HTTP retry. Large batches or unreachable switches can partially finish; check the reported result. A server “queued” result is not physical confirmation. Samsung power-management and real BLE behaviour still need testing on your phone. Apple Shortcuts itself is iPhone-only; the Android equivalent provided here is the home-screen widget.
 
 ## Release process and runner usage
 
