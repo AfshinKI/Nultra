@@ -1,4 +1,19 @@
-# Validation record — v0.5.0
+# Validation record — v0.6.0
+
+## Android release preparation
+
+The native Android app builds and signs locally with the pinned certificate. All 17 Java unit tests pass, covering valid/invalid advertisements, wire values, name/firmware decoding, ASCII validation, signal thresholds, authenticated transaction progression, readback mismatch, timeout, and late-callback suppression. Android release lint has no errors.
+
+The actual signed APK installs and runs on a local Android 15 / API 35 arm64 emulator. Smoke acceptance covers first-launch permission messaging, six demo cards, All Off/All On, individual power, switch details, Android Keystore password save/relaunch/reset, and no runtime crashes. Final release asset and workflow details will be recorded after publication.
+
+
+The iPhone implementation is unchanged from v0.5.0 except its version/build number. The local iPhone typecheck and 1,300 portable checks pass. The release workflow still builds and verifies its new IPA, but skips unchanged iPhone UI tests to save runner time.
+
+Physical Samsung Galaxy BLE, radio timing, switch firmware, and installation behavior remain owner acceptance checks; see [Android hardware acceptance](ANDROID.md).
+
+---
+
+## Previous validated release — v0.5.0
 
 ## Delivered release
 

@@ -50,7 +50,7 @@ for name in ["Debug", "Release"]:
         "PRODUCT_BUNDLE_IDENTIFIER": "com.afshinki.nultra", "PRODUCT_NAME": "$(TARGET_NAME)",
         "GENERATE_INFOPLIST_FILE": "NO", "INFOPLIST_FILE": "Nultra/Info.plist",
         "ASSETCATALOG_COMPILER_APPICON_NAME": "AppIcon", "TARGETED_DEVICE_FAMILY": "1",
-        "CODE_SIGN_STYLE": "Automatic", "CURRENT_PROJECT_VERSION": "5", "MARKETING_VERSION": "0.5.0",
+        "CODE_SIGN_STYLE": "Automatic", "CURRENT_PROJECT_VERSION": "6", "MARKETING_VERSION": "0.6.0",
         "SUPPORTED_PLATFORMS": "iphoneos iphonesimulator", "SUPPORTS_MACCATALYST": "NO",
         "LD_RUNPATH_SEARCH_PATHS": ["$(inherited)", "@executable_path/Frameworks"],
     }))

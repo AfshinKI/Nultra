@@ -16,3 +16,10 @@ distribution/github-token
 distribution/tls/
 distribution/data/
 distribution/*.mobileconfig
+
+.tools/
+.gradle/
+local.properties
+*.jks
+*.keystore
+android/signing/

@@ -1,0 +1,576 @@
+package com.afshinki.nultra;
+
+import android.Manifest;
+import android.app.*;
+import android.content.*;
+import android.graphics.*;
+import android.graphics.drawable.GradientDrawable;
+import android.net.Uri;
+import android.os.*;
+import android.text.InputType;
+import android.view.*;
+import android.widget.*;
+import java.util.*;
+
+@android.annotation.SuppressLint("SetTextI18n") // Private English-only app.
+public final class MainActivity extends Activity implements BleStore.Listener {
+  static final int BG = Color.rgb(7, 15, 24),
+      CARD = Color.rgb(15, 25, 35),
+      INK = Color.rgb(244, 248, 251),
+      MUTED = Color.rgb(147, 168, 181),
+      MINT = Color.rgb(164, 241, 212),
+      YELLOW = Color.rgb(255, 220, 64),
+      BLUE = Color.rgb(63, 149, 255),
+      GRAY = Color.rgb(69, 86, 98);
+  BleStore store;
+  LinearLayout content, grid;
+  TextView status;
+  Button allOff, allOn, allow;
+  final Map<String, Card> cards = new LinkedHashMap<>();
+  String layoutKey = "";
+
+  @Override
+  public void onCreate(Bundle state) {
+    super.onCreate(state);
+    store = new BleStore(this);
+    store.listener = this;
+    LinearLayout root = column();
+    root.setBackgroundColor(BG);
+    root.setOnApplyWindowInsetsListener(
+        (v, insets) -> {
+          v.setPadding(
+              insets.getSystemWindowInsetLeft(),
+              insets.getSystemWindowInsetTop(),
+              insets.getSystemWindowInsetRight(),
+              insets.getSystemWindowInsetBottom());
+          return insets.consumeSystemWindowInsets();
+        });
+    ScrollView scroll = new ScrollView(this);
+    scroll.setFillViewport(true);
+    root.addView(scroll, new LinearLayout.LayoutParams(-1, -1));
+    content = column();
+    content.setPadding(dp(16), dp(14), dp(16), dp(24));
+    scroll.addView(content);
+    LinearLayout header = row();
+    ImageView icon = new ImageView(this);
+    icon.setImageResource(com.afshinki.nultra.R.drawable.app_icon);
+    header.addView(icon, new LinearLayout.LayoutParams(dp(42), dp(42)));
+    TextView title = text("nultra", 32, INK);
+    title.setTypeface(null, Typeface.BOLD);
+    LinearLayout.LayoutParams titleP = new LinearLayout.LayoutParams(0, -2, 1);
+    titleP.setMargins(dp(12), 0, 0, 0);
+    header.addView(title, titleP);
+    Button menu = button("☰", MINT, () -> menu());
+    menu.setContentDescription("Open menu");
+    header.addView(menu, new LinearLayout.LayoutParams(dp(52), dp(52)));
+    content.addView(header);
+    space(content, 14);
+    LinearLayout bulk = row();
+    allOff = button("All Off", MUTED, () -> store.all(false));
+    allOn = button("All On", YELLOW, () -> store.all(true));
+    bulk.addView(allOff, weighted());
+    bulk.addView(allOn, weighted());
+    content.addView(bulk);
+    space(content, 10);
+    status = text("Listening for switches…", 14, MUTED);
+    status.setAccessibilityLiveRegion(View.ACCESSIBILITY_LIVE_REGION_POLITE);
+    content.addView(status);
+    space(content, 8);
+    allow = button("Allow Bluetooth access", MINT, this::requestBluetooth);
+    content.addView(allow);
+    grid = column();
+    content.addView(grid);
+    setContentView(root);
+    if (BuildConfig.DEBUG && getIntent().getBooleanExtra("demo", false)) store.demo(true);
+    changed();
+  }
+
+  @Override
+  protected void onResume() {
+    super.onResume();
+    store.resume();
+    changed();
+  }
+
+  @Override
+  protected void onPause() {
+    store.pause();
+    super.onPause();
+  }
+
+  @Override
+  protected void onDestroy() {
+    store.listener = null;
+    super.onDestroy();
+  }
+
+  void requestBluetooth() {
+    if (!store.permissions())
+      requestPermissions(
+          Build.VERSION.SDK_INT >= 31
+              ? new String[] {
+                Manifest.permission.BLUETOOTH_SCAN, Manifest.permission.BLUETOOTH_CONNECT
+              }
+              : new String[] {Manifest.permission.ACCESS_FINE_LOCATION},
+          7);
+    else startActivity(new Intent(android.provider.Settings.ACTION_BLUETOOTH_SETTINGS));
+  }
+
+  @Override
+  public void onRequestPermissionsResult(int code, String[] p, int[] grants) {
+    super.onRequestPermissionsResult(code, p, grants);
+    if (code == 7) {
+      if (store.permissions()) store.startScan();
+      else
+        store.message =
+            "Permission denied. Allow Bluetooth access in Android Settings → Apps → Nultra →"
+                + " Permissions.";
+      changed();
+    }
+  }
+
+  @Override
+  public void changed() {
+    if (isFinishing()) return;
+    List<BleStore.Device> list = store.visible();
+    status.setText(
+        store.demo
+            ? "DEMO · No physical switches controlled"
+            : !store.message.isEmpty()
+                ? store.message
+                : list.isEmpty()
+                    ? "Listening · Waiting for verified switch names"
+                    : list.size() + " saved switches · Listening while open");
+    allow.setVisibility(!store.demo && !store.permissions() ? View.VISIBLE : View.GONE);
+    boolean enabled = !list.isEmpty() && !store.anyBusy();
+    allOff.setEnabled(enabled);
+    allOn.setEnabled(enabled);
+    StringBuilder key = new StringBuilder(store.demo ? "demo" : "real");
+    int columns = getResources().getConfiguration().fontScale >= 1.5f ? 1 : 2;
+    key.append(columns);
+    for (BleStore.Device d : list) key.append(d.address);
+    if (!key.toString().equals(layoutKey)) {
+      layoutKey = key.toString();
+      grid.removeAllViews();
+      cards.clear();
+      if (list.isEmpty()) {
+        TextView empty =
+            text(
+                "Your switches stay here, even when offline. New switches appear after Nultra reads"
+                    + " their real name.",
+                17,
+                MUTED);
+        empty.setPadding(dp(16), dp(28), dp(16), dp(28));
+        grid.addView(empty);
+        grid.addView(button("Explore the demo", MINT, () -> store.demo(true)));
+      } else {
+        LinearLayout line = null;
+        int i = 0;
+        for (BleStore.Device d : list) {
+          if (i % columns == 0) {
+            line = row();
+            grid.addView(line);
+          }
+          Card card = new Card(d);
+          cards.put(d.address, card);
+          line.addView(card.root, weighted());
+          i++;
+        }
+        if (columns == 2 && i % 2 == 1) line.addView(new View(this), weighted());
+      }
+    }
+    for (Card card : cards.values()) card.update();
+  }
+
+  final class Card {
+    final BleStore.Device device;
+    final LinearLayout root;
+    final TextView name;
+    final StatusGlyph glyph;
+    final FrameLayout control;
+    final Bulb bulb;
+    final ProgressBar progress;
+
+    Card(BleStore.Device d) {
+      device = d;
+      root = column();
+      root.setPadding(dp(10), dp(8), dp(10), dp(6));
+      glyph = new StatusGlyph();
+      root.addView(glyph, new LinearLayout.LayoutParams(-1, dp(20)));
+      LinearLayout lower = row();
+      name = text(d.name, 16, INK);
+      name.setTypeface(null, Typeface.BOLD);
+      name.setMaxLines(2);
+      name.setMinHeight(dp(54));
+      name.setGravity(Gravity.CENTER_VERTICAL);
+      name.setOnClickListener(v -> details(d));
+      name.setFocusable(true);
+      name.setBackground(selectable());
+      lower.addView(name, new LinearLayout.LayoutParams(0, -2, 1));
+      control = new FrameLayout(MainActivity.this);
+      bulb = new Bulb();
+      bulb.setOnClickListener(v -> store.power(d, !Boolean.TRUE.equals(d.power)));
+      bulb.setFocusable(true);
+      control.addView(bulb, new FrameLayout.LayoutParams(dp(48), dp(48), Gravity.CENTER));
+      progress = new ProgressBar(MainActivity.this);
+      FrameLayout.LayoutParams pp = new FrameLayout.LayoutParams(dp(25), dp(25), Gravity.CENTER);
+      control.addView(progress, pp);
+      lower.addView(control, new LinearLayout.LayoutParams(dp(50), dp(54)));
+      root.addView(lower);
+    }
+
+    void update() {
+      boolean on = Boolean.TRUE.equals(device.power), busy = store.busy(device);
+      root.setBackground(shape(CARD, on ? 0xff514929 : 0xff1b2833, 18));
+      name.setText(device.name);
+      name.setContentDescription(device.name + ", switch settings");
+      glyph.d = device;
+      glyph.invalidate();
+      glyph.setContentDescription(
+          (device.online(SystemClock.elapsedRealtime()) ? "Online" : "Offline")
+              + ", "
+              + (device.battery >= 0
+                  ? (device.battery < 10 ? "Low battery" : "Battery available")
+                  : "Battery unknown"));
+      bulb.on = on;
+      bulb.invalidate();
+      bulb.setContentDescription(
+          device.name
+              + ", "
+              + (device.power == null ? "power unknown" : on ? "on" : "off")
+              + ", turn "
+              + (on ? "off" : "on"));
+      bulb.setEnabled(!busy);
+      bulb.setVisibility(busy ? View.INVISIBLE : View.VISIBLE);
+      progress.setVisibility(busy ? View.VISIBLE : View.GONE);
+      progress.setContentDescription("Changing " + device.name);
+    }
+  }
+
+  void details(BleStore.Device d) {
+    LinearLayout view = column();
+    view.setPadding(dp(20), dp(8), dp(20), dp(12));
+    TextView values = text("", 17, MUTED);
+    view.addView(values);
+    space(view, 18);
+    LinearLayout controls = row();
+    Button off = button("Off", MUTED, () -> store.power(d, false)),
+        on = button("On", YELLOW, () -> store.power(d, true));
+    controls.addView(off, weighted());
+    controls.addView(on, weighted());
+    view.addView(controls);
+    ProgressBar wait = new ProgressBar(this);
+    view.addView(wait, new LinearLayout.LayoutParams(dp(28), dp(28)));
+    Button rename = button("Rename", MINT, () -> rename(d));
+    view.addView(rename);
+    space(view, 12);
+    view.addView(
+        text("Connects only to apply your change, then immediately disconnects.", 14, MUTED));
+    AlertDialog dialog =
+        new AlertDialog.Builder(this)
+            .setTitle(d.name)
+            .setView(view)
+            .setPositiveButton("Done", null)
+            .create();
+    Handler h = new Handler(Looper.getMainLooper());
+    Runnable update =
+        new Runnable() {
+          public void run() {
+            if (!dialog.isShowing()) return;
+            boolean busy = store.busy(d);
+            values.setText(
+                (d.power == null
+                        ? "Power unknown"
+                        : Boolean.TRUE.equals(d.power) ? "Power is on" : "Power is off")
+                    + "\n\nBattery  "
+                    + (d.battery < 0 ? "—" : d.battery + "%")
+                    + "\nFirmware  "
+                    + (d.firmware.isEmpty() ? "—" : d.firmware));
+            wait.setVisibility(busy ? View.VISIBLE : View.GONE);
+            off.setEnabled(!busy);
+            on.setEnabled(!busy);
+            rename.setEnabled(!busy);
+            dialog.setTitle(d.name);
+            h.postDelayed(this, 500);
+          }
+        };
+    dialog.setOnDismissListener(v -> h.removeCallbacks(update));
+    dialog.show();
+    h.post(update);
+  }
+
+  void rename(BleStore.Device d) {
+    EditText input = edit(d.name, false);
+    AlertDialog dialog =
+        new AlertDialog.Builder(this)
+            .setTitle("Rename " + d.name)
+            .setMessage("Exactly eight printable ASCII characters. Editing does not connect.")
+            .setView(input)
+            .setNegativeButton("Cancel", null)
+            .setPositiveButton("Save", null)
+            .create();
+    dialog.setOnShowListener(
+        v ->
+            dialog
+                .getButton(AlertDialog.BUTTON_POSITIVE)
+                .setOnClickListener(
+                    w -> {
+                      try {
+                        store.rename(d, input.getText().toString());
+                        dialog.dismiss();
+                      } catch (IllegalArgumentException e) {
+                        input.setError(e.getMessage());
+                      }
+                    }));
+    dialog.show();
+  }
+
+  void switchCredential(BleStore.Device device) {
+    EditText password = edit("", true);
+    password.setHint("8 ASCII characters");
+    new AlertDialog.Builder(this).setTitle(device.address).setView(password)
+        .setNegativeButton("Cancel", null)
+        .setNeutralButton("Forget", (dialog, which) -> {
+          try { store.credentials.reset(device.address); toast("Password removed"); }
+          catch (Exception e) { toast("Could not remove password"); }
+        })
+        .setPositiveButton("Save", (dialog, which) -> {
+          try {
+            String value = password.getText().toString();
+            Protocol.ascii(value);
+            store.credentials.save(device.address, value);
+            store.retry();
+            toast("Switch password saved");
+          } catch (Exception e) { toast("Enter eight printable ASCII characters"); }
+        }).show();
+  }
+
+  void menu() {
+    ScrollView scroll = new ScrollView(this);
+    LinearLayout v = column();
+    v.setPadding(dp(22), dp(8), dp(22), dp(16));
+    scroll.addView(v);
+    v.addView(text("Switch password", 20, INK));
+    v.addView(button("Choose switch", MINT, () -> {
+      List<BleStore.Device> devices = new ArrayList<>(store.devices.values());
+      if (devices.isEmpty()) { toast("Scan for a nearby switch first"); return; }
+      String[] labels = devices.stream().map(d -> (d.name.isEmpty() ? "Nearby switch" : d.name) + " · " + d.address).toArray(String[]::new);
+      new AlertDialog.Builder(this).setTitle("Choose switch").setItems(labels,
+          (dialog, index) -> switchCredential(devices.get(index))).show();
+    }));
+    space(v, 20);
+    v.addView(text("Discovery", 20, INK));
+    v.addView(
+        text(
+            "Blue means recently seen; gray means offline. Real names stay saved. No idle"
+                + " connections.",
+            15,
+            MUTED));
+    v.addView(
+        button(
+            "Retry discovery",
+            MINT,
+            () -> {
+              store.retry();
+              toast("Discovery restarted");
+            }));
+    v.addView(
+        button(
+            "Bluetooth / permission settings",
+            MUTED,
+            () ->
+                startActivity(
+                    new Intent(
+                        android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+                        Uri.parse("package:" + getPackageName())))));
+    space(v, 20);
+    v.addView(text("Afshin Kashani", 20, INK));
+    v.addView(
+        button(
+            "innovetron.com",
+            MINT,
+            () ->
+                startActivity(
+                    new Intent(Intent.ACTION_VIEW, Uri.parse("https://innovetron.com")))));
+    v.addView(text("Nultra " + BuildConfig.VERSION_NAME + " · Android", 14, MUTED));
+    space(v, 24);
+    Switch demo = new Switch(this);
+    demo.setText("Explore demo mode");
+    demo.setTextColor(MINT);
+    demo.setChecked(store.demo);
+    v.addView(demo);
+    AlertDialog dialog =
+        new AlertDialog.Builder(this)
+            .setTitle("Menu")
+            .setView(scroll)
+            .setPositiveButton("Done", null)
+            .create();
+    demo.setOnCheckedChangeListener(
+        (b, checked) -> {
+          store.demo(checked);
+          dialog.dismiss();
+        });
+    dialog.show();
+  }
+
+  EditText edit(String value, boolean secret) {
+    EditText e = new EditText(this);
+    e.setTextColor(INK);
+    e.setSingleLine(true);
+    e.setInputType(
+        InputType.TYPE_CLASS_TEXT
+            | (secret
+                ? InputType.TYPE_TEXT_VARIATION_PASSWORD
+                : InputType.TYPE_TEXT_FLAG_CAP_CHARACTERS));
+    e.setText(value);
+    e.setPadding(dp(16), dp(12), dp(16), dp(12));
+    return e;
+  }
+
+  void toast(String s) {
+    Toast.makeText(this, s, Toast.LENGTH_SHORT).show();
+  }
+
+  LinearLayout column() {
+    LinearLayout l = new LinearLayout(this);
+    l.setOrientation(LinearLayout.VERTICAL);
+    return l;
+  }
+
+  LinearLayout row() {
+    LinearLayout l = new LinearLayout(this);
+    l.setGravity(Gravity.CENTER_VERTICAL);
+    return l;
+  }
+
+  LinearLayout.LayoutParams weighted() {
+    LinearLayout.LayoutParams p = new LinearLayout.LayoutParams(0, -2, 1);
+    p.setMargins(dp(3), dp(4), dp(3), dp(4));
+    return p;
+  }
+
+  TextView text(String s, int size, int color) {
+    TextView v = new TextView(this);
+    v.setText(s);
+    v.setTextSize(size);
+    v.setTextColor(color);
+    return v;
+  }
+
+  Button button(String s, int color, Runnable action) {
+    Button b = new Button(this);
+    b.setText(s);
+    b.setTextColor(color);
+    b.setTextSize(16);
+    b.setAllCaps(false);
+    b.setMinHeight(dp(48));
+    b.setBackground(shape(CARD, 0xff1b2833, 14));
+    b.setPadding(dp(8), dp(8), dp(8), dp(8));
+    b.setOnClickListener(v -> action.run());
+    return b;
+  }
+
+  android.graphics.drawable.Drawable selectable() {
+    android.util.TypedValue t = new android.util.TypedValue();
+    getTheme().resolveAttribute(android.R.attr.selectableItemBackground, t, true);
+    return getDrawable(t.resourceId);
+  }
+
+  GradientDrawable shape(int color, int stroke, int radius) {
+    GradientDrawable g = new GradientDrawable();
+    g.setColor(color);
+    g.setCornerRadius(dp(radius));
+    g.setStroke(dp(1), stroke);
+    return g;
+  }
+
+  int dp(float value) {
+    return Math.round(value * getResources().getDisplayMetrics().density);
+  }
+
+  void space(LinearLayout l, int height) {
+    l.addView(new View(this), new LinearLayout.LayoutParams(1, dp(height)));
+  }
+
+  final class Bulb extends View {
+    boolean on;
+    final Paint p = new Paint(Paint.ANTI_ALIAS_FLAG);
+    final Path path = new Path();
+    final Shader glow =
+        new RadialGradient(
+            0, 0, 23, new int[] {0x88ffdc40, 0x00ffdc40}, null, Shader.TileMode.CLAMP);
+
+    Bulb() {
+      super(MainActivity.this);
+      setMinimumWidth(dp(48));
+      setMinimumHeight(dp(48));
+      path.moveTo(-5, 8);
+      path.cubicTo(-5, 2, -10, -1, -10, -7);
+      path.cubicTo(-10, -20, 10, -20, 10, -7);
+      path.cubicTo(10, -1, 5, 2, 5, 8);
+      path.close();
+    }
+
+    @Override
+    protected void onDraw(Canvas c) {
+      super.onDraw(c);
+      c.save();
+      c.translate(getWidth() / 2f, getHeight() / 2f);
+      c.scale(dp(1), dp(1));
+      if (on) {
+        p.setShader(glow);
+        p.setStyle(Paint.Style.FILL);
+        c.drawCircle(0, 0, 23, p);
+        p.setShader(null);
+      }
+      p.setColor(on ? YELLOW : MUTED);
+      p.setStrokeWidth(2);
+      p.setStyle(on ? Paint.Style.FILL : Paint.Style.STROKE);
+      c.drawPath(path, p);
+      p.setStyle(Paint.Style.STROKE);
+      p.setStrokeCap(Paint.Cap.ROUND);
+      c.drawLine(-5, 12, 5, 12, p);
+      c.drawLine(-3, 16, 3, 16, p);
+      c.restore();
+    }
+  }
+
+  final class StatusGlyph extends View {
+    BleStore.Device d;
+    final Paint p = new Paint(Paint.ANTI_ALIAS_FLAG);
+
+    StatusGlyph() {
+      super(MainActivity.this);
+      setImportantForAccessibility(IMPORTANT_FOR_ACCESSIBILITY_YES);
+    }
+
+    @Override
+    protected void onDraw(Canvas c) {
+      if (d == null) return;
+      float scale = getResources().getDisplayMetrics().density;
+      c.save();
+      c.scale(scale, scale);
+      float w = getWidth() / scale;
+      boolean online = d.online(SystemClock.elapsedRealtime());
+      p.setStyle(Paint.Style.FILL);
+      p.setColor(online ? BLUE : GRAY);
+      c.drawCircle(4, 8, 3, p);
+      int bars = online ? Protocol.bars(d.rssi) : 0;
+      for (int i = 0; i < 3; i++) {
+        p.setColor(i < bars ? MUTED : 0xff26343f);
+        c.drawRoundRect(w - 58 + i * 6, 15 - (i + 1) * 4, w - 54 + i * 6, 15, 1, 1, p);
+      }
+      p.setStyle(Paint.Style.STROKE);
+      p.setStrokeWidth(1.2f);
+      p.setColor(MUTED);
+      c.drawRoundRect(w - 31, 3, w - 3, 16, 2, 2, p);
+      c.drawLine(w - 1, 7, w - 1, 12, p);
+      p.setStyle(Paint.Style.FILL);
+      if (d.battery >= 0) {
+        p.setColor(d.battery < 10 ? 0xffff5252 : 0xff32d367);
+        c.drawRoundRect(w - 28, 6, w - 28 + Math.max(2, 22 * d.battery / 100f), 13, 1, 1, p);
+      }
+      c.restore();
+    }
+  }
+}

@@ -1,7 +1,18 @@
-# Nultra for iPhone
+# Nultra for iPhone and Android
 
-A private, native controller for your Nultra BLE switches. Your **iPhone 13 mini running iOS 26.2** talks directly to each switch over Bluetooth. The Raspberry Pi and an internet connection are not needed for switch control.
+A private, native controller for your Nultra BLE switches. Android now has its own native app and signed APK; see the Android installation section below. Your **iPhone 13 mini running iOS 26.2** talks directly to each switch over Bluetooth. The Raspberry Pi and an internet connection are not needed for switch control.
 
+
+## Install on Samsung Galaxy / Android
+
+
+1. Open the downloaded APK using your browser or **My Files → Downloads**.
+2. If prompted, allow **Install unknown apps** for that browser or My Files, then return and install Nultra. On Samsung, search Settings for **Install unknown apps** if the wording differs. If Samsung Auto Blocker prevents installation, review its warning under **Settings → Security and privacy → Auto Blocker**; temporarily disabling it is only needed if you choose to sideload, and you can restore it after installation. [Samsung Auto Blocker guide](https://example.invalid).
+3. Open Nultra and choose **Allow Bluetooth access**. On Android 12+, grant **Nearby devices**. Android 8–11 requires location permission and system Location enabled for BLE scanning; the app does not collect location or access the internet.
+4. Let the app discover your switches and read their real names. Tap a bulb to change power; tap the name for settings and rename. Use Menu to set the master password or explore the demo.
+
+
+See [Android development, signing, and hardware checks](docs/ANDROID.md). Physical Samsung BLE testing is still required.
 
 ## Preview on iPhone 13 mini
 
@@ -71,10 +82,10 @@ These actions use the phone's BLE directly. They do not run a permanent connecti
 
 Ordinary `main` pushes, documentation edits, and tags do **not** start Actions. Do local checks during development. When ready for a release:
 
-1. Bump `MARKETING_VERSION` and `CURRENT_PROJECT_VERSION` in `scripts/generate_project.py`; regenerate the project.
+1. Bump `MARKETING_VERSION` and `CURRENT_PROJECT_VERSION` in `scripts/generate_project.py`; regenerate the project. Set the matching `versionName` and an increased `versionCode` in `android/app/build.gradle`.
 2. Write `docs/releases/vX.X.X.md`, run `bash scripts/check.sh` and `python3 -m unittest discover -s distribution/tests -v`, and commit/push `main`.
 3. Push the reviewed commit to `release/vX.X.X`: `git push origin HEAD:refs/heads/release/vX.X.X`.
-4. A single macOS job runs unit tests, builds the IPA once, and validates the iPhone interface. A short Linux job creates the `vX.X.X` tag and GitHub release only after validation succeeds, attaching the IPA, checksum, transfer ZIP, build information, and Pi update bundle. No second build runs for that tag.
+4. A macOS job runs unit tests and builds the IPA once; iPhone simulator tests run when iPhone sources change or are explicitly requested. A Linux Android job runs unit tests/lint and builds a signed APK using repository secrets. A short Linux publication job creates the `vX.X.X` tag and GitHub release only after validation succeeds, attaching the IPA, APK, checksums, transfer ZIP, build information, and Pi update bundle. No second build runs for that tag.
 
 Published versions are immutable: make a new version for further changes. Before publication, a failed build can be fixed by advancing the release branch. Manual **Run workflow** is available for a diagnostic build, with optional UI tests; it does not publish when run on `main`. Actions artifacts expire after seven days; the release assets remain.
 

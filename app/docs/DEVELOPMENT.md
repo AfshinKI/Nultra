@@ -55,6 +55,10 @@ Local `swift test` initially fails because the incomplete Command Line Tools set
 
 ## Cost-conscious versioned releases
 
-Ordinary pushes no longer start macOS jobs. Push a reviewed version to `release/vX.X.X` to run one combined validation/device/simulator job and a short Linux publication job. Successful publication creates the `vX.X.X` tag at the tested commit and attaches the IPA. No build is triggered by that tag. The release branch version must exactly match the IPA version. Published assets are immutable; advance to a new version for changes. See README for the exact release process and Pi feed setup.
+Ordinary pushes no longer start macOS jobs. Push a reviewed version to `release/vX.X.X` to run a macOS iPhone build, a Linux Android build, and a short Linux publication job. iPhone simulator tests run only when iPhone sources change or are explicitly requested. Successful publication creates the `vX.X.X` tag at the tested commit and attaches both IPA and APK. No build is triggered by that tag. The release branch version must exactly match both the IPA and APK versions. Published assets are immutable; advance to a new version for changes. See README for the exact release process and Pi feed setup.
 
-A manual run on main defaults to a device build without simulator tests and does not publish a release. Run local checks before using it. Distribution scripts are tested with Python's standard unittest module and no third-party dependencies.
+A manual run on main uses the same build checks and iPhone UI change detection, and does not publish a release. Run local checks before using it. Distribution scripts are tested with Python's standard unittest module and no third-party dependencies.
+
+## Android builds
+
+The native Android app lives in `android/`. See [Android instructions](ANDROID.md) for Java/SDK setup, signed APK validation, emulator smoke tests, and stable signing-key management. Releases now wait for both iPhone and Android validation, then publish both packages. iPhone simulator tests are skipped when no iPhone sources changed, unless explicitly requested. Android signing secrets are never stored in source or release assets.

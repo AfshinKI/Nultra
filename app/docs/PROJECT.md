@@ -26,3 +26,6 @@ SwiftUI interface with a dark navy canvas, luminous mint accents, clear connecti
 See BLE_PROTOCOL.md for the source-derived contract and DEVELOPMENT.md for setup and validation.
 
 ## Confirmed delivery route
+
+
+## Android expansion — v0.6.0
