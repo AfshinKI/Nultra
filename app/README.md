@@ -3,6 +3,11 @@
 A private, native controller for your Nultra BLE switches. Your **iPhone 13 mini running iOS 26.2** talks directly to each switch over Bluetooth. The Raspberry Pi and an internet connection are not needed for switch control.
 
 
+## Preview on iPhone 13 mini
+
+Actual iOS 26.2 simulator captures; the shown switches are demo devices.
+
+
 ## Do I need a developer account?
 
 
@@ -12,6 +17,8 @@ The app implements discovery, per-switch password storage in Keychain, connectio
 
 
 ## 1. Get Nultra.ipa
+
+**A verified copy is already saved in this workspace at `dist/Nultra.ipa`.** AirDrop that file to your phone and continue with step 2. The checksum and source/build details are beside it. For another computer or a future update, download it as follows:
 
 2. Open the newest successful **iOS validation** run on `main`. Confirm the **build** job passed.
 4. Keep this folder somewhere convenient. `BUILD-INFO.txt` records the source commit and Xcode version. Optional integrity check from that folder: `shasum -a 256 -c Nultra.ipa.sha256`.

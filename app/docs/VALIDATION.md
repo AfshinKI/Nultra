@@ -1,27 +1,32 @@
 # Validation record
 
-## Verified locally
-
-- 733 dependency-free protocol checks passed: exhaustive byte bounds, all valid advertisement state/battery combinations, invalid credentials and malformed payloads.
-- All Swift sources passed type-checking with the available macOS SDK.
-- Xcode project and Info.plist passed `plutil` validation.
-- Icon artwork is opaque and packaged in the required iPhone sizes.
-
-## Verified with the iOS SDK on GitHub
+## Delivery status
 
 
-- All five XCTest cases passed with zero failures.
-- Unsigned Debug iPhone simulator build succeeded.
-- The build has no App Intents dependency; the associated metadata-extraction warning is expected.
+- Compiler: Xcode 26.2 (17C52); SDK: iOS 26.2.
+- Binary: arm64, Mach-O platform iOS device, minimum iOS 16.0.
+- Downloaded IPA passed independent local validation and checksum comparison.
 
-## Still required
+## Automated checks
 
-- Physical iPhone installation and all scenarios in HARDWARE_ACCEPTANCE.md.
-- Wrong-password behavior and command timing against the actual switch firmware.
-- VoiceOver, large Dynamic Type, landscape, and device-sheet interactions on an iPhone.
+- 733 local protocol checks passed, including all possible state and battery bytes, all valid advertisement state/battery combinations, invalid credentials, and malformed payloads.
+- All Swift app sources passed local macOS SDK type checking.
+- Xcode project and Info.plist passed structural validation.
+- The unsigned iPhone Release build and final IPA packaging checks passed in that job.
 
-A successful simulator build does not prove authentication or physical control works on hardware. The reference client defines behavior to implement; firmware confirmation is still outstanding.
+## iPhone 13 mini / iOS 26.2 interface
 
-## Simulator preview limitation
+Both UI tests passed. The packaged app, project and UI test sources matched the tested revision. Only packaging and documentation changed between those revisions.
 
-The follow-up run at commit `9298158` also passed XCTest and the iOS build, but its hosted simulator preview step stalled. That historical attempt used a generic hosted simulator. The new workflow instead targets iPhone 13 mini on iOS 26.2 with UI regression tests; their current result is recorded below when complete. This does not change the successful iOS compiler result; visual/device interaction checks remain pending.
+
+Simulator tests do not validate physical BLE transport or personal provisioning. The earlier generic simulator startup issue does not apply to these successful device-specific checks.
+
+## Mac setup
+
+
+## Remaining owner checks
+
+- Verify on/off and rename against an actual switch, including wrong-password behavior, timing, Pi connection contention, and reconnect after range/radio loss.
+- Complete `HARDWARE_ACCEPTANCE.md`, including physical-device VoiceOver and background/foreground checks.
+
+These are on-device acceptance steps; no claim of physical switch compatibility or perpetual signing is made before they pass.
