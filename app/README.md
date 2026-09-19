@@ -25,6 +25,9 @@ The app implements discovery, per-switch password storage in Keychain, connectio
 5. AirDrop `Nultra.ipa` to your iPhone and save it in **Files**. You can also transfer it using iCloud Drive.
 
 
+### If AirDrop accepts the IPA but it does not appear in Files
+
+
 2. Connect the unlocked iPhone by USB and accept **Trust** when prompted. In Finder, select the iPhone, enable **Show this iPhone when on Wi-Fi**, and apply.
 5. On the iPhone, trust your account under **Settings → General → VPN & Device Management**. Enable **Settings → Privacy & Security → Developer Mode**, restart, and confirm if prompted.
 
