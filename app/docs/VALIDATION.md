@@ -9,7 +9,7 @@
 
 ## Automated checks
 
-- 733 local protocol checks passed, including all possible state and battery bytes, all valid advertisement state/battery combinations, invalid credentials, and malformed payloads.
+- 743 local protocol checks passed, including all possible state and battery bytes, all valid advertisement state/battery combinations, invalid credentials, malformed payloads, repeated broadcasts, cached-state protection, and GATT precedence.
 - All Swift app sources passed local macOS SDK type checking.
 - Xcode project and Info.plist passed structural validation.
 - The unsigned iPhone Release build and final IPA packaging checks passed in that job.

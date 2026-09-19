@@ -26,7 +26,7 @@ xcodebuild -project Nultra.xcodeproj -scheme Nultra \
 bash scripts/check.sh
 ```
 
-The CLI check exhaustively validates all possible state and battery bytes, all valid advertisement state/battery combinations, and malformed credentials/names/advertisements. It also type-checks the shared SwiftUI/CoreBluetooth code against macOS, not iOS. XCTest adds named regression cases. GitHub Actions runs XCTest and a full unsigned iOS simulator build on app changes.
+The CLI check exhaustively validates all possible state and battery bytes, all valid advertisement state/battery combinations, and malformed credentials/names/advertisements. It also type-checks the shared SwiftUI/CoreBluetooth code against macOS, not iOS. XCTest adds named regression cases, including repeated broadcast updates and protecting active GATT state. The reference checkout must track the `fancy` branch; see `FANCY_REFERENCE.md`. GitHub Actions runs XCTest and a full unsigned iOS simulator build on app changes.
 
 Local `swift test` initially fails because the incomplete Command Line Tools setup lacks the Xcode platform path. This is a toolchain limitation, not a passing test result. Use the dependency-free check script locally until Xcode is available.
 
