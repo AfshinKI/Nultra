@@ -1,0 +1,48 @@
+# Direct BLE protocol for the iPhone implementation
+
+
+## Discovery and identity
+
+`BLEManager._scan_devices` performs a 3-second unrestricted scan and filters names containing `Nultra`. Known devices can advertise `NultraXYYY`: X is one decimal switch-state digit and YYY is decimal battery percent. The iPhone should scan without a service filter so devices that omit service UUIDs from advertisements remain visible; accept Nultra names or the service UUID, then validate the GATT service on connection. Advertisement values are hints, not confirmation of a control operation.
+
+iOS exposes a CoreBluetooth peripheral UUID, not the Linux Bluetooth MAC address. Use that UUID as local identity. Do not import Pi addresses as iPhone identities. Names are not unique IDs.
+
+## GATT layout
+
+| Role | UUID | Payload / usage |
+| --- | --- | --- |
+| Service | `0000fe40-cc7a-482a-984a-7f2ed5b3e58f` | Validate on connection |
+| Switch | `0000fe41-8e22-4541-9d4c-21edae82ed19` | Read first byte; write one byte 0 or 1 without response |
+| Subscribe | `0000fe42-8e22-4541-9d4c-21edae82ed19` | Declared but unused by the source; semantics unknown |
+| Battery | `0000fe43-8e22-4541-9d4c-21edae82ed19` | Read first byte as percentage |
+| Name | `0000fe44-8e22-4541-9d4c-21edae82ed19` | Read name and optional firmware; write exactly 8 ASCII bytes with response |
+| Password | `0000fe45-8e22-4541-9d4c-21edae82ed19` | Write exactly 8 ASCII bytes with response after each connection |
+
+## Connect and authenticate
+
+`NultraBLEDevice.connect` creates a Bleak client, connects, and writes the password characteristic using `response=True`. The source has a hardcoded eight-byte password. Do not repeat it in app source, documentation, or logs: the owner enters the matching credential and the app stores it in Keychain. Support a separate password per device.
+
+No challenge, token, auth-status read, or positive authentication response is implemented in the server. A successful GATT password write is the strongest transport evidence available; successful command read-back must still be checked. Pairing/bonding, link encryption, lockout behavior, and firmware rejection behavior cannot be established from this client alone.
+
+## Read and control
+
+`_retrieve_device` reads name, battery, and switch. Name length exactly 11 means first 8 bytes are a UTF-8 name and final three unsigned bytes form `vA.B.C`; otherwise decode the entire name. iPhone should trim NUL padding for display, reject empty state/battery packets, reject state bytes other than 0/1, and reject battery percentages outside 0...100.
+
+`toggle_switch` writes `[0]` or `[1]` to the switch characteristic with `response=False`, then reads the characteristic to confirm. The app uses explicit target states and waits for read-back. A mismatched read-back is a failed confirmation, not a successful toggle. Respect CoreBluetooth's write-without-response backpressure.
+
+`rename_device` validates eight characters and ASCII-encodes, writes with response, and reads back the name. The app must validate **eight ASCII bytes**, which avoids accepting eight multibyte Unicode characters.
+
+## iPhone session design
+
+User selects a discovered device → enter/retrieve credential → connect → discover service and required characteristics → validate supported read/write properties → password write with response → initial name/battery/state reads → ready. Serialize operations per peripheral; timeout any incomplete operation, disconnect on protocol errors, and permit explicit reconnection. Stop scan and disconnect when backgrounded; refresh through reconnect when returning. MVP deliberately does not promise background execution or Pi-style schedules.
+
+## Unknowns requiring hardware checks
+
+- Whether each deployed switch uses the same password as the reference; whether passwords can differ or be changed.
+- Whether devices permit multiple BLE centrals. Disconnect the Pi during initial tests if it holds the link.
+- Whether switch state reads immediately reflect writes or require a firmware delay.
+- Notification format on the unused subscribe characteristic. Do not subscribe until this is known.
+- Actual characteristic properties, authentication failure responses, maximum concurrent connections, and firmware compatibility.
+- Whether advertised state and battery are reliable during another controller's activity.
+
+The app must not reproduce the server scheduler as an iPhone background timer: iOS suspension makes that unreliable without a separate always-on controller.
