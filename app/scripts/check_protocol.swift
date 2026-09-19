@@ -96,6 +96,27 @@ struct ProtocolChecks {
                 }
             }
         }
+        let ids = (0..<7).map { _ in UUID() }
+        var schedule = SwitchSchedule(limit: 3)
+        ids.forEach { schedule.enqueue(SwitchRequest(id: $0, operation: .power(true))) }
+        for _ in 0..<3 { require(schedule.takeNext() != nil, "Parallel slot unavailable") }
+        require(schedule.takeNext() == nil && schedule.active.count == 3, "Parallel limit exceeded")
+        require(!schedule.enqueue(SwitchRequest(id: ids[0], operation: .power(false))), "Duplicate active request accepted")
+        schedule.finished(ids[1])
+        require(schedule.takeNext()?.id == ids[3], "Released slot did not advance queue")
+        require(schedule.cancelPending().count == 3 && schedule.active.count == 3, "Cancellation released active transport early")
+        var presence = SwitchDevice(id: UUID(), name: "DESKLAMP", rssi: -50, identityKnown: true)
+        let instant = Date(timeIntervalSince1970: 100)
+        require(!presence.isOnline(at: instant), "Unseen saved switch marked online")
+        presence.observe(localName: "Nultra1092", rssi: -50, at: instant)
+        require(presence.isOnline(at: instant.addingTimeInterval(14)), "Recent packet marked offline")
+        require(!presence.isOnline(at: instant.addingTimeInterval(15)) && presence.visible, "Expiry removed switch or retained online state")
+        require(!SwitchDevice(id: UUID(), name: "Nultra1092", rssi: -50).visible, "Unnamed device displayed")
+        var bulk = BulkProgress(ids: [ids[0], ids[1]])
+        bulk.finish(ids[0], success: true); bulk.finish(ids[0], success: false)
+        require(!bulk.complete && bulk.results.count == 1, "Duplicate bulk result counted")
+        bulk.finish(ids[1], success: false)
+        require(bulk.complete && bulk.message == "1/2 updated · 1 unsuccessful", "Partial bulk failure lost")
         print("Passed \(checks) protocol checks")
     }
 }

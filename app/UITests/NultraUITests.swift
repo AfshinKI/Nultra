@@ -19,7 +19,16 @@ final class NultraUITests: XCTestCase {
         XCTAssertEqual(first.frame.minY, second.frame.minY, accuracy: 2)
         XCTAssertGreaterThan(second.frame.minX, first.frame.minX)
         XCTAssertTrue(app.buttons["toggle.SHELFLED"].isHittable, "All six sample switches fit on the mini")
+        XCTAssertFalse(app.buttons["device.UNNAMED"].exists)
+        XCTAssertEqual(app.descendants(matching: .any)["presence.HALLWAY1"].label, "Offline")
+        XCTAssertEqual(app.descendants(matching: .any)["presence.DESKLAMP"].label, "Online")
         screenshot("01-dashboard-13-mini")
+        app.buttons["all.off"].tap()
+        XCTAssertTrue(app.buttons["toggle.DESKLAMP"].label.contains("Off"))
+        XCTAssertTrue(app.buttons["toggle.KITCHEN1"].label.contains("Off"))
+        app.buttons["all.on"].tap()
+        XCTAssertTrue(app.buttons["toggle.DESKLAMP"].label.contains("On"))
+        XCTAssertTrue(app.buttons["toggle.HALLWAY1"].label.contains("On"))
         app.buttons["toggle.DESKLAMP"].tap()
         XCTAssertTrue(app.buttons["toggle.DESKLAMP"].label.contains("Off"))
         app.buttons["device.DESKLAMP"].tap()
@@ -43,11 +52,24 @@ final class NultraUITests: XCTestCase {
         XCTAssertTrue(app.buttons["device.OFFICE01"].exists)
         app.buttons["settings"].tap()
         let toggle = app.switches["demo.toggle"]
-        XCTAssertTrue(toggle.waitForExistence(timeout: 5)); toggle.tap()
+        XCTAssertTrue(toggle.waitForExistence(timeout: 5))
+        if !toggle.isHittable { app.swipeUp() }
+        toggle.tap()
         app.buttons["Done"].tap()
-        XCTAssertTrue(app.buttons["Find switches"].waitForExistence(timeout: 5))
+        let permission = XCUIApplication(bundleIdentifier: "com.apple.springboard").buttons["Allow"]
+        if permission.waitForExistence(timeout: 2) { permission.tap() }
+        XCTAssertTrue(app.staticTexts["scan.status"].waitForExistence(timeout: 5))
+        XCTAssertFalse(app.buttons["Find switches"].exists)
         screenshot("03-real-mode-empty-state")
     }
+    func testSwitchPasswordRequiresExplicitSelection() throws {
+        let app = XCUIApplication()
+        app.launchArguments = ["--demo"]
+        app.launch()
+        app.buttons["settings"].tap()
+        XCTAssertTrue(app.secureTextFields["master.password"].waitForExistence(timeout: 5))
+        XCTAssertFalse(app.buttons["master.save"].isEnabled)
+}
     func testLargeTextAndLandscapeRemainNavigable() throws {
         let app = XCUIApplication()
         app.launchArguments = ["--demo", "-UIPreferredContentSizeCategoryName", "UICTContentSizeCategoryAccessibilityXXXL"]

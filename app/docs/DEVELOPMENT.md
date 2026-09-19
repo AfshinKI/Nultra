@@ -37,7 +37,7 @@ Local `swift test` initially fails because the incomplete Command Line Tools set
 2. Add the owner's Apple Account in Xcode settings and select a signing team in the Nultra target. A personal team can be used where Apple permits local development signing; provisioning limitations/renewal depend on account type.
 3. Connect and trust the iPhone. Enable Developer Mode if iOS requests it.
 4. Select the physical iPhone and run the Nultra scheme. Resolve any signing or device-support message shown by Xcode.
-5. Allow Bluetooth when tapping Find switches. Initial testing should release any active connection held by the Pi.
+5. Allow Bluetooth when opening Nultra. Initial testing should release any active connection held by the Pi.
 6. The owner-supplied master credential is used automatically. New switches briefly connect once to learn and persist their real name.
 7. Complete HARDWARE_ACCEPTANCE.md before treating the build as ready for daily use.
 

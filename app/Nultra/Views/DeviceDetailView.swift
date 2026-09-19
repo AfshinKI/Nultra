@@ -18,7 +18,7 @@ struct DeviceDetailView: View {
                             .font(.system(size: 44)).foregroundColor(Theme.mint).padding(.top, 16)
                         Text(device.identityKnown ? device.name : "Name lookup pending")
                             .font(.system(.title, design: .rounded).bold()).multilineTextAlignment(.center)
-                        Text(busy ? (bluetooth.activeID == deviceID ? bluetooth.phase.label : "Queued…") : "Disconnected")
+                        Text(bluetooth.status(deviceID))
                             .font(.subheadline).foregroundColor(Theme.muted).accessibilityIdentifier("connection.status")
                         if bluetooth.demo { Text("DEMO SWITCH").font(.caption.bold()).foregroundColor(Theme.mint) }
                         if device.identityKnown {

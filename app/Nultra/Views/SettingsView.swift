@@ -3,15 +3,15 @@ import SwiftUI
 struct SettingsView: View {
     @EnvironmentObject private var bluetooth: BluetoothStore
     @Environment(\.dismiss) private var dismiss
+    @State private var password = ""
 
     @State private var credentialDevice: UUID?
     @State private var credentialMessage = ""
-    @State private var password = ""
 
     var body: some View {
         NavigationStack {
             ScrollView {
-                VStack(alignment: .leading, spacing: 24) {
+                VStack(alignment: .leading, spacing: 16) {
                     VStack(alignment: .leading, spacing: 12) {
                         Label("Switch password", systemImage: "key.fill").font(.headline)
                         Picker("Switch", selection: $credentialDevice) {
@@ -41,36 +41,34 @@ struct SettingsView: View {
                         Text("Enter the command password from this switch’s build.")
                             .font(.caption).foregroundColor(Theme.muted)
                     }.panel()
-                    HStack(spacing: 18) {
-                        Image("BrandMark").resizable().frame(width: 72, height: 72)
-                            .clipShape(RoundedRectangle(cornerRadius: 20))
-                        VStack(alignment: .leading, spacing: 6) {
-                            Text("Nultra").font(.title.bold())
-                            Text("Your space. At your fingertips.").font(.subheadline).foregroundColor(Theme.muted)
+                    VStack(alignment: .leading, spacing: 12) {
+                        Label("Discovery", systemImage: "antenna.radiowaves.left.and.right").font(.headline)
+                        Text("Named switches stay in your list. Green means seen within 15 seconds; red means not currently seen. Listening runs automatically while Nultra is open.")
+                            .font(.subheadline).foregroundColor(Theme.muted)
+                        if bluetooth.unnamedCount > 0 && !bluetooth.demo {
+                            Text("\(bluetooth.unnamedCount) devices have not returned a name.").font(.caption)
                         }
-                    }.padding(.vertical, 10)
-                    VStack(alignment: .leading, spacing: 16) {
+                        Button("Retry name discovery") { bluetooth.retryDiscovery() }
+                            .disabled(bluetooth.demo).frame(minHeight: 44)
+                    }.panel()
+                    VStack(alignment: .leading, spacing: 12) {
                         Toggle("Explore demo mode", isOn: Binding(get: { bluetooth.demo }, set: { bluetooth.setDemo($0) }))
-                            .disabled(bluetooth.activeID != nil).accessibilityIdentifier("demo.toggle")
-                        Text(bluetooth.activeID != nil ? "Wait for the current operation to finish." : "Try the interface with six sample switches. Demo mode never sends Bluetooth commands.")
-                            .font(.footnote).foregroundColor(Theme.muted)
+                            .disabled(bluetooth.hasWork).accessibilityIdentifier("demo.toggle")
+                        Text("Demo controls never send Bluetooth commands. Your saved real switches return when demo mode is turned off.")
+                            .font(.caption).foregroundColor(Theme.muted)
                     }.panel()
-                    VStack(alignment: .leading, spacing: 16) {
-                        Label("Private by design", systemImage: "lock.shield").font(.headline)
-                        Text("Switch control goes directly from this iPhone over Bluetooth. No server or account is needed. Your real switch names are remembered on this phone.")
-                            .font(.subheadline).foregroundColor(Theme.muted)
-                    }.panel()
-                    VStack(alignment: .leading, spacing: 16) {
-                        Label("A good connection", systemImage: "dot.radiowaves.left.and.right").font(.headline)
-                        Text("Keep your switch nearby and powered on. If it won’t connect, disconnect it from the Raspberry Pi first. Nultra briefly connects for a new name lookup or your requested change, then immediately disconnects. Power and battery updates come from broadcasts.")
-                            .font(.subheadline).foregroundColor(Theme.muted)
-                    }.panel()
-                    Text("VERSION 0.3 · PERSONAL EDITION").font(.system(size: 10, weight: .medium, design: .monospaced))
-                        .tracking(1.5).foregroundColor(Theme.muted).frame(maxWidth: .infinity)
-                }.padding(24)
+                    Text("Up to three short connections run in parallel. Each disconnects immediately after its operation.")
+                        .font(.caption).foregroundColor(Theme.muted)
+                    Text("VERSION 0.4 · PERSONAL EDITION").font(.caption2).foregroundColor(Theme.muted)
+                }.padding(16)
             }.background(Theme.background.ignoresSafeArea())
-                .navigationTitle("Settings").navigationBarTitleDisplayModeCompat()
+                .navigationTitle("Menu").navigationBarTitleDisplayModeCompat()
                 .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } } }
+                .onDisappear { password = "" }
+                .alert("Password could not be saved", isPresented: Binding(
+                    get: { bluetooth.errorMessage != nil }, set: { if !$0 { bluetooth.errorMessage = nil } }
+                )) { Button("OK") { bluetooth.errorMessage = nil } }
+                message: { Text(bluetooth.errorMessage ?? "") }
         }.preferredColorScheme(.dark).tint(Theme.mint)
     }
 }

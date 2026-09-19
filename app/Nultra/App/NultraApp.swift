@@ -19,6 +19,7 @@ struct NultraApp: App {
                 .environmentObject(bluetooth)
                 .preferredColorScheme(.dark)
                 .tint(Theme.mint)
+                .onAppear { bluetooth.resume() }
                 .onChange(of: scenePhase) { phase in
                     if phase == .background { bluetooth.suspend() }
                     else if phase == .active { bluetooth.resume() }

@@ -2,23 +2,25 @@
 
 ## Components
 
-- `NultraApp`: owns the store; backgrounding cancels active and queued work, foregrounding resumes listening when previously enabled.
+- `NultraApp`: owns the store; backgrounding cancels active and queued work, foregrounding always starts listening.
 - `SwitchProtocol`: Foundation-only wire codec and UUIDs.
 - `SwitchTransaction`: Foundation-only operation state machine shared by the real transport and regression tests. Every terminal path requests disconnect. Late callbacks after cancellation cannot emit writes.
+- `SwitchSchedule`: three connection slots held through cancellation acknowledgement, unique work per peripheral, bulk result accounting, and persistent named-switch catalog.
+- `MasterPasswordStore`: validated eight-byte password in this-device-only Keychain storage, with default fallback only when no item exists.
 - `SwitchDevice`: observed state, broadcast/read timestamps, identity lookup status.
 - `KnownSwitch`: Codable real name and firmware keyed by peripheral UUID; persisted in UserDefaults. State/battery are not restored as fresh observations.
-- `BluetoothStore`: main-queue CoreBluetooth adapter, one active operation, user-prioritized queue, eight-second total deadline, automatic first identification. Uses the owner-supplied bundled master credential; no password-entry or Keychain flow.
+- `BluetoothStore`: main-queue CoreBluetooth adapter, up to three independent sessions, user-prioritized queue, eight-second total deadline, automatic first identification. Uses a per-transaction snapshot of the master credential from Keychain, with the supplied bundled default when no override exists.
 - Views: compact two-column dashboard with direct power controls and separate name/details action. Details and rename editing never connect.
 
 ## Transaction lifecycle
 
-Connect → discover password + target characteristic → authenticate → operation-specific write/read → immediately cancel connection → wait for disconnect acknowledgement → release next queued operation.
+Connect → discover password + target characteristic → authenticate → operation-specific write/read → immediately cancel connection → wait for disconnect acknowledgement → release that slot to the next queued operation.
 
 Identification reads only the name characteristic (which includes firmware). Power writes only state then reads state. Rename waits for write acknowledgement then reads name. There is no ready/idle-connected phase, periodic metadata read, connection held while editing, or background reconnect. An eight-second timer starts with the connection request and is not reset by progress. Completion cancels CoreBluetooth before persisting the result.
 
 Callbacks check peripheral identity and state. The adapter validates characteristic properties, honors write-without-response flow control, and forwards accepted events to the shared state machine. Service invalidation, malformed reads, transport errors, readback mismatches, timeout, and backgrounding all release the link. Physical cancellation timing is controlled by CoreBluetooth; the app cannot promise an exact radio disconnect latency.
 
-New devices are looked up once per explicit scan session, with no automatic retry loop after failure. Successfully learned names survive relaunch and subsequent scans. A failed lookup has an explicit Retry action. User commands take priority over queued discovery requests; an in-flight transaction finishes before the next begins. Pending controls are disabled per switch.
+New devices are looked up once per explicit scan session, with no automatic retry loop after failure. Successfully learned names survive relaunch and subsequent scans. A failed lookup has an explicit Retry action. User commands take priority over queued discovery requests; each peripheral has only one in-flight operation, while different peripherals can operate concurrently. Pending controls are disabled per switch.
 
 ## Data freshness
 
@@ -28,4 +30,6 @@ The server exposes no authentication-status characteristic. A successful passwor
 
 ## Boundaries
 
-No Pi HTTP dependency, analytics, background scheduler, notification subscription, password-change command, or automatic command retries. The master credential is deliberately bundled for this owner’s private app and must not be treated as a protected secret against someone possessing its binary. Hardware acceptance remains necessary.
+No Pi HTTP dependency, analytics, background scheduler, notification subscription, switch-firmware password-change command, or automatic command retries. The master credential is deliberately bundled for this owner’s private app and must not be treated as a protected secret against someone possessing its binary. Hardware acceptance remains necessary.
+
+Only verified names appear in `visibleDevices`; saved names are never removed because of missing advertisements. Presence uses fresh scan timestamps with a 15-second expiry. An unavailable scanner forces red LEDs. The foreground timer updates age without opening BLE links.

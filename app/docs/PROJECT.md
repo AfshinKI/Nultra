@@ -4,7 +4,7 @@ A private native iPhone app that discovers and controls Nultra switches directly
 
 ## Product scope
 
-SwiftUI interface with a dark navy canvas, luminous mint accents, clear connection states, device cards, battery indicators, explicit on/off actions, device rename, and a custom app icon. Real hardware and preview/demo mode must remain clearly separated. Connections are short transactions; real names persist locally. The owner explicitly requested automatic use of a bundled master credential.
+SwiftUI interface with a dark navy canvas, luminous mint accents, clear connection states, device cards, battery indicators, explicit on/off actions, device rename, and a custom app icon. Real hardware and preview/demo mode must remain clearly separated. Connections are short transactions; real names persist locally. The owner explicitly requested automatic use of a master credential, with its supplied default and an optional Keychain-backed override in Menu.
 
 ## Phases
 

@@ -20,7 +20,7 @@ iOS exposes a CoreBluetooth peripheral UUID, not the Linux Bluetooth MAC address
 
 ## Connect and authenticate
 
-`NultraBLEDevice.connect` connects and writes the password characteristic using `response=True`. At the owner’s explicit request, this private iPhone app uses the supplied master credential automatically for every transaction. It is bundled in the private app implementation, never displayed or logged. Per-switch password entry and persistent connected sessions have been removed.
+`NultraBLEDevice.connect` connects and writes the password characteristic using `response=True`. At the owner’s explicit request, this private iPhone app uses a master credential automatically for every transaction. The supplied value is the default; the owner can save an override in Menu, stored in Keychain. Credentials are not logged. No persistent connected session exists.
 
 No challenge, token, auth-status read, or positive authentication response is implemented in the server. A successful GATT password write is the strongest transport evidence available; successful command read-back must still be checked. Pairing/bonding, link encryption, lockout behavior, and firmware rejection behavior cannot be established from this client alone.
 
@@ -40,7 +40,7 @@ See [short connection requirements](SHORT_CONNECTIONS.md). Each connection has e
 - Power: password write → explicit power write → power readback → immediate disconnect.
 - Rename: edit while disconnected, then password write → name write with response → name readback → immediate disconnect.
 
-Discover only password plus the operation’s target characteristic. Power and battery normally come from advertisements; identification does not read them. One eight-second deadline covers the entire attempt. Every failure and background transition cancels the connection. A second operation waits until CoreBluetooth confirms disconnection. No command retries or idle connected state exist. Listening resumes on return to the foreground if it was active before backgrounding.
+Discover only password plus the operation’s target characteristic. Power and battery normally come from advertisements; identification does not read them. One eight-second deadline covers the entire attempt. Every failure and background transition cancels the connection. Up to three distinct switches can be processed concurrently. Each connection slot stays occupied until CoreBluetooth confirms disconnection. No command retries or idle connected state exist. Listening starts automatically on launch and every return to the foreground.
 
 ## Unknowns requiring hardware checks
 

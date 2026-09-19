@@ -30,6 +30,14 @@ struct SwitchDevice: Identifiable {
         stateSource = .advertisement
     }
 
+    static let presenceLifetime: TimeInterval = 15
+    var visible: Bool { identityKnown && !name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
+    func isOnline(at date: Date) -> Bool {
+        guard let seen = lastSeen else { return false }
+        let age = date.timeIntervalSince(seen)
+        return age >= 0 && age < Self.presenceLifetime
+    }
+
     var powerLabel: String { isOn.map { $0 ? "On" : "Off" } ?? "Unknown" }
 
     var batterySymbol: String {

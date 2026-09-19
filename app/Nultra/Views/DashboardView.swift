@@ -9,44 +9,49 @@ struct DashboardView: View {
     var body: some View {
         NavigationStack {
             ScrollView {
-                VStack(alignment: .leading, spacing: 12) {
+                VStack(alignment: .leading, spacing: 8) {
                     HStack(spacing: 10) {
                         Image("BrandMark").resizable().frame(width: 34, height: 34)
                             .clipShape(RoundedRectangle(cornerRadius: 10)).accessibilityHidden(true)
                         Text("nultra").font(.system(size: 26, weight: .semibold, design: .rounded))
                         Spacer()
                         Button { showingSettings = true } label: {
-                            Image(systemName: "slider.horizontal.3").frame(width: 44, height: 44)
-                        }.accessibilityLabel("Settings").accessibilityIdentifier("settings")
+                            Image(systemName: "line.3.horizontal").frame(width: 44, height: 44)
+                        }.accessibilityLabel("Menu").accessibilityIdentifier("settings")
                     }
                     if bluetooth.demo {
                         Text("DEMO · No physical switches controlled")
                             .font(.caption).foregroundColor(Theme.mint).accessibilityIdentifier("demo.banner")
                     }
+                    HStack(spacing: 10) {
+                        Button { bluetooth.setAllPower(false) } label: { Label("All Off", systemImage: "power") }
+                            .buttonStyle(PrimaryButton(subdued: true)).accessibilityIdentifier("all.off")
+                        Button { bluetooth.setAllPower(true) } label: { Label("All On", systemImage: "bolt.fill") }
+                            .buttonStyle(PrimaryButton()).accessibilityIdentifier("all.on")
+                    }.disabled(bluetooth.hasWork || bluetooth.visibleDevices.isEmpty)
                     HStack {
-                        Text(bluetooth.demo ? "Your switches" : bluetooth.scanning ? "Listening · \(bluetooth.devices.count) switches" : "Your switches · \(bluetooth.devices.count)")
-                            .font(.subheadline.weight(.medium)).foregroundColor(Theme.muted)
+                        Text(bluetooth.demo ? "Your switches" : bluetooth.scanning ? "Listening" : bluetooth.radio)
+                            .accessibilityIdentifier("scan.status")
                         Spacer()
-                        if !bluetooth.demo {
-                            Button(bluetooth.scanning ? "Stop listening" : "Find switches") {
-                                bluetooth.scanning ? bluetooth.stopScan() : bluetooth.startScan()
-                            }.font(.caption.weight(.semibold)).frame(minHeight: 44)
-                        }
+                        Text("\(bluetooth.visibleDevices.count) saved")
+                    }.font(.caption).foregroundColor(Theme.muted)
+                    if let message = bluetooth.bulkStatus {
+                        Text(message).font(.caption).foregroundColor(Theme.mint).accessibilityIdentifier("bulk.status")
                     }
-                    if bluetooth.devices.isEmpty {
+                    if bluetooth.visibleDevices.isEmpty {
                         VStack(spacing: 18) {
                             Image(systemName: "dot.radiowaves.left.and.right").font(.largeTitle).foregroundColor(Theme.mint)
-                            Text(bluetooth.scanning ? "Finding your switches…" : "Your lights, one touch away.").font(.title3.bold())
+                            Text("Waiting for named switches").font(.title3.bold())
                             Text(bluetooth.radio).font(.subheadline).foregroundColor(Theme.muted)
-                            Text("New switches get one brief name lookup. After that, Nultra listens without staying connected.")
+                            Text("Listening starts automatically. A switch appears here once its real name has been read.")
                                 .font(.subheadline).foregroundColor(Theme.muted).multilineTextAlignment(.center)
                             Button("Explore the demo") { bluetooth.setDemo(true) }
                         }.frame(maxWidth: .infinity).panel().padding(.top, 30)
                     } else {
                         LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 10), count: textSize.isAccessibilitySize ? 1 : 2), spacing: 10) {
-                            ForEach(bluetooth.devices.sorted { $0.name.localizedStandardCompare($1.name) == .orderedAscending }) { device in
-                                DeviceCard(device: device, busy: bluetooth.isBusy(device.id),
-                                           status: bluetooth.activeID == device.id ? bluetooth.phase.label : "Queued…",
+                            ForEach(bluetooth.visibleDevices) { device in
+                                DeviceCard(device: device, busy: bluetooth.isBusy(device.id), online: bluetooth.online(device),
+                                           status: bluetooth.status(device.id),
                                            detail: { selected = device },
                                            power: { bluetooth.setPower(device.id, !(device.isOn ?? false)) },
                                            retry: { bluetooth.identify(device.id) })
@@ -71,6 +76,7 @@ struct DashboardView: View {
 private struct DeviceCard: View {
     let device: SwitchDevice
     let busy: Bool
+    let online: Bool
     let status: String
     let detail: () -> Void
     let power: () -> Void
@@ -79,6 +85,10 @@ private struct DeviceCard: View {
     var body: some View {
         VStack(spacing: 3) {
             HStack(spacing: 4) {
+                Circle().fill(online ? Color.green : Color.red).frame(width: 7, height: 7)
+                    .accessibilityElement(children: .ignore)
+                    .accessibilityLabel(online ? "Online" : "Offline")
+                    .accessibilityIdentifier("presence.\(device.name)")
                 Image(systemName: "antenna.radiowaves.left.and.right")
                     .accessibilityLabel(device.signal)
                 Text(device.rssi == 127 ? "—" : "\(device.rssi)")
@@ -115,10 +125,10 @@ private struct DeviceCard: View {
                 if let error = device.lookupError { Text(error).lineLimit(2) }
                 else if let date = device.lastBroadcast, device.stateSource == .advertisement {
                     HStack(spacing: 3) { Text("Seen"); Text(date, style: .relative) }
-                } else if device.stateSource == .demo { Text("Demo · Disconnected") }
+                } else if device.stateSource == .demo { Text(online ? "Online · Demo" : "Offline · Demo") }
                 else if let date = device.lastConfirmed {
                     HStack(spacing: 3) { Text("Read"); Text(date, style: .relative) }
-                } else { Text(device.identityKnown ? "Awaiting broadcast" : "One-time name lookup") }
+                } else { Text(online ? "Online" : "Offline") }
             }.font(.system(size: 10)).foregroundColor(Theme.muted).padding(.top, 3)
         }.padding(10)
             .background(Theme.surface, in: RoundedRectangle(cornerRadius: 18))
