@@ -18,7 +18,6 @@ The app implements discovery, automatic one-time name lookup, persistent real na
 
 ## 1. Get Nultra.ipa
 
-**A verified copy is already saved in this workspace at `dist/Nultra.ipa`.** AirDrop that file to your phone and continue with step 2. The checksum and source/build details are beside it. For another computer or a future update, download it as follows:
 
 2. Open the newest successful **iOS validation** run on `main`. Confirm the **build** job passed.
 4. Keep this folder somewhere convenient. `BUILD-INFO.txt` records the source commit and Xcode version. Optional integrity check from that folder: `shasum -a 256 -c Nultra.ipa.sha256`.
