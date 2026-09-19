@@ -253,12 +253,17 @@ public final class MainActivity extends Activity implements BleStore.Listener {
     TextView values = text("", 17, MUTED);
     view.addView(values);
     space(view, 18);
-    LinearLayout controls = row();
-    Button off = button("Off", MUTED, () -> store.power(d, false)),
-        on = button("On", YELLOW, () -> store.power(d, true));
-    controls.addView(off, weighted());
-    controls.addView(on, weighted());
-    view.addView(controls);
+    Switch power = new Switch(this);
+    power.setText("Light power");
+    power.setTextColor(INK);
+    power.setMinHeight(dp(48));
+    power.setChecked(Boolean.TRUE.equals(d.power));
+    power.setOnClickListener(w -> {
+      if (!store.busy(d)) store.power(d, power.isChecked());
+      power.setChecked(Boolean.TRUE.equals(d.power));
+      power.setEnabled(!store.busy(d));
+    });
+    view.addView(power);
     ProgressBar wait = new ProgressBar(this);
     view.addView(wait, new LinearLayout.LayoutParams(dp(28), dp(28)));
     Button rename = button("Rename", MINT, () -> rename(d));
@@ -288,8 +293,9 @@ public final class MainActivity extends Activity implements BleStore.Listener {
                     + "\nFirmware  "
                     + (d.firmware.isEmpty() ? "—" : d.firmware));
             wait.setVisibility(busy ? View.VISIBLE : View.GONE);
-            off.setEnabled(!busy);
-            on.setEnabled(!busy);
+            power.setEnabled(!busy);
+            power.setChecked(Boolean.TRUE.equals(d.power));
+            power.setContentDescription("Light power, " + (d.power == null ? "unknown" : d.power ? "on" : "off"));
             rename.setEnabled(!busy);
             dialog.setTitle(d.name);
             h.postDelayed(this, 500);
@@ -360,6 +366,7 @@ public final class MainActivity extends Activity implements BleStore.Listener {
           (dialog, index) -> switchCredential(devices.get(index))).show();
     }));
     space(v, 20);
+    v.addView(button("Battery alerts", MINT, this::batterySettings));
     v.addView(button("Backup server", MINT, this::serverSettings));
     v.addView(
         text(
@@ -419,6 +426,36 @@ public final class MainActivity extends Activity implements BleStore.Listener {
           store.demo(checked);
           dialog.dismiss();
         });
+    dialog.show();
+  }
+
+  void batterySettings() {
+    LinearLayout view = column();
+    view.setPadding(dp(20), dp(8), dp(20), dp(16));
+    Switch enabled = new Switch(this);
+    enabled.setText("Low battery notifications");
+    enabled.setTextColor(INK);
+    enabled.setChecked(store.batteryAlerts.enabled());
+    view.addView(enabled);
+    EditText threshold = edit(Integer.toString(store.batteryAlerts.threshold()), false);
+    threshold.setInputType(InputType.TYPE_CLASS_NUMBER);
+    threshold.setContentDescription("Battery alert threshold percent");
+    view.addView(text("Notify at or below (%)", 16, INK));
+    view.addView(threshold);
+    view.addView(text("Default 5%. One alert per switch until its battery recovers by 10 percentage points above the alert threshold. Alerts use new readings received while Nultra is active; no monitoring while the app is stopped.", 14, MUTED));
+    if (!store.batteryAlerts.permitted()) view.addView(text("Notifications are currently blocked. Allow them in Android Settings → Apps → Nultra → Notifications.", 14, MUTED));
+    AlertDialog dialog = new AlertDialog.Builder(this).setTitle("Battery alerts").setView(view).setNegativeButton("Cancel", null).setPositiveButton("Save", null).create();
+    dialog.setOnShowListener(x -> dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener(w -> {
+      int value;
+      try { value = Integer.parseInt(threshold.getText().toString()); }
+      catch (NumberFormatException e) { value = 0; }
+      if (value < 1 || value > 50) { threshold.setError("Enter 1–50%"); return; }
+      store.batteryAlerts.save(enabled.isChecked(), value);
+      if (enabled.isChecked() && Build.VERSION.SDK_INT >= 33 && checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != android.content.pm.PackageManager.PERMISSION_GRANTED)
+        requestPermissions(new String[] {Manifest.permission.POST_NOTIFICATIONS}, 8);
+      toast("Battery alert settings saved");
+      dialog.dismiss();
+    }));
     dialog.show();
   }
 

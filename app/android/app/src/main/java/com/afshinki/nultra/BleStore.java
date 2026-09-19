@@ -24,6 +24,7 @@ final class BleStore {
   }
 
   final ServerSettings server;
+  final BatteryNotifications batteryAlerts;
   final ExecutorService network = Executors.newFixedThreadPool(3);
   final Map<String, Remote> remote = new LinkedHashMap<>();
   List<ServerClient.Row> serverRows = new ArrayList<>();
@@ -144,6 +145,7 @@ final class BleStore {
                           if (!d.online(SystemClock.elapsedRealtime()) && !busy(d)) {
                             d.power = row.power;
                             d.battery = row.battery;
+                            batteryAlerts.observe(d);
                             d.serverReported = true;
                           }
                         } catch (Exception ignored) {
@@ -330,6 +332,7 @@ final class BleStore {
     context = c.getApplicationContext();
     credentials = new CredentialStore(context);
     server = new ServerSettings(context);
+    batteryAlerts = new BatteryNotifications(context);
     BluetoothManager manager = context.getSystemService(BluetoothManager.class);
     adapter = manager == null ? null : manager.getAdapter();
     try {
@@ -499,6 +502,7 @@ final class BleStore {
         d.serverReported = false;
         d.power = state[0] == 1;
         d.battery = state[1];
+        if (!demo) batteryAlerts.observe(d);
       }
     }
     if (d.name.isEmpty() && !d.attempted && bulkRemaining == 0) {
@@ -771,6 +775,7 @@ final class BleStore {
             d.name = t.identity.name;
             d.firmware = t.identity.firmware;
             save();
+            batteryAlerts.observe(d);
           }
           if (t.power != null) {
             d.power = t.power;

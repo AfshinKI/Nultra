@@ -30,12 +30,13 @@ struct DeviceDetailView: View {
                             VStack(spacing: 16) {
                                 Text(device.isOn.map { $0 ? "Power is on" : "Power is off" } ?? "Power not yet observed")
                                     .font(.headline).accessibilityIdentifier("power.state")
-                                HStack(spacing: 12) {
-                                    Button { bluetooth.setPower(deviceID, false) } label: { Label("Off", systemImage: "lightbulb") }
-                                        .buttonStyle(CompactPowerButton(on: false)).accessibilityIdentifier("power.off")
-                                    Button { bluetooth.setPower(deviceID, true) } label: { Label("On", systemImage: "lightbulb.fill") }
-                                        .buttonStyle(CompactPowerButton(on: true)).accessibilityIdentifier("power.on")
-                                }.disabled(busy)
+                                Toggle("Light power", isOn: Binding(
+                                    get: { device.isOn ?? false },
+                                    set: { bluetooth.setPower(deviceID, $0) }
+                                ))
+                                .tint(Theme.mint).disabled(busy)
+                                .accessibilityIdentifier("power.toggle")
+                                .accessibilityValue(device.isOn.map { $0 ? "On" : "Off" } ?? "Unknown")
                                 Text("Connects only to apply your change, then disconnects immediately.")
                                     .font(.caption).foregroundColor(Theme.muted)
                             }.panel()

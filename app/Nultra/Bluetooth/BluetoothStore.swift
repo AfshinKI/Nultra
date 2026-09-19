@@ -3,6 +3,7 @@ import Combine
 import CoreBluetooth
 #if os(iOS)
 import UIKit
+import WidgetKit
 #endif
 
 /// Main-queue adapter: at most three independent short transactions, no idle connections.
@@ -419,11 +420,24 @@ final class BluetoothStore: NSObject, ObservableObject {
     private func update(_ id: UUID, publish: Bool = true, _ change: (inout SwitchDevice) -> Void) {
         guard let index = liveDevices.firstIndex(where: { $0.id == id }) else { return }
         change(&liveDevices[index])
+        if !demo { BatteryNotifications.shared.observe(liveDevices[index]) }
         if publish { publishDevices() }
     }
+    private var widgetLights: [WidgetLight]?
     private func publishDevices() {
         now = Date()
         if devices != liveDevices { devices = liveDevices }
+        #if os(iOS)
+        // Demo data must never replace the real widget catalog.
+        if !demo {
+            let lights = visibleDevices.map { WidgetLight(id: $0.id, name: $0.name, isOn: $0.isOn) }
+            if lights != widgetLights {
+                widgetLights = lights
+                WidgetSnapshot(date: now, lights: lights).save()
+                WidgetCenter.shared.reloadTimelines(ofKind: WidgetSnapshot.kind)
+            }
+        }
+        #endif
     }
     private func apply(_ result: SwitchTransaction.Result, to id: UUID) {
         switch result {

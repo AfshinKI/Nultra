@@ -93,17 +93,25 @@ A nearby switch uses phone Bluetooth. If unavailable, an enabled reachable serve
 
 A widget action has a 24-second limit, up to three concurrent operations, and no automatic HTTP retry. Large batches or unreachable switches can partially finish; check the reported result. A server “queued” result is not physical confirmation. Samsung power-management and real BLE behaviour still need testing on your phone. Apple Shortcuts itself is iPhone-only; the Android equivalent provided here is the home-screen widget.
 
+## Widgets, power toggles, and battery alerts (v0.9.0)
+
+
+The Android widget defaults to **2×1**, remains resizable, and controls one saved light or all lights. The switch detail page on both platforms now uses a single power toggle. Busy controls are disabled, and the displayed state follows confirmed device/server readings.
+
+Enable **Battery alerts** in Menu and allow notifications. Set a threshold from 1–50% (default 5%). A switch sends one local notification when a received reading is at or below that threshold. It rearms only after the battery rises at least ten points above the threshold that triggered the alert, so small fluctuations and app restarts do not repeat it. Demo readings never notify. These are local notifications from incoming Bluetooth/server observations, not remote push monitoring while the app is stopped.
+
+
 ## Release process and runner usage
 
-Pushes, PRs, documentation edits, and tags do **not** start hosted builds. Run local checks during development, and use a PR to merge changes into `main` before publishing.
+Pushes, ordinary PRs, documentation edits, and tags do **not** start hosted builds. Run local checks during development, and use a PR to merge changes into `main` before publishing.
 
 1. Bump `MARKETING_VERSION` and `CURRENT_PROJECT_VERSION` in `scripts/generate_project.py`; regenerate the project. Set matching `versionName` and an increased `versionCode` in `android/app/build.gradle`.
 2. Write `docs/releases/vX.X.X.md`, run `bash scripts/check.sh`, Android unit tests/lint, and `python3 -m unittest discover -s distribution/tests -v`. Open and merge the PR into `main`.
-3. In Actions → **iPhone and Android release** → **Run workflow**, select `main` and enable **Publish a new version**. Publication from other branches is rejected before build jobs start. Both platforms are always built for publication.
-4. Leave **Run expensive iPhone simulator tests** off unless UI validation is needed. Run those tests locally when possible; if no compatible local Xcode is available, enable them for UI changes. Diagnostic runs can select just `ios` or `android` to avoid an unrelated build.
+3. For automatic publication after merge, add the `publish-release` label to the PR before merging. Otherwise, in Actions → **iPhone and Android release** → **Run workflow**, select `main` and enable **Publish a new version**. Publication from other branches is rejected before build jobs start. Both platforms are always built for publication.
+4. Leave **Run expensive iPhone simulator tests** off unless UI validation is needed. Run those tests locally when possible; if no compatible local Xcode is available, enable them for UI changes. Diagnostic runs can select just `ios` or `android` to avoid an unrelated build. Adding the `validate-ios-ui` label to a same-repository PR requests one iPhone build with simulator tests; it does not build Android or publish. Remove and re-add that label only if the PR changes and needs another check.
 5. A short Linux preflight checks matching versions, release notes, and already-published versions, and runs distribution tests. macOS runs Swift tests and builds the IPA; Linux runs Android tests/lint and builds the APK. Publication creates the `vX.X.X` tag and a release titled exactly `vX.X.X` at the validated commit. No second build runs for the tag.
 
-Published versions are immutable: bump the version for further changes. A failed run may be retried using **Re-run failed jobs** to retain successful build outputs. Diagnostic runs leave **Publish a new version** disabled and never publish. Swift and Gradle caches reduce repeated work; ZIP/APK/IPA uploads avoid redundant compression. Artifacts expire after seven days; release assets remain. Publication runs are serialized per branch instead of cancelling a release halfway through asset upload.
+Published versions are immutable: bump the version for further changes. A failed run may be retried using **Re-run failed jobs** to retain successful build outputs. Diagnostic runs leave **Publish a new version** disabled and never publish. An explicitly labeled release PR publishes only on its successful merge into main, using the merge commit. Swift and Gradle caches reduce repeated work; ZIP/APK/IPA uploads avoid redundant compression. Artifacts expire after seven days; release assets remain. Publication runs are serialized per branch instead of cancelling a release halfway through asset upload.
 
 ## Build it yourself (optional)
 

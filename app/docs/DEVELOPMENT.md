@@ -55,7 +55,7 @@ Local `swift test` initially fails because the incomplete Command Line Tools set
 
 ## Cost-conscious versioned releases
 
-Hosted builds are manual only. Merge a reviewed PR into `main`, then dispatch the release workflow on `main` with publication enabled. Preflight rejects non-main publication, mismatched versions, missing notes, and already-published versions before allocating macOS/Android runners. Releases are titled exactly `vX.X.X`.
+Hosted builds require manual dispatch or an explicit PR label. Merge a reviewed PR into `main`, then dispatch the release workflow on `main` with publication enabled. Preflight rejects non-main publication, mismatched versions, missing notes, and already-published versions before allocating macOS/Android runners. Releases are titled exactly `vX.X.X`. Alternatively, label a PR `publish-release` before merging to publish the merged main commit. Label `validate-ios-ui` requests an iPhone-only diagnostic run with simulator tests before merge; ordinary PR activity allocates no runner.
 
 Diagnostic runs can build only iOS or Android. Simulator tests are opt-in because they dominated runner usage (about eight minutes in the v0.7.0 run); enable them for UI changes when local Xcode validation is unavailable. Distribution tests run on Linux, Swift/Gradle outputs are cached, and compressed artifacts are uploaded without recompression. All actual releases build and validate both packages. See README for the full process.
 

@@ -5,6 +5,9 @@ struct SettingsView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var password = ""
     @State private var server = ServerConfiguration()
+    @State private var batteryEnabled = BatteryNotifications.shared.enabled
+    @State private var batteryThreshold = BatteryNotifications.shared.threshold
+    @State private var notificationStatus = ""
 
     @State private var credentialDevice: UUID?
     @State private var credentialMessage = ""
@@ -75,6 +78,27 @@ struct SettingsView: View {
                         }
                     }.panel().disabled(bluetooth.hasWork)
                     VStack(alignment: .leading, spacing: 12) {
+                        Label("Battery alerts", systemImage: "battery.25percent").font(.headline)
+                        Toggle("Low battery notifications", isOn: Binding(
+                            get: { batteryEnabled },
+                            set: { value in
+                                batteryEnabled = value
+                                BatteryNotifications.shared.enabled = value
+                                if value {
+                                    BatteryNotifications.shared.requestPermission { granted in
+                                        notificationStatus = granted ? "Notifications allowed" : "Allow notifications in iPhone Settings → Nultra → Notifications."
+                                    }
+                                }
+                            }
+                        )).accessibilityIdentifier("battery.enabled")
+                        Stepper("Notify at or below \(batteryThreshold)%", value: $batteryThreshold, in: 1...50)
+                            .onChange(of: batteryThreshold) { BatteryNotifications.shared.threshold = $0 }
+                            .accessibilityIdentifier("battery.threshold")
+                        Text("Default 5%. One alert per switch until its battery recovers by 10 percentage points above the alert threshold. Alerts use new readings received by Nultra; no monitoring while the app is stopped.")
+                            .font(.caption).foregroundColor(Theme.muted)
+                        if !notificationStatus.isEmpty { Text(notificationStatus).font(.caption).foregroundColor(Theme.muted) }
+                    }.panel()
+                    VStack(alignment: .leading, spacing: 12) {
                         Label("Discovery", systemImage: "antenna.radiowaves.left.and.right").font(.headline)
                         Text("Named switches stay in your list. Blue means recently seen by Bluetooth or available through your enabled server; gray means neither route is currently available. Listening runs automatically while Nultra is open.")
                             .font(.subheadline).foregroundColor(Theme.muted)
@@ -85,8 +109,8 @@ struct SettingsView: View {
                             .disabled(bluetooth.demo || bluetooth.hasWork).frame(minHeight: 44)
                     }.panel()
                     VStack(alignment: .leading, spacing: 10) {
-                        Label("Shortcuts", systemImage: "square.stack.3d.up.fill").font(.headline)
-                        Text("In Apple Shortcuts, search Nultra for Turn All Off, Turn All On, or Set Switch Power. Actions run in the background and disconnect after each Bluetooth command. Open Nultra once to grant Bluetooth and local-network access. Server commands report queued status because the server cannot confirm completion.")
+                        Label("Widgets and Shortcuts", systemImage: "square.stack.3d.up.fill").font(.headline)
+                        Text("Add Nultra lights from the Home Screen widget gallery (iOS 17+). Small shows four bulbs, medium eight, and large sixteen. Long-press the widget → Edit Widget to choose lights. Tapping opens Nultra to apply the change. Widget state is last reported, not live.\n\nIn Apple Shortcuts, search Nultra for Turn All Off, Turn All On, or Set Switch Power. Actions run in the background and disconnect after each Bluetooth command. Open Nultra once to grant Bluetooth and local-network access. Server commands report queued status because the server cannot confirm completion.")
                             .font(.subheadline).foregroundColor(Theme.muted)
                     }.panel()
                     VStack(alignment: .leading, spacing: 10) {

@@ -38,7 +38,7 @@ final class NultraUITests: XCTestCase {
         app.buttons["device.DESKLAMP"].tap()
         XCTAssertTrue(app.staticTexts["connection.status"].waitForExistence(timeout: 5))
         XCTAssertEqual(app.staticTexts["connection.status"].label, "Disconnected")
-        app.buttons["power.on"].tap()
+        app.switches["power.toggle"].tap()
         XCTAssertEqual(app.staticTexts["power.state"].label, "Power is on")
         XCTAssertEqual(app.staticTexts["connection.status"].label, "Disconnected")
         screenshot("02-switch-controls")

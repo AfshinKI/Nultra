@@ -13,9 +13,14 @@ public final class SwitchWidget extends AppWidgetProvider {
   }
 
   @Override
+  public void onAppWidgetOptionsChanged(Context context, AppWidgetManager manager, int id, android.os.Bundle options) {
+    update(context, id, context.getSharedPreferences("widgets", 0).getString("status:" + id, "Tap Off or On"));
+  }
+
+  @Override
   public void onDeleted(Context context, int[] ids) {
     SharedPreferences.Editor edit = context.getSharedPreferences("widgets", 0).edit();
-    for (int id : ids) edit.remove("target:" + id).remove("name:" + id);
+    for (int id : ids) edit.remove("target:" + id).remove("name:" + id).remove("status:" + id);
     edit.apply();
   }
 
@@ -31,6 +36,10 @@ public final class SwitchWidget extends AppWidgetProvider {
     RemoteViews views = new RemoteViews(context.getPackageName(), R.layout.switch_widget);
     views.setTextViewText(R.id.widget_title, prefs.getString("name:" + id, "All switches"));
     views.setTextViewText(R.id.widget_status, message);
+    prefs.edit().putString("status:" + id, message).apply();
+    int height = AppWidgetManager.getInstance(context).getAppWidgetOptions(id).getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_HEIGHT, 56);
+    views.setViewVisibility(R.id.widget_status, height >= 100 ? android.view.View.VISIBLE : android.view.View.GONE);
+    views.setContentDescription(R.id.widget_title, prefs.getString("name:" + id, "All switches") + ". " + message);
     for (boolean on : new boolean[] {false, true}) {
       Intent intent =
           new Intent(context, CommandService.class)
