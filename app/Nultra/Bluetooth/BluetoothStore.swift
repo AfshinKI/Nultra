@@ -251,7 +251,7 @@ final class BluetoothStore: NSObject, ObservableObject {
             // A hidden unnamed candidate verifies that the public grid only shows real names.
             devices.append(SwitchDevice(id: UUID(), name: "UNNAMED", rssi: -55))
         } else { restoreKnownDevices() }
-        peripherals.removeAll(); attemptedIdentification.removeAll(); errorMessage = nil
+        peripherals.removeAll(); attemptedIdentification.removeAll()
         startScan()
     }
 }

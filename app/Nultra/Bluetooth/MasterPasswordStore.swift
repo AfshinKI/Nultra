@@ -17,7 +17,7 @@ struct MasterPasswordStore {
         if status == errSecItemNotFound { return "" }
         guard status == errSecSuccess, let data = result as? Data,
               let value = String(data: data, encoding: .ascii), (try? SwitchProtocol.eightASCII(value)) != nil else {
-            throw StorageError.failed
+            throw StorageError.failed(status: status)
         }
         return value
     }
@@ -31,14 +31,19 @@ struct MasterPasswordStore {
             item[kSecAttrAccessible as String] = kSecAttrAccessibleWhenUnlockedThisDeviceOnly
             status = SecItemAdd(item as CFDictionary, nil)
         }
-        guard status == errSecSuccess else { throw StorageError.failed }
+        guard status == errSecSuccess else { throw StorageError.failed(status: status) }
     }
     func remove() throws {
         let status = SecItemDelete(query as CFDictionary)
-        guard status == errSecSuccess || status == errSecItemNotFound else { throw StorageError.failed }
+        guard status == errSecSuccess || status == errSecItemNotFound else { throw StorageError.failed(status: status) }
     }
     enum StorageError: LocalizedError {
-        case failed
-        var errorDescription: String? { "Could not access the saved master password. Unlock your phone and save it again in Menu." }
+        case failed(status: OSStatus)
+        var errorDescription: String? {
+            switch self {
+            case .failed(let status):
+                return "Could not access the saved master password (Keychain \(status)). Unlock your phone and save it again in Menu."
+            }
+        }
     }
 }
