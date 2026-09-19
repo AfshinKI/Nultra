@@ -24,3 +24,5 @@ SwiftUI interface with a dark navy canvas, luminous mint accents, clear connecti
 - Hardware sign-off is mandatory before calling the app ready for daily use. Simulator success does not validate Bluetooth.
 
 See BLE_PROTOCOL.md for the source-derived contract and DEVELOPMENT.md for setup and validation.
+
+## Confirmed delivery route

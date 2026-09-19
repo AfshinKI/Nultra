@@ -16,7 +16,6 @@
 
 ## Still required
 
-- Xcode installation compatible with this Mac and the owner's iPhone OS, plus personal signing.
 - Physical iPhone installation and all scenarios in HARDWARE_ACCEPTANCE.md.
 - Wrong-password behavior and command timing against the actual switch firmware.
 - VoiceOver, large Dynamic Type, landscape, and device-sheet interactions on an iPhone.
@@ -25,4 +24,4 @@ A successful simulator build does not prove authentication or physical control w
 
 ## Simulator preview limitation
 
-The follow-up run at commit `9298158` also passed XCTest and the iOS build, but its hosted simulator preview step stalled. The preview is now an optional manual workflow step with a four-minute timeout, so routine builds do not wait for simulator startup. No rendered iPhone UI screenshot has been verified yet. This does not change the successful iOS compiler result; visual/device interaction checks remain pending.
+The follow-up run at commit `9298158` also passed XCTest and the iOS build, but its hosted simulator preview step stalled. That historical attempt used a generic hosted simulator. The new workflow instead targets iPhone 13 mini on iOS 26.2 with UI regression tests; their current result is recorded below when complete. This does not change the successful iOS compiler result; visual/device interaction checks remain pending.
