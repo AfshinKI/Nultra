@@ -16,7 +16,7 @@ Status: **not yet run**. Record iPhone model, iOS version, app commit, switch fi
 | Wrong credential | Report firmware error or unconfirmed command; never assert verified authentication | Pending |
 | Explicit On | Send byte 1; confirm read-back and physical output | Pending |
 | Explicit Off | Send byte 0; confirm read-back and physical output | Pending |
-| Rapid taps | Only one command outstanding; controls disabled until confirmation | Pending |
+| Rapid taps | Only one command per switch outstanding; that switch stays disabled until disconnected | Pending |
 | Read-back mismatch | Show failure; disconnect; do not publish success | Pending |
 | Eight-byte rename | Edit disconnected; Save connects, writes, verifies, immediately disconnects | Pending |
 | Bad rename | Reject short, long, emoji, accented or empty names before writing | Pending |

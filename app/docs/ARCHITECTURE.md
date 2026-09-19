@@ -30,6 +30,5 @@ The server exposes no authentication-status characteristic. A successful passwor
 
 ## Boundaries
 
-No Pi HTTP dependency, analytics, background scheduler, notification subscription, switch-firmware password-change command, or automatic command retries. The master credential is deliberately bundled for this owner’s private app and must not be treated as a protected secret against someone possessing its binary. Hardware acceptance remains necessary.
 
 Only verified names appear in `visibleDevices`; saved names are never removed because of missing advertisements. Presence uses fresh scan timestamps with a 15-second expiry. An unavailable scanner forces red LEDs. The foreground timer updates age without opening BLE links.

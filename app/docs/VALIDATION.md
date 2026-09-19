@@ -5,23 +5,27 @@
 
 - Compiler: Xcode 26.2 (17C52); SDK: iOS 26.2.
 - Binary: arm64, Mach-O platform iOS device, minimum iOS 16.0.
-- Downloaded IPA passed independent local validation and checksum comparison. The AirDrop ZIP was checked to contain the exact same IPA; the versioned local copy is `dist/Nultra-0.3.0.zip`.
+- Downloaded IPA passed independent local validation and checksum comparison. The AirDrop ZIP was checked to contain the exact same IPA; the versioned local copy is `dist/Nultra-0.4.0.zip`.
 
 ## Automated checks
 
-- 1,287 local protocol and transaction checks passed, including all possible state and battery bytes, all valid advertisement state/battery combinations, invalid credentials, malformed payloads, repeated broadcasts, cached-state protection, and GATT precedence.
+- 1,300 local protocol and transaction checks passed, including all possible state and battery bytes, all valid advertisement state/battery combinations, invalid credentials, malformed payloads, repeated broadcasts, cached-state protection, and GATT precedence.
 - All Swift app sources passed local macOS SDK type checking.
 - Xcode project and Info.plist passed structural validation.
 - The unsigned iPhone Release build and final IPA packaging checks passed in that job.
 
 ## iPhone 13 mini / iOS 26.2 interface
 
-Both UI tests passed. The packaged app, project and UI test sources matched the tested revision. Only packaging and documentation changed between those revisions.
+
+- Six named cards fit in two columns; unnamed candidates stay hidden; online/offline LEDs are exposed to accessibility.
+- All Off / All On, individual demo power, disconnected rename editing, and returning to automatic foreground listening pass.
+- A custom password saves to Keychain and loads after app termination/relaunch. Restoring the default also survives another relaunch. The test checks that the loaded field is valid and no storage error is displayed.
+- Large accessibility text and landscape Menu remain navigable.
 
 
-Transaction tests cover identification, both power directions, rename write acknowledgement and readback, mismatched readback, every live phase interrupted by timeout/error/background cancellation, ignored late callbacks, unexpected disconnection, and persistent identity serialization. The transport invokes cancellation immediately when the shared state machine emits disconnect, before saving results. There is no idle connected state.
+Unit tests now include three-slot scheduling, duplicate target prevention, holding slots through cancellation acknowledgement, cross-transaction isolation, bulk partial-failure accounting, persistent catalog restoration/rename, hidden unnamed candidates, and 15-second presence expiry without removing saved switches.
 
-Simulator and model tests do not measure physical BLE connection time or validate actual firmware behavior. Measure the connect-to-disconnect duration on real switches and complete `HARDWARE_ACCEPTANCE.md`.
+Model and simulator tests do not measure physical BLE connection time or validate actual firmware behavior. Complete `HARDWARE_ACCEPTANCE.md` on real switches, including parallel operations.
 
 ## Mac setup
 

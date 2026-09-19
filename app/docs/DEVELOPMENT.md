@@ -20,13 +20,13 @@ The generator recreates Info.plist and project settings; reselect a local signin
 swift test
 xcodebuild -project Nultra.xcodeproj -scheme Nultra \
   -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' \
-  -derivedDataPath build CODE_SIGNING_ALLOWED=NO build
+  -derivedDataPath build CODE_SIGNING_ALLOWED=YES CODE_SIGN_IDENTITY=- build
 
 # Apple Silicon Mac with Command Line Tools only
 bash scripts/check.sh
 ```
 
-The CLI check exhaustively validates all possible state and battery bytes, all valid advertisement state/battery combinations, and malformed credentials/names/advertisements. It also type-checks the shared SwiftUI/CoreBluetooth code against macOS, not iOS. XCTest adds named regression cases, including repeated broadcast updates, GATT precedence, and terminal disconnection for every transaction, timeout, cancellation, and error. The reference checkout must track the `fancy` branch; see `FANCY_REFERENCE.md`. GitHub Actions runs XCTest and a full unsigned iOS simulator build on app changes.
+The CLI check exhaustively validates all possible state and battery bytes, all valid advertisement state/battery combinations, and malformed credentials/names/advertisements. It also type-checks the shared SwiftUI/CoreBluetooth code against macOS, not iOS. XCTest adds named regression cases, including repeated broadcast updates, GATT precedence, and terminal disconnection for every transaction, timeout, cancellation, and error. The reference checkout must track the `fancy` branch; see `FANCY_REFERENCE.md`. GitHub Actions runs XCTest, an unsigned iPhone release build, and an ad-hoc signed simulator app for UI tests on app changes. Simulator signing gives Keychain a consistent application identity across relaunch; no Apple account or developer certificate is needed.
 
 Local `swift test` initially fails because the incomplete Command Line Tools setup lacks the Xcode platform path. This is a toolchain limitation, not a passing test result. Use the dependency-free check script locally until Xcode is available.
 
@@ -47,7 +47,7 @@ Local `swift test` initially fails because the incomplete Command Line Tools set
 
 ## iPhone 13 mini interface checks
 
-`UITests/NultraUITests.swift` exercises six-card two-column layout, disconnected on/off, rename editing without connection, automatic return to disconnected state, leaving demo mode, and large-text/landscape navigation. The GitHub interface job creates an iPhone 13 mini with the iOS 26.2 simulator runtime and exports screenshot attachments and an xcresult bundle. These validate UI behavior, not BLE transport or personal provisioning.
+`UITests/NultraUITests.swift` exercises six-card two-column layout, disconnected on/off, rename editing without connection, automatic return to disconnected state, leaving demo mode, foreground listening, online/offline LEDs, hidden unnamed candidates, bulk controls, Keychain password save/relaunch/default reset, and large-text/landscape navigation. The GitHub interface job creates an iPhone 13 mini with the iOS 26.2 simulator runtime and exports screenshot attachments and an xcresult bundle. These validate UI behavior, not BLE transport or personal provisioning.
 
 
 `bash scripts/build_ipa.sh` compiles a Release `iphoneos` binary without signing, checks arm64/platform metadata, packages `Payload/Nultra.app` into `dist/Nultra.ipa`, and produces a SHA-256 checksum plus source/build information. `python3 scripts/verify_ipa.py path/to/Nultra.ipa` independently validates the ZIP layout, iPhone metadata, Bluetooth purpose string, and Mach-O platform. No Apple credentials, signing certificates, profiles, or public distribution are involved in CI. Artifacts stay in the private app repository.

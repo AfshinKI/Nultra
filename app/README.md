@@ -21,7 +21,7 @@ The app implements discovery, automatic one-time name lookup, persistent real na
 
 2. Open the newest successful **iOS validation** run on `main`. Confirm the **build** job passed.
 4. Keep this folder somewhere convenient. `BUILD-INFO.txt` records the source commit and Xcode version. Optional integrity check from that folder: `shasum -a 256 -c Nultra.ipa.sha256`.
-5. AirDrop `Nultra.ipa` to your iPhone and save it in **Files**. You can also transfer it using iCloud Drive.
+5. AirDrop the included `Nultra-transfer.zip` to your iPhone, save it in **Files**, and tap it to extract `Nultra.ipa`. You can also transfer it using iCloud Drive.
 
 
 ### If AirDrop accepts the IPA but it does not appear in Files
@@ -44,7 +44,7 @@ The app implements discovery, automatic one-time name lookup, persistent real na
 
 ## 5. Connect your first real switch
 
-1. If using demo mode, turn off **Settings → Explore demo mode**.
+1. If using demo mode, turn off **Menu → Explore demo mode**.
 2. Power your Nultra switch and place it near the iPhone. Release its Raspberry Pi BLE connection during the first test; some firmware may accept only one controller.
 3. Open Nultra and allow Bluetooth access. Listening starts automatically whenever the app is open. Saved switches remain visible across launches and while offline. A small green LED means seen within 15 seconds; red means not currently seen. New switches only appear after their real name has been read.
 4. New switches automatically make one brief connection using your configured master password to read their real name and firmware, then immediately disconnect. Names are saved on your phone. Known switches are monitored through broadcasts without reconnecting.
