@@ -7,5 +7,5 @@ The archive preserves the following parts of the original packaging changes.
 The original package script used this command to check the device executable.
 
 ```sh
-xcrun lipo -verify_arch arm64 "$binary"
+xcrun lipo "$binary" -verify_arch arm64
 ```
