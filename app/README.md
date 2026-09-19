@@ -14,6 +14,7 @@ A private, native controller for your Nultra BLE switches. Android now has its o
 
 See [Android development, signing, and hardware checks](docs/ANDROID.md). Physical Samsung BLE testing is still required.
 
+
 ## Preview on iPhone 13 mini
 
 Actual iOS 26.2 simulator captures; the shown switches are demo devices.
