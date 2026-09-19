@@ -52,7 +52,7 @@ Complete the short [hardware acceptance checklist](docs/HARDWARE_ACCEPTANCE.md).
 
 One-time iPhone steps:
 
-1. AirDrop `dist/Nultra-Updates.mobileconfig` after the Pi service has been configured. Install **Nultra Private Updates** under **Settings → General → VPN & Device Management**.
+1. AirDrop `dist/Nultra-Updates.mobileconfig` (the Pi service is already configured). Install **Nultra Private Updates** under **Settings → General → VPN & Device Management**.
 
 
 The private HTTPS leaf certificate lasts one year; renewal commands are in the Pi instructions. Reserve the Pi's IP address in your router. No GitHub token is embedded in the iPhone app or source JSON.

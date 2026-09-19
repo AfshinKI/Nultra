@@ -24,11 +24,17 @@ New devices are looked up once per explicit scan session, with no automatic retr
 
 ## Data freshness
 
-Foreground scanning receives repeated local-name broadcasts. Missing or malformed names update presence only. Never treat cached `CBPeripheral.name` as a fresh state packet. Broadcasts do not overwrite an active transaction’s state or confirm a command. Cards show observation age and retain real names independently of broadcast names. Previously known devices show unknown power/battery until observed after relaunch.
+Foreground scanning receives repeated local-name broadcasts. Missing or malformed names update presence only. Never treat cached `CBPeripheral.name` as a fresh state packet. Broadcasts do not overwrite an active transaction’s state or confirm a command. Cards retain real names independently of broadcast names. Previously known devices show unknown power/battery until observed after relaunch.
 
 The server exposes no authentication-status characteristic. A successful password write is not proof of authentication; command readback is still required. An unchanged requested state alone cannot prove the credential was accepted.
 
 ## Boundaries
 
 
-Only verified names appear in `visibleDevices`; saved names are never removed because of missing advertisements. Presence uses fresh scan timestamps with a 15-second expiry. An unavailable scanner forces red LEDs. The foreground timer updates age without opening BLE links.
+Only verified names appear in `visibleDevices`; saved names are never removed because of missing advertisements. Presence uses fresh scan timestamps with a 15-second expiry. An unavailable scanner forces gray LEDs. The foreground timer expires presence without opening BLE links.
+
+All broadcasts are processed internally. Passive view snapshots publish at most every two seconds; each device samples displayed RSSI at most every five seconds. User operations publish immediately. Three signal bars use the fancy thresholds: strong at -60 dBm or higher, medium at -80 dBm or higher, weak below that.
+
+## Shortcuts and updates
+
+App Intents share the main-actor BluetoothStore with the foreground app. Turn All Off, Turn All On, and Set Switch Power use the same scheduler and verified transaction completion. They reject demo mode, prevent concurrent shortcut batches, and surface partial failures. Actions open Nultra rather than retaining background BLE connections.
