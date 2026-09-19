@@ -29,3 +29,8 @@ See BLE_PROTOCOL.md for the source-derived contract and DEVELOPMENT.md for setup
 
 
 ## Android expansion — v0.6.0
+
+
+## iPhone background Shortcuts and backup server — v0.7.0
+
+Shortcuts no longer request foreground presentation. Saved-switch power commands can use an optional user-configured fancy server when phone BLE is unavailable. No address or port is preset. Android remains direct BLE in this release. See [configuration, protocol limitations, and physical acceptance](SERVER_FALLBACK.md). VPN remains a design discussion only.

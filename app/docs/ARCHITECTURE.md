@@ -2,7 +2,7 @@
 
 ## Components
 
-- `NultraApp`: owns the store; backgrounding cancels active and queued work, foregrounding always starts listening.
+- `NultraApp`: owns the store; backgrounding stops discovery and cancels ordinary UI work, but allows a bounded Shortcut command to finish; foregrounding starts listening.
 - `SwitchProtocol`: Foundation-only wire codec and UUIDs.
 - `SwitchTransaction`: Foundation-only operation state machine shared by the real transport and regression tests. Every terminal path requests disconnect. Late callbacks after cancellation cannot emit writes.
 - `SwitchSchedule`: three connection slots held through cancellation acknowledgement, unique work per peripheral, bulk result accounting, and persistent named-switch catalog.
@@ -31,10 +31,10 @@ The server exposes no authentication-status characteristic. A successful passwor
 ## Boundaries
 
 
-Only verified names appear in `visibleDevices`; saved names are never removed because of missing advertisements. Presence uses fresh scan timestamps with a 15-second expiry. An unavailable scanner forces gray LEDs. The foreground timer expires presence without opening BLE links.
+Only verified names appear in `visibleDevices`; saved names are never removed because of missing advertisements. Presence uses fresh scan timestamps with a 15-second expiry. With server fallback disabled, an unavailable scanner forces gray LEDs. An enabled, recently checked server can also establish availability. The foreground timer expires presence without opening BLE links.
 
 All broadcasts are processed internally. Passive view snapshots publish at most every two seconds; each device samples displayed RSSI at most every five seconds. User operations publish immediately. Three signal bars use the fancy thresholds: strong at -60 dBm or higher, medium at -80 dBm or higher, weak below that.
 
 ## Shortcuts and updates
 
-App Intents share the main-actor BluetoothStore with the foreground app. Turn All Off, Turn All On, and Set Switch Power use the same scheduler and verified transaction completion. They reject demo mode, prevent concurrent shortcut batches, and surface partial failures. Actions open Nultra rather than retaining background BLE connections.
+App Intents share the main-actor BluetoothStore with the foreground app. Turn All Off, Turn All On, and Set Switch Power use the same scheduler and verified transaction completion. They reject demo mode, prevent concurrent shortcut batches, and surface partial failures. Actions do not open Nultra. A bluetooth-central background mode permits short commands; scanning remains foreground-only. Server-queued results are distinguished from BLE-confirmed completion.

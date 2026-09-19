@@ -338,6 +338,15 @@ final class BluetoothStore: NSObject, ObservableObject {
             session.deadline = task
             DispatchQueue.main.asyncAfter(deadline: .now() + 8, execute: task)
             central?.connect(peripheral, options: nil)
+            // An absent peripheral must not consume the whole Shortcut window before
+            // trying the server. Keep the full transaction budget once connected.
+            if shortcutRunning && suspended && serverConfiguration.enabled {
+                DispatchQueue.main.asyncAfter(deadline: .now() + 2) { [weak self, weak session] in
+                    guard let self = self, let session = session, self.sessions[next.id] === session,
+                          session.transaction.stage == .connecting else { return }
+                    self.process(next.id, .timeout)
+                }
+            }
         }
         syncWork()
     }
