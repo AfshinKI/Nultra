@@ -12,6 +12,9 @@ struct SwitchDevice: Identifiable {
     var lastBroadcast: Date?
     var stateSource: StateSource = .unknown
 
+    var identityKnown = false
+    var lookupError: String?
+
     enum StateSource { case unknown, advertisement, gatt, demo }
 
     /// Only the local name in this packet may supply fresh state. CBPeripheral.name

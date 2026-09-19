@@ -13,7 +13,7 @@ Actual iOS 26.2 simulator captures; the shown switches are demo devices.
 
 ## What is ready, and what is still a phone test?
 
-The app implements discovery, per-switch password storage in Keychain, connection, on/off with state confirmation, battery/firmware readings, rename, and disconnect. A labeled demo lets you explore without touching real switches. The app controls **one connected switch at a time** and disconnects when backgrounded.
+The app implements discovery, automatic one-time name lookup, persistent real names, live battery/state broadcasts, on/off with readback, and rename. Every lookup or change uses a brief connection followed by immediate disconnection. A labeled demo lets you explore without touching real switches. The compact dashboard uses **two columns**. The app processes one transaction at a time and never remains connected while idle or while you edit a name.
 
 
 ## 1. Get Nultra.ipa
@@ -45,14 +45,14 @@ The app implements discovery, per-switch password storage in Keychain, connectio
 
 ## 5. Connect your first real switch
 
-1. If using demo mode, disconnect the sample switch, then turn off **Settings → Explore demo mode**.
+1. If using demo mode, turn off **Settings → Explore demo mode**.
 2. Power your Nultra switch and place it near the iPhone. Release its Raspberry Pi BLE connection during the first test; some firmware may accept only one controller.
-3. Tap **Find switches** and allow Bluetooth access. The app keeps listening for state and battery broadcasts while open. Tap **Stop listening** to stop. After returning from the background, tap **Find switches** again. Cards retain their last observed values and show their age.
-4. Tap your switch. Enter its actual **8-character ASCII password**, then **Save & connect**. Use the credential configured in your switch/reference server; it is intentionally not copied into the app or this README.
-5. Wait for **Connected** and the name/battery/state readings. Tap **On**, confirm the physical switch changes, then test **Off**. The app checks the state reported by the switch before confirming a command.
-6. Rename uses exactly eight printable ASCII characters, such as `DESKLAMP`. Disconnect before choosing another switch.
+3. Tap **Find switches** and allow Bluetooth access. The app keeps listening for state and battery broadcasts while open. Tap **Stop listening** to stop. Listening resumes after returning from the background if it was previously enabled. Cards retain their last observed values and show their age.
+4. New switches automatically make one brief connection using your configured master password to read their real name and firmware, then immediately disconnect. Names are saved on your phone. Known switches are monitored through broadcasts without reconnecting.
+5. Tap the bulb/state control on a card to change power. The app connects, authenticates, writes the requested state, verifies readback, and immediately disconnects. Tap the real name to open details with explicit **On** and **Off** buttons.
+6. Tap the real name → **Rename**, enter exactly eight printable ASCII characters such as `DESKLAMP`, then **Save name**. Editing stays disconnected; Save briefly connects, writes, verifies, and disconnects.
 
-If nothing appears, check **Settings → Privacy & Security → Bluetooth → Nultra**, the phone's Bluetooth radio, range, and switch power. If connection fails, disconnect the Pi and retry. If the password is wrong, disconnect and use **Use a different password**. A successful connection alone cannot prove firmware authentication; real command confirmation matters.
+If nothing appears, check **Settings → Privacy & Security → Bluetooth → Nultra**, the phone's Bluetooth radio, range, and switch power. If connection fails, disconnect the Pi and retry. If a name lookup fails, use **Retry name lookup**; it will not repeatedly reconnect on each advertisement. This private build uses the owner-supplied master credential automatically. A successful connection alone cannot prove firmware authentication; real command confirmation matters.
 
 Complete the short [hardware acceptance checklist](docs/HARDWARE_ACCEPTANCE.md). Report the app commit, firmware, and symptom if a test fails—never your password.
 
@@ -81,3 +81,5 @@ That runs portable protocol checks and macOS type checking; it does not build an
 
 
 The BLE implementation follows the latest `fancy` branch of the reference server. See [broadcast behavior and web UI adaptations](docs/FANCY_REFERENCE.md).
+
+Battery-saving BLE behavior is specified in [short connections](docs/SHORT_CONNECTIONS.md).

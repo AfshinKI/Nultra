@@ -21,6 +21,7 @@ struct NultraApp: App {
                 .tint(Theme.mint)
                 .onChange(of: scenePhase) { phase in
                     if phase == .background { bluetooth.suspend() }
+                    else if phase == .active { bluetooth.resume() }
                 }
         }
     }

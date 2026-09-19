@@ -1,6 +1,6 @@
 # Visual direction
 
-Nultra uses a midnight navy canvas, mint highlights, generous rounded cards, system typography, and an uncluttered per-device control sheet. The dashboard leads with discovery; the power controls are explicit On and Off actions. Pending operations disable controls, and demo mode is visible on both dashboard and device sheet.
+Nultra uses a midnight navy canvas, mint highlights, compact rounded cards, system typography, and an uncluttered per-device control sheet. The dashboard prioritizes a two-column switch grid inspired by fancy. Each card has battery/signal, real name/details, and direct power toggle. The detail sheet also offers explicit On and Off actions. Six standard-size demo cards should fit on the iPhone 13 mini without scrolling; more cards remain scrollable. Accessibility text uses one column. Pending operations disable controls, and demo mode is visible on both dashboard and device sheet.
 
 Brand artwork: `Nultra/Assets.xcassets/BrandMark.imageset/BrandMark.png`.
 Packaged icons: `Nultra/Assets.xcassets/AppIcon.appiconset/` (including opaque 1024px marketing icon).

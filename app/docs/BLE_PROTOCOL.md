@@ -20,7 +20,7 @@ iOS exposes a CoreBluetooth peripheral UUID, not the Linux Bluetooth MAC address
 
 ## Connect and authenticate
 
-`NultraBLEDevice.connect` creates a Bleak client, connects, and writes the password characteristic using `response=True`. The source has a hardcoded eight-byte password. Do not repeat it in app source, documentation, or logs: the owner enters the matching credential and the app stores it in Keychain. Support a separate password per device.
+`NultraBLEDevice.connect` connects and writes the password characteristic using `response=True`. At the owner’s explicit request, this private iPhone app uses the supplied master credential automatically for every transaction. It is bundled in the private app implementation, never displayed or logged. Per-switch password entry and persistent connected sessions have been removed.
 
 No challenge, token, auth-status read, or positive authentication response is implemented in the server. A successful GATT password write is the strongest transport evidence available; successful command read-back must still be checked. Pairing/bonding, link encryption, lockout behavior, and firmware rejection behavior cannot be established from this client alone.
 
@@ -32,13 +32,19 @@ No challenge, token, auth-status read, or positive authentication response is im
 
 `rename_device` validates eight characters and ASCII-encodes, writes with response, and reads back the name. The app must validate **eight ASCII bytes**, which avoids accepting eight multibyte Unicode characters.
 
-## iPhone session design
+## iPhone transaction design
 
-User selects a discovered device → enter/retrieve credential → connect → discover service and required characteristics → validate supported read/write properties → password write with response → initial name/battery/state reads → ready. Serialize operations per peripheral; timeout any incomplete operation, disconnect on protocol errors, and permit explicit reconnection. Stop scan and disconnect when backgrounded; refresh through reconnect when returning. MVP deliberately does not promise background execution or Pi-style schedules.
+See [short connection requirements](SHORT_CONNECTIONS.md). Each connection has exactly one purpose:
+
+- New identity: password write → name/firmware read → immediate disconnect. Save the real name by peripheral UUID for future launches.
+- Power: password write → explicit power write → power readback → immediate disconnect.
+- Rename: edit while disconnected, then password write → name write with response → name readback → immediate disconnect.
+
+Discover only password plus the operation’s target characteristic. Power and battery normally come from advertisements; identification does not read them. One eight-second deadline covers the entire attempt. Every failure and background transition cancels the connection. A second operation waits until CoreBluetooth confirms disconnection. No command retries or idle connected state exist. Listening resumes on return to the foreground if it was active before backgrounding.
 
 ## Unknowns requiring hardware checks
 
-- Whether each deployed switch uses the same password as the reference; whether passwords can differ or be changed.
+- Verify all deployed switches accept the owner-supplied master credential.
 - Whether devices permit multiple BLE centrals. Disconnect the Pi during initial tests if it holds the link.
 - Whether switch state reads immediately reflect writes or require a firmware delay.
 - Notification format on the unused subscribe characteristic. Do not subscribe until this is known.

@@ -57,6 +57,45 @@ struct ProtocolChecks {
         require(device.isOn == false && device.battery == 91 && device.stateSource == .gatt, "Broadcast replaced active GATT state")
         require(device.rssi == -40 && device.lastSeen == first.addingTimeInterval(3), "Presence not updated during GATT session")
         require(device.lastConfirmed == first, "Broadcast confirmed a command")
+        for operation: SwitchTransaction.Operation in [.identify, .power(false), .power(true), .rename("BEDROOM1")] {
+            var tx = SwitchTransaction(operation: operation)
+            var liveStates = [tx]
+            require(tx.handle(.connected) == .discover, "Missing service discovery")
+            liveStates.append(tx)
+            require(tx.handle(.prepared) == .authenticate, "Missing authentication")
+            liveStates.append(tx)
+            let authenticatedEffect = tx.handle(.authenticated)
+            liveStates.append(tx)
+            switch operation {
+            case .identify:
+                require(authenticatedEffect == .readName, "Identification read extra data")
+                require(tx.handle(.nameRead("DESKLAMP", "v1.2.3")) == .disconnect, "Identification held connection")
+            case .power(let value):
+                require(authenticatedEffect == .writePower(value), "Wrong power target")
+                require(tx.handle(.powerSent) == .readPower, "Missing power verification")
+                liveStates.append(tx)
+                require(tx.handle(.powerRead(value)) == .disconnect, "Power held connection")
+            case .rename(let name):
+                require(authenticatedEffect == .writeName(name), "Wrong rename target")
+                require(tx.handle(.nameWritten) == .readName, "Missing rename verification")
+                liveStates.append(tx)
+                require(tx.handle(.nameRead(name, nil)) == .disconnect, "Rename held connection")
+            }
+            require(tx.stage == .disconnecting && tx.result != nil, "Completion missing cancellation")
+            require(tx.handle(.authenticated) == nil, "Late callback restarted write")
+            _ = tx.handle(.disconnected)
+            require(tx.stage == .finished, "Disconnect not completed")
+            for state in liveStates {
+                for event: SwitchTransaction.Event in [.timeout, .cancel, .failed("transport")] {
+                    var cancelled = state
+                    require(cancelled.handle(event) == .disconnect, "Failure left connection open")
+                    for late: SwitchTransaction.Event in [.connected, .prepared, .authenticated, .powerSent, .nameWritten, .powerRead(true), .nameRead("BEDROOM1", nil)] {
+                        require(cancelled.handle(late) == nil, "Cancelled transaction performed work")
+                    }
+                    require(cancelled.stage == .disconnecting, "Did not wait for cancellation acknowledgement")
+                }
+            }
+        }
         print("Passed \(checks) protocol checks")
     }
 }

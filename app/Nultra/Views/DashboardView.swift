@@ -2,42 +2,58 @@ import SwiftUI
 
 struct DashboardView: View {
     @EnvironmentObject private var bluetooth: BluetoothStore
+    @Environment(\.dynamicTypeSize) private var textSize
     @State private var selected: SwitchDevice?
     @State private var showingSettings = false
 
     var body: some View {
         NavigationStack {
             ScrollView {
-                VStack(alignment: .leading, spacing: 26) {
-                    header
-                    if bluetooth.demo {
-                        Label("DEMO · No physical switches are controlled", systemImage: "sparkles")
-                            .font(.caption.weight(.semibold)).foregroundColor(Theme.mint)
-                            .accessibilityIdentifier("demo.banner")
-                            .padding(14).frame(maxWidth: .infinity, alignment: .leading)
-                            .background(Theme.mint.opacity(0.08), in: RoundedRectangle(cornerRadius: 16))
-                    }
-                    hero
-                    HStack {
-                        Text("Your switches").font(.title2.bold())
+                VStack(alignment: .leading, spacing: 12) {
+                    HStack(spacing: 10) {
+                        Image("BrandMark").resizable().frame(width: 34, height: 34)
+                            .clipShape(RoundedRectangle(cornerRadius: 10)).accessibilityHidden(true)
+                        Text("nultra").font(.system(size: 26, weight: .semibold, design: .rounded))
                         Spacer()
-                        Text(String(format: "%02d", bluetooth.devices.count))
-                            .font(.system(.callout, design: .monospaced)).foregroundColor(Theme.muted)
+                        Button { showingSettings = true } label: {
+                            Image(systemName: "slider.horizontal.3").frame(width: 44, height: 44)
+                        }.accessibilityLabel("Settings").accessibilityIdentifier("settings")
                     }
-                    if bluetooth.devices.isEmpty { emptyState }
-                    else {
-                        LazyVStack(spacing: 14) {
+                    if bluetooth.demo {
+                        Text("DEMO · No physical switches controlled")
+                            .font(.caption).foregroundColor(Theme.mint).accessibilityIdentifier("demo.banner")
+                    }
+                    HStack {
+                        Text(bluetooth.demo ? "Your switches" : bluetooth.scanning ? "Listening · \(bluetooth.devices.count) switches" : "Your switches · \(bluetooth.devices.count)")
+                            .font(.subheadline.weight(.medium)).foregroundColor(Theme.muted)
+                        Spacer()
+                        if !bluetooth.demo {
+                            Button(bluetooth.scanning ? "Stop listening" : "Find switches") {
+                                bluetooth.scanning ? bluetooth.stopScan() : bluetooth.startScan()
+                            }.font(.caption.weight(.semibold)).frame(minHeight: 44)
+                        }
+                    }
+                    if bluetooth.devices.isEmpty {
+                        VStack(spacing: 18) {
+                            Image(systemName: "dot.radiowaves.left.and.right").font(.largeTitle).foregroundColor(Theme.mint)
+                            Text(bluetooth.scanning ? "Finding your switches…" : "Your lights, one touch away.").font(.title3.bold())
+                            Text(bluetooth.radio).font(.subheadline).foregroundColor(Theme.muted)
+                            Text("New switches get one brief name lookup. After that, Nultra listens without staying connected.")
+                                .font(.subheadline).foregroundColor(Theme.muted).multilineTextAlignment(.center)
+                            Button("Explore the demo") { bluetooth.setDemo(true) }
+                        }.frame(maxWidth: .infinity).panel().padding(.top, 30)
+                    } else {
+                        LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 10), count: textSize.isAccessibilitySize ? 1 : 2), spacing: 10) {
                             ForEach(bluetooth.devices.sorted { $0.name.localizedStandardCompare($1.name) == .orderedAscending }) { device in
-                                DeviceCard(device: device, active: bluetooth.activeID == device.id,
-                                           phase: bluetooth.phase) { selected = device }
+                                DeviceCard(device: device, busy: bluetooth.isBusy(device.id),
+                                           status: bluetooth.activeID == device.id ? bluetooth.phase.label : "Queued…",
+                                           detail: { selected = device },
+                                           power: { bluetooth.setPower(device.id, !(device.isOn ?? false)) },
+                                           retry: { bluetooth.identify(device.id) })
                             }
                         }
                     }
-                    Label("Direct from your iPhone. Just Bluetooth.", systemImage: "iphone.radiowaves.left.and.right")
-                        .font(.footnote).foregroundColor(Theme.muted)
-                        .frame(maxWidth: .infinity).padding(.vertical, 10)
-                }
-                .padding(.horizontal, 24).padding(.top, 16).padding(.bottom, 24)
+                }.padding(.horizontal, 16).padding(.top, 8).padding(.bottom, 20)
             }
             .background(Theme.background.ignoresSafeArea())
             .toolbar(.hidden, for: .automatic)
@@ -50,117 +66,62 @@ struct DashboardView: View {
             message: { Text(bluetooth.errorMessage ?? "") }
         }
     }
-
-    private var header: some View {
-        HStack(spacing: 12) {
-            Image("BrandMark").resizable().scaledToFill().frame(width: 44, height: 44)
-                .clipShape(RoundedRectangle(cornerRadius: 13)).accessibilityHidden(true)
-            Text("nultra").font(.system(size: 28, weight: .semibold, design: .rounded)).tracking(-1)
-            Spacer()
-            Button { showingSettings = true } label: {
-                Image(systemName: "slider.horizontal.3").font(.title3)
-                    .frame(width: 48, height: 48).background(Theme.surface, in: Circle())
-            }.accessibilityLabel("Settings").accessibilityIdentifier("settings")
-        }
-    }
-
-    private var hero: some View {
-        VStack(alignment: .leading, spacing: 20) {
-            HStack(spacing: 7) {
-                Circle().fill(Theme.mint).frame(width: 6, height: 6)
-                Text(bluetooth.demo ? "A LITTLE PREVIEW" : "YOUR SPACE, CONNECTED")
-                    .font(.system(size: 10, weight: .bold, design: .monospaced)).tracking(2)
-                    .foregroundColor(Theme.mint)
-            }
-            Text("A little touch.\nA brighter space.")
-                .font(.system(.largeTitle, design: .rounded).weight(.semibold)).tracking(-1.2)
-                .fixedSize(horizontal: false, vertical: true)
-            Text(bluetooth.demo ? "Explore your switches, without connecting a thing." : bluetooth.radio)
-                .font(.subheadline).foregroundColor(Theme.muted).fixedSize(horizontal: false, vertical: true)
-            if !bluetooth.demo {
-                if bluetooth.scanning {
-                    Text("Listening for state and battery broadcasts while Nultra is open.")
-                        .font(.caption).foregroundColor(Theme.mint)
-                }
-                Button {
-                    bluetooth.scanning ? bluetooth.stopScan() : bluetooth.startScan()
-                } label: {
-                    HStack(spacing: 10) {
-                        if bluetooth.scanning { ProgressView().tint(Theme.background) }
-                        else { Image(systemName: "dot.radiowaves.left.and.right") }
-                        Text(bluetooth.scanning ? "Stop listening" : "Find switches")
-                    }
-                }.buttonStyle(PrimaryButton())
-            }
-        }
-        .padding(24).frame(maxWidth: .infinity, alignment: .leading)
-        .background(
-            LinearGradient(colors: [Color(red: 0.07, green: 0.19, blue: 0.20), Theme.surface], startPoint: .topLeading, endPoint: .bottomTrailing),
-            in: RoundedRectangle(cornerRadius: 30, style: .continuous)
-        )
-        .overlay(RoundedRectangle(cornerRadius: 30).stroke(Theme.mint.opacity(0.12), lineWidth: 1))
-    }
-
-    private var emptyState: some View {
-        VStack(spacing: 16) {
-            Image(systemName: "dot.radiowaves.left.and.right").font(.system(size: 34, weight: .light))
-                .foregroundColor(Theme.mint).padding(20)
-                .background(Theme.mint.opacity(0.06), in: Circle())
-            Text(bluetooth.scanning ? "Looking around…" : "Make yourself at home")
-                .font(.title3.weight(.semibold))
-            Text(bluetooth.scanning ? "Keep your switches powered on and nearby." : "Find a nearby Nultra switch to get started. Your iPhone takes care of the connection.")
-                .font(.subheadline).foregroundColor(Theme.muted).multilineTextAlignment(.center)
-            if !bluetooth.scanning {
-                Button("Explore the demo") { bluetooth.setDemo(true) }
-                    .font(.subheadline.weight(.semibold)).padding(.vertical, 8)
-            }
-        }.frame(maxWidth: .infinity).panel()
-    }
 }
 
 private struct DeviceCard: View {
     let device: SwitchDevice
-    let active: Bool
-    let phase: BluetoothStore.Phase
-    let action: () -> Void
+    let busy: Bool
+    let status: String
+    let detail: () -> Void
+    let power: () -> Void
+    let retry: () -> Void
 
     var body: some View {
-        Button(action: action) {
-            VStack(alignment: .leading, spacing: 20) {
-                HStack(alignment: .top) {
-                    Image(systemName: device.isOn == true ? "lightbulb.fill" : "lightbulb")
-                        .font(.title2).foregroundColor(device.isOn == true ? Theme.mint : Theme.muted)
-                        .frame(width: 48, height: 48)
-                        .background(Theme.mint.opacity(device.isOn == true ? 0.12 : 0.04), in: RoundedRectangle(cornerRadius: 16))
-                    Spacer()
-                    Label(device.battery.map { "\($0)%" } ?? "—", systemImage: device.batterySymbol)
-                        .font(.caption.monospacedDigit()).foregroundColor(Theme.muted)
-                }
-                HStack {
-                    VStack(alignment: .leading, spacing: 6) {
-                        Text(device.name).font(.headline).foregroundColor(.white).lineLimit(2)
-                        Text(active ? phase.label : "Tap to connect")
-                            .font(.caption).foregroundColor(active ? Theme.mint : Theme.muted)
-                    }
-                    Spacer()
-                    Text(device.powerLabel.uppercased())
-                        .font(.caption.bold()).foregroundColor(device.isOn == true ? Theme.mint : Theme.muted)
-                        .padding(.horizontal, 12).padding(.vertical, 8)
-                        .background(Theme.mint.opacity(0.06), in: Capsule())
-                }
-                HStack {
-                    Text(device.signal)
-                    Spacer()
-                    if device.stateSource == .advertisement, let date = device.lastBroadcast {
-                        Text("Broadcast")
-                        Text(date, style: .relative)
-                    } else if device.stateSource == .gatt {
-                        Text("Last read from switch")
-                    }
-                }.font(.caption2).foregroundColor(Theme.muted)
-            }.panel()
-        }.buttonStyle(.plain)
-        .accessibilityLabel("\(device.name), \(device.powerLabel), \(active ? phase.label : "tap to connect")")
-        .accessibilityIdentifier("device.\(device.name)")
+        VStack(spacing: 3) {
+            HStack(spacing: 4) {
+                Image(systemName: "antenna.radiowaves.left.and.right")
+                    .accessibilityLabel(device.signal)
+                Text(device.rssi == 127 ? "—" : "\(device.rssi)")
+                Spacer(minLength: 2)
+                Image(systemName: device.batterySymbol)
+                Text(device.battery.map { "\($0)%" } ?? "—")
+            }.font(.system(size: 11)).foregroundColor(Theme.muted)
+            Button(action: detail) {
+                Text(device.identityKnown ? device.name : "Name pending")
+                    .font(.system(.subheadline, design: .rounded).weight(.semibold))
+                    .lineLimit(1).minimumScaleFactor(0.75)
+                    .frame(maxWidth: .infinity, minHeight: 44).contentShape(Rectangle())
+            }.buttonStyle(.plain).foregroundColor(.white)
+                .accessibilityLabel("\(device.name), details and rename")
+                .accessibilityIdentifier("device.\(device.name)")
+            if device.identityKnown {
+                Button(action: power) {
+                    HStack(spacing: 7) {
+                        if busy { ProgressView().tint(Theme.mint) }
+                        else { Image(systemName: device.isOn == true ? "lightbulb.fill" : "lightbulb") }
+                        Text(busy ? status : device.powerLabel.uppercased())
+                            .font(.caption.weight(.bold)).lineLimit(1).minimumScaleFactor(0.7)
+                    }.frame(maxWidth: .infinity, minHeight: 44)
+                        .background(device.isOn == true ? Theme.mint.opacity(0.16) : Color.white.opacity(0.04), in: RoundedRectangle(cornerRadius: 12))
+                }.buttonStyle(.plain).foregroundColor(device.isOn == true ? Theme.mint : Theme.muted)
+                    .disabled(busy)
+                    .accessibilityLabel("\(device.name), \(device.powerLabel), turn \(device.isOn == true ? "off" : "on")")
+                    .accessibilityIdentifier("toggle.\(device.name)")
+            } else {
+                Button(busy ? status : "Retry name lookup", action: retry)
+                    .font(.caption).frame(minHeight: 44).disabled(busy)
+            }
+            Group {
+                if let error = device.lookupError { Text(error).lineLimit(2) }
+                else if let date = device.lastBroadcast, device.stateSource == .advertisement {
+                    HStack(spacing: 3) { Text("Seen"); Text(date, style: .relative) }
+                } else if device.stateSource == .demo { Text("Demo · Disconnected") }
+                else if let date = device.lastConfirmed {
+                    HStack(spacing: 3) { Text("Read"); Text(date, style: .relative) }
+                } else { Text(device.identityKnown ? "Awaiting broadcast" : "One-time name lookup") }
+            }.font(.system(size: 10)).foregroundColor(Theme.muted).padding(.top, 3)
+        }.padding(10)
+            .background(Theme.surface, in: RoundedRectangle(cornerRadius: 18))
+            .overlay(RoundedRectangle(cornerRadius: 18).stroke(Theme.mint.opacity(device.isOn == true ? 0.18 : 0.05), lineWidth: 1))
     }
 }

@@ -2,34 +2,30 @@
 
 ## Components
 
-- `Nultra/App/NultraApp.swift`: Owns the observable Bluetooth store and disconnects real BLE sessions when backgrounded.
-- `Nultra/Models/SwitchProtocol.swift`: Foundation-only byte codec; UUIDs, ASCII validation, advertisement parsing, name/firmware decoding, battery and power validation.
-- `Nultra/Models/SwitchDevice.swift`: An identifiable snapshot keyed by the CoreBluetooth peripheral UUID. A confirmed read timestamp is distinct from advertised values.
-- `Nultra/Bluetooth/BluetoothStore.swift`: Main-queue CoreBluetooth delegate and published UI state. Initializes the Bluetooth manager only when the user requests a scan. Demo mode requires no radio access.
-- `Nultra/Security/CredentialStore.swift`: Generic-password Keychain items scoped by device UUID. Accessible only while unlocked, restricted to this device. Passwords never enter UserDefaults, logs, or git.
-- `Nultra/Views`: Dashboard, per-device session/password/control sheet, settings, and shared visual styles.
-- `Nultra/Assets.xcassets`: Generated brand artwork and packaged iPhone icons.
+- `NultraApp`: owns the store; backgrounding cancels active and queued work, foregrounding resumes listening when previously enabled.
+- `SwitchProtocol`: Foundation-only wire codec and UUIDs.
+- `SwitchTransaction`: Foundation-only operation state machine shared by the real transport and regression tests. Every terminal path requests disconnect. Late callbacks after cancellation cannot emit writes.
+- `SwitchDevice`: observed state, broadcast/read timestamps, identity lookup status.
+- `KnownSwitch`: Codable real name and firmware keyed by peripheral UUID; persisted in UserDefaults. State/battery are not restored as fresh observations.
+- `BluetoothStore`: main-queue CoreBluetooth adapter, one active operation, user-prioritized queue, eight-second total deadline, automatic first identification. Uses the owner-supplied bundled master credential; no password-entry or Keychain flow.
+- Views: compact two-column dashboard with direct power controls and separate name/details action. Details and rename editing never connect.
 
-## Session transitions
+## Transaction lifecycle
 
-Idle → connecting → discovering → sending password → initial reads → ready.
+Connect → discover password + target characteristic → authenticate → operation-specific write/read → immediately cancel connection → wait for disconnect acknowledgement → release next queued operation.
 
-Ready → changing power → read-back → ready, or error/disconnect on mismatch.
+Identification reads only the name characteristic (which includes firmware). Power writes only state then reads state. Rename waits for write acknowledgement then reads name. There is no ready/idle-connected phase, periodic metadata read, connection held while editing, or background reconnect. An eight-second timer starts with the connection request and is not reset by progress. Completion cancels CoreBluetooth before persisting the result.
 
-Ready → renaming → acknowledged write → name read-back → ready, or error/disconnect.
+Callbacks check peripheral identity and state. The adapter validates characteristic properties, honors write-without-response flow control, and forwards accepted events to the shared state machine. Service invalidation, malformed reads, transport errors, readback mismatches, timeout, and backgrounding all release the link. Physical cancellation timing is controlled by CoreBluetooth; the app cannot promise an exact radio disconnect latency.
 
-Ready → refreshing → all three reads → ready.
-
-Any active operation → timeout/error → disconnecting → idle. Backgrounding requests disconnect; radio loss clears the session. A peripheral service-change callback invalidates the connection. Writes are never retried automatically.
-
-There is one active peripheral at a time. Until cancellation completes, a second connection is prevented. Callbacks validate the current peripheral and applicable phase. Characteristic capabilities are checked before the password write. Switch commands respect `canSendWriteWithoutResponse`, and the delegate resumes a queued write when the transport is ready.
-
-The server has no authentication-status characteristic. The UI says “Connected,” not “Authentication verified.” If a wrong password is silently accepted by firmware at the GATT layer, command verification remains necessary. An unchanged requested state cannot independently prove successful authentication.
+New devices are looked up once per explicit scan session, with no automatic retry loop after failure. Successfully learned names survive relaunch and subsequent scans. A failed lookup has an explicit Retry action. User commands take priority over queued discovery requests; an in-flight transaction finishes before the next begins. Pending controls are disabled per switch.
 
 ## Data freshness
 
-Scanning continues in the foreground until stopped or backgrounded. Repeated packets update power, battery, RSSI, and last-seen time. Missing or malformed local names update presence only. Cached peripheral names never refresh state. Learned display names and discovered devices are retained for the session; cards show their last broadcast age. Active connections ignore broadcast state so a packet cannot replace GATT readback or confirm a command. Connected controls show the last read value while waiting; controls remain disabled during operations. Disconnected cards are labeled “Tap to connect,” and the detail view includes the last read time. Refresh explicitly reads name, battery, and state. Notifications are not implemented because the reference client does not define their payload.
+Foreground scanning receives repeated local-name broadcasts. Missing or malformed names update presence only. Never treat cached `CBPeripheral.name` as a fresh state packet. Broadcasts do not overwrite an active transaction’s state or confirm a command. Cards show observation age and retain real names independently of broadcast names. Previously known devices show unknown power/battery until observed after relaunch.
 
-## Deliberate MVP boundaries
+The server exposes no authentication-status characteristic. A successful password write is not proof of authentication; command readback is still required. An unchanged requested state alone cannot prove the credential was accepted.
 
-No Pi HTTP API, cloud account, analytics, background scheduler, notification subscription, password-change command, mass switching, or automatic reconnect. Hardware-dependent additions require documented protocol evidence first. No claim of firmware compatibility is made until hardware acceptance is completed.
+## Boundaries
+
+No Pi HTTP dependency, analytics, background scheduler, notification subscription, password-change command, or automatic command retries. The master credential is deliberately bundled for this owner’s private app and must not be treated as a protected secret against someone possessing its binary. Hardware acceptance remains necessary.

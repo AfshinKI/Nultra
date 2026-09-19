@@ -4,7 +4,7 @@ Status: **not yet run**. Record iPhone model, iOS version, app commit, switch fi
 
 | Scenario | Expected result | Result |
 | --- | --- | --- |
-| Fresh launch | No Bluetooth prompt until Find switches; demo is available | Pending |
+| Fresh launch | Bluetooth starts only for Find switches or a known-device action; demo is available | Pending |
 | Bluetooth denied | Clear Settings guidance; no crash or write | Pending |
 | Bluetooth off | Clear status; scanning possible after radio restored | Pending |
 | Discovery | Nearby Nultra appears even if advertisement omits service UUID | Pending |
@@ -12,20 +12,24 @@ Status: **not yet run**. Record iPhone model, iOS version, app commit, switch fi
 | Repeated broadcasts | Change switch from Pi; disconnected card updates power and battery without connecting | Pending |
 | State freshness | Stop broadcasting; last-broadcast age increases, learned name remains | Pending |
 | Active command | Broadcast does not override connected readback or confirm a write | Pending |
-| Correct credential | Name, version, battery and power read successfully | Pending |
+| Correct credential | One-time name/firmware lookup succeeds and disconnects immediately | Pending |
 | Wrong credential | Report firmware error or unconfirmed command; never assert verified authentication | Pending |
 | Explicit On | Send byte 1; confirm read-back and physical output | Pending |
 | Explicit Off | Send byte 0; confirm read-back and physical output | Pending |
 | Rapid taps | Only one command outstanding; controls disabled until confirmation | Pending |
-| Read-back mismatch | Show failure; disconnect; retain actual read value | Pending |
-| Eight-byte rename | Write with response; confirm name and firmware | Pending |
+| Read-back mismatch | Show failure; disconnect; do not publish success | Pending |
+| Eight-byte rename | Edit disconnected; Save connects, writes, verifies, immediately disconnects | Pending |
 | Bad rename | Reject short, long, emoji, accented or empty names before writing | Pending |
 | Radio drop / walk away | Error or deadline, then explicit reconnection available | Pending |
 | Pi owns connection | Useful timeout guidance; succeeds after Pi disconnect | Pending |
-| Switch two devices | Disconnect first; correct per-device password and state | Pending |
+| Switch two devices | Commands serialize and each disconnect is acknowledged before next connection | Pending |
 | Background / foreground | Link released in background; no autonomous writes on return | Pending |
-| Keychain persistence | Relaunch and rediscover same peripheral; saved credential works | Pending |
-| Forget password | Saved credential deleted; asks for password on next connection | Pending |
+| Identity persistence | Relaunch; real names remain; rediscovery does not connect known switches | Pending |
+| Connection duration | Measure radio connection time for lookup/power/rename; no idle hold after readback | Pending |
+| Failed discovery | No per-advertisement reconnect loop; explicit retry available | Pending |
+| Browse / edit | Opening detail or typing rename never connects | Pending |
+| Deadline | Entire attempt times out after 8 seconds, requests cancellation, no retries | Pending |
+| Grid | Six switches fit in two columns at normal text size on 13 mini | Pending |
 | Demo isolation | Label always visible; no real BLE control writes | Pending |
 | Accessibility | VoiceOver announces controls; large text/landscape remain usable | Pending |
 
