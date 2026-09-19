@@ -15,21 +15,26 @@ struct DeviceDetailView: View {
                 VStack(spacing: 22) {
                     if let device = device {
                         Image(systemName: device.isOn == true ? "lightbulb.fill" : "lightbulb")
-                            .font(.system(size: 44)).foregroundColor(Theme.mint).padding(.top, 16)
+                            .font(.system(size: 44)).foregroundColor(device.isOn == true ? Theme.bulb : Theme.muted)
+                            .shadow(color: device.isOn == true ? Theme.bulb.opacity(0.6) : .clear, radius: 12).padding(.top, 16)
                         Text(device.identityKnown ? device.name : "Name lookup pending")
                             .font(.system(.title, design: .rounded).bold()).multilineTextAlignment(.center)
-                        Text(bluetooth.status(deviceID))
-                            .font(.subheadline).foregroundColor(Theme.muted).accessibilityIdentifier("connection.status")
+                        if busy {
+                            ProgressView().tint(Theme.mint).accessibilityLabel("Updating switch")
+                        } else {
+                            Text("Disconnected").font(.subheadline).foregroundColor(Theme.muted)
+                                .accessibilityIdentifier("connection.status")
+                        }
                         if bluetooth.demo { Text("DEMO SWITCH").font(.caption.bold()).foregroundColor(Theme.mint) }
                         if device.identityKnown {
                             VStack(spacing: 16) {
                                 Text(device.isOn.map { $0 ? "Power is on" : "Power is off" } ?? "Power not yet observed")
                                     .font(.headline).accessibilityIdentifier("power.state")
                                 HStack(spacing: 12) {
-                                    Button { bluetooth.setPower(deviceID, false) } label: { Label("Off", systemImage: "power") }
-                                        .buttonStyle(PrimaryButton(subdued: device.isOn != false)).accessibilityIdentifier("power.off")
-                                    Button { bluetooth.setPower(deviceID, true) } label: { Label("On", systemImage: "bolt.fill") }
-                                        .buttonStyle(PrimaryButton(subdued: device.isOn != true)).accessibilityIdentifier("power.on")
+                                    Button { bluetooth.setPower(deviceID, false) } label: { Label("Off", systemImage: "lightbulb") }
+                                        .buttonStyle(CompactPowerButton(on: false)).accessibilityIdentifier("power.off")
+                                    Button { bluetooth.setPower(deviceID, true) } label: { Label("On", systemImage: "lightbulb.fill") }
+                                        .buttonStyle(CompactPowerButton(on: true)).accessibilityIdentifier("power.on")
                                 }.disabled(busy)
                                 Text("Connects only to apply your change, then disconnects immediately.")
                                     .font(.caption).foregroundColor(Theme.muted)

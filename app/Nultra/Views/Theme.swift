@@ -4,6 +4,8 @@ import SwiftUI
     static let background = Color(red: 0.025, green: 0.050, blue: 0.090)
     static let surface = Color(red: 0.060, green: 0.095, blue: 0.135)
     static let mint = Color(red: 0.64, green: 0.96, blue: 0.81)
+    static let bulb = Color(red: 1, green: 0.83, blue: 0.23)
+    static let online = Color(red: 0.25, green: 0.58, blue: 1)
     static let muted = Color(red: 0.59, green: 0.67, blue: 0.72)
  }
 

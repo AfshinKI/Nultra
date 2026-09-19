@@ -4,6 +4,8 @@ import CoreBluetooth
 
 /// Main-queue adapter: at most three independent short transactions, no idle connections.
 final class BluetoothStore: NSObject, ObservableObject {
+    @MainActor static let shared = BluetoothStore()
+    private var liveDevices: [SwitchDevice] = []
     @Published private(set) var devices: [SwitchDevice] = []
     @Published private(set) var scanning = false
     @Published private(set) var radio = "Starting Bluetooth…"
@@ -12,6 +14,7 @@ final class BluetoothStore: NSObject, ObservableObject {
     @Published private(set) var demo = false
     @Published private(set) var now = Date()
     @Published private(set) var bulkStatus: String?
+    @Published private(set) var shortcutRunning = false
     @Published var errorMessage: String?
 
     private final class Session {
@@ -51,10 +54,10 @@ final class BluetoothStore: NSObject, ObservableObject {
     private let passwordID = CBUUID(string: SwitchProtocol.password)
 
     var visibleDevices: [SwitchDevice] { devices.filter(\.visible).sorted { $0.name.localizedStandardCompare($1.name) == .orderedAscending } }
-    var hasWork: Bool { !phases.isEmpty || !pendingIDs.isEmpty }
+    var hasWork: Bool { shortcutRunning || !phases.isEmpty || !pendingIDs.isEmpty }
 
     var unnamedCount: Int { devices.filter { !$0.visible }.count }
-    func isBusy(_ id: UUID) -> Bool { phases[id] != nil || pendingIDs.contains(id) }
+    func isBusy(_ id: UUID) -> Bool { shortcutRunning || phases[id] != nil || pendingIDs.contains(id) }
     func status(_ id: UUID) -> String { phases[id]?.label ?? (pendingIDs.contains(id) ? "Queued…" : "Disconnected") }
     func online(_ device: SwitchDevice) -> Bool {
         if demo { return device.lastSeen != nil }
@@ -74,7 +77,7 @@ final class BluetoothStore: NSObject, ObservableObject {
         suspended = false
         now = Date()
         if presenceTimer == nil {
-            presenceTimer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { [weak self] _ in self?.now = Date() }
+            presenceTimer = Timer.scheduledTimer(withTimeInterval: 2, repeats: true) { [weak self] _ in self?.publishDevices() }
         }
         startScan()
     }
@@ -90,13 +93,16 @@ final class BluetoothStore: NSObject, ObservableObject {
         suspended = true
         presenceTimer?.invalidate(); presenceTimer = nil
         stopScan()
+        cancelOperations()
+    }
+    private func cancelOperations() {
         for request in schedule.cancelPending() { finishBatch(request, success: false) }
-        syncWork()
         for id in Array(sessions.keys) { process(id, .cancel) }
+        syncWork()
     }
     func retryDiscovery() {
         attemptedIdentification.removeAll()
-        guard !demo, !suspended else { return }
+        guard !demo, !suspended, !shortcutRunning else { return }
         for device in devices where !device.visible && peripherals[device.id] != nil && !isBusy(device.id) {
             attemptedIdentification.insert(device.id)
             enqueue(SwitchRequest(id: device.id, operation: .identify, automatic: true))
@@ -113,7 +119,9 @@ final class BluetoothStore: NSObject, ObservableObject {
     }
     func setAllPower(_ value: Bool) {
         guard !hasWork, !visibleDevices.isEmpty else { return }
-        let targets = visibleDevices.map(\.id)
+        startBulk(targets: visibleDevices.map(\.id), power: value)
+    }
+    private func startBulk(targets: [UUID], power value: Bool) {
         bulk = BulkProgress(ids: Set(targets)); bulkStatus = bulk?.message
         if demo {
             for id in targets { setPower(id, value); finishBatch(SwitchRequest(id: id, operation: .power(value), batch: true), success: true) }
@@ -123,6 +131,39 @@ final class BluetoothStore: NSObject, ObservableObject {
         for id in targets { schedule.enqueue(SwitchRequest(id: id, operation: .power(value), batch: true)) }
         syncWork(); pump()
     }
+    /// App Intents opens the app first, then awaits real readback AND disconnection.
+    @MainActor func runShortcut(power: Bool, ids: [UUID]? = nil) async throws -> String {
+        guard !demo else { throw SwitchAction.Failure.demo }
+        guard !hasWork else { throw SwitchAction.Failure.busy }
+        let targets = try SwitchAction.targets(requested: ids, known: catalog.load())
+        shortcutRunning = true
+        defer { shortcutRunning = false }
+        do {
+            resume()
+            let radioDeadline = Date().addingTimeInterval(5)
+            while central?.state == .unknown || central?.state == .resetting {
+                guard !suspended, Date() < radioDeadline else { throw SwitchAction.Failure.interrupted }
+                try await Task.sleep(nanoseconds: 100_000_000)
+            }
+            guard central?.state == .poweredOn else { throw SwitchAction.Failure.bluetooth(radio) }
+            try Task.checkCancellation()
+            startBulk(targets: targets, power: power)
+            let deadline = Date().addingTimeInterval(Double((targets.count + 2) / 3) * 8 + 10)
+            while bulk?.complete != true {
+                guard !suspended, Date() < deadline else { throw SwitchAction.Failure.interrupted }
+                try await Task.sleep(nanoseconds: 100_000_000)
+            }
+            try Task.checkCancellation()
+            guard !suspended else { throw SwitchAction.Failure.interrupted }
+            let successes = bulk?.results.values.filter { $0 }.count ?? 0
+            guard successes == targets.count else { throw SwitchAction.Failure.partial(successes, targets.count) }
+            return "Turned \(power ? "on" : "off") \(successes) switch\(successes == 1 ? "" : "es")."
+        } catch {
+            cancelOperations()
+            throw error
+        }
+    }
+
     private func enqueue(_ request: SwitchRequest) {
         guard !isBusy(request.id) else { return }
         if demo {
@@ -225,8 +266,14 @@ final class BluetoothStore: NSObject, ObservableObject {
         session.peripheral.readValue(for: c)
     }
     private func fail(_ id: UUID, _ message: String) { process(id, .failed(message)) }
-    private func update(_ id: UUID, _ change: (inout SwitchDevice) -> Void) {
-        guard let index = devices.firstIndex(where: { $0.id == id }) else { return }; change(&devices[index])
+    private func update(_ id: UUID, publish: Bool = true, _ change: (inout SwitchDevice) -> Void) {
+        guard let index = liveDevices.firstIndex(where: { $0.id == id }) else { return }
+        change(&liveDevices[index])
+        if publish { publishDevices() }
+    }
+    private func publishDevices() {
+        now = Date()
+        if devices != liveDevices { devices = liveDevices }
     }
     private func apply(_ result: SwitchTransaction.Result, to id: UUID) {
         switch result {
@@ -237,20 +284,28 @@ final class BluetoothStore: NSObject, ObservableObject {
         }
     }
     private func restoreKnownDevices() {
-        devices = catalog.load().map { SwitchDevice(id: $0.id, name: $0.name, rssi: 127, firmware: $0.firmware, identityKnown: true) }
+        liveDevices = catalog.load().map { SwitchDevice(id: $0.id, name: $0.name, rssi: 127, firmware: $0.firmware, identityKnown: true) }
+        publishDevices()
     }
+    #if DEBUG
+    func previewBusyCard() {
+        guard demo, let device = devices.first(where: { $0.name == "DESKLAMP" }) else { return }
+        phases[device.id] = .authenticating
+    }
+    #endif
     func setDemo(_ enabled: Bool) {
         guard !hasWork else { return }
         stopScan(); demo = enabled; bulk = nil; bulkStatus = nil
         if enabled {
-            devices = ["DESKLAMP", "CORNER01", "SHELFLED", "BEDROOM1", "KITCHEN1", "HALLWAY1"].enumerated().map { index, name in
-                SwitchDevice(id: UUID(), name: name, rssi: -48 - index * 5, battery: 92 - index * 7,
+            liveDevices = ["DESKLAMP", "CORNER01", "SHELFLED", "BEDROOM1", "KITCHEN1", "HALLWAY1"].enumerated().map { index, name in
+                SwitchDevice(id: UUID(), name: name, rssi: -48 - index * 5, battery: index == 5 ? 7 : 92 - index * 7,
                              isOn: index % 2 == 0, firmware: "v1.0.0", lastConfirmed: Date(),
                              lastSeen: index == 5 ? nil : Date(), stateSource: .demo, identityKnown: true)
             }
             // A hidden unnamed candidate verifies that the public grid only shows real names.
-            devices.append(SwitchDevice(id: UUID(), name: "UNNAMED", rssi: -55))
+            liveDevices.append(SwitchDevice(id: UUID(), name: "UNNAMED", rssi: -55))
         } else { restoreKnownDevices() }
+        publishDevices()
         peripherals.removeAll(); attemptedIdentification.removeAll()
         startScan()
     }
@@ -280,13 +335,13 @@ extension BluetoothStore: CBCentralManagerDelegate {
         let id = peripheral.identifier
         let localName = advertisementData[CBAdvertisementDataLocalNameKey] as? String
         let services = advertisementData[CBAdvertisementDataServiceUUIDsKey] as? [CBUUID] ?? []
-        guard devices.contains(where: { $0.id == id }) || (localName ?? peripheral.name ?? "").contains("Nultra") || services.contains(serviceID) else { return }
+        guard liveDevices.contains(where: { $0.id == id }) || (localName ?? peripheral.name ?? "").contains("Nultra") || services.contains(serviceID) else { return }
         peripherals[id] = peripheral
-        if !devices.contains(where: { $0.id == id }) { devices.append(SwitchDevice(id: id, name: "", rssi: RSSI.intValue)) }
+        if !liveDevices.contains(where: { $0.id == id }) { liveDevices.append(SwitchDevice(id: id, name: "", rssi: RSSI.intValue)) }
         let acceptsState = sessions[id] == nil
-        let observed = Date(); now = observed
-        update(id) { $0.observe(localName: localName, rssi: RSSI.intValue, at: observed, acceptsState: acceptsState) }
-        if devices.first(where: { $0.id == id })?.visible == false, !attemptedIdentification.contains(id) {
+        let observed = Date()
+        update(id, publish: false) { $0.observe(localName: localName, rssi: RSSI.intValue, at: observed, acceptsState: acceptsState) }
+        if !shortcutRunning, liveDevices.first(where: { $0.id == id })?.visible == false, !attemptedIdentification.contains(id) {
             attemptedIdentification.insert(id)
             enqueue(SwitchRequest(id: id, operation: .identify, automatic: true))
         }

@@ -10,3 +10,9 @@ xcuserdata/
 .env
 
 dist/
+__pycache__/
+distribution/config.json
+distribution/github-token
+distribution/tls/
+distribution/data/
+distribution/*.mobileconfig

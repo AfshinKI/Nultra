@@ -24,10 +24,10 @@ struct DashboardView: View {
                             .font(.caption).foregroundColor(Theme.mint).accessibilityIdentifier("demo.banner")
                     }
                     HStack(spacing: 10) {
-                        Button { bluetooth.setAllPower(false) } label: { Label("All Off", systemImage: "power") }
-                            .buttonStyle(PrimaryButton(subdued: true)).accessibilityIdentifier("all.off")
-                        Button { bluetooth.setAllPower(true) } label: { Label("All On", systemImage: "bolt.fill") }
-                            .buttonStyle(PrimaryButton()).accessibilityIdentifier("all.on")
+                        Button { bluetooth.setAllPower(false) } label: { Label("All Off", systemImage: "lightbulb") }
+                            .buttonStyle(CompactPowerButton(on: false)).accessibilityIdentifier("all.off")
+                        Button { bluetooth.setAllPower(true) } label: { Label("All On", systemImage: "lightbulb.fill") }
+                            .buttonStyle(CompactPowerButton(on: true)).accessibilityIdentifier("all.on")
                     }.disabled(bluetooth.hasWork || bluetooth.visibleDevices.isEmpty)
                     HStack {
                         Text(bluetooth.demo ? "Your switches" : bluetooth.scanning ? "Listening" : bluetooth.radio)
@@ -51,10 +51,8 @@ struct DashboardView: View {
                         LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 10), count: textSize.isAccessibilitySize ? 1 : 2), spacing: 10) {
                             ForEach(bluetooth.visibleDevices) { device in
                                 DeviceCard(device: device, busy: bluetooth.isBusy(device.id), online: bluetooth.online(device),
-                                           status: bluetooth.status(device.id),
                                            detail: { selected = device },
-                                           power: { bluetooth.setPower(device.id, !(device.isOn ?? false)) },
-                                           retry: { bluetooth.identify(device.id) })
+                                           power: { bluetooth.setPower(device.id, !(device.isOn ?? false)) })
                             }
                         }
                     }
@@ -77,61 +75,96 @@ private struct DeviceCard: View {
     let device: SwitchDevice
     let busy: Bool
     let online: Bool
-    let status: String
     let detail: () -> Void
     let power: () -> Void
-    let retry: () -> Void
 
     var body: some View {
         VStack(spacing: 3) {
-            HStack(spacing: 4) {
-                Circle().fill(online ? Color.green : Color.red).frame(width: 7, height: 7)
+            HStack(spacing: 6) {
+                Circle().fill(online ? Theme.online : Theme.muted.opacity(0.45)).frame(width: 6, height: 6)
                     .accessibilityElement(children: .ignore)
                     .accessibilityLabel(online ? "Online" : "Offline")
                     .accessibilityIdentifier("presence.\(device.name)")
-                Image(systemName: "antenna.radiowaves.left.and.right")
-                    .accessibilityLabel(device.signal)
-                Text(device.rssi == 127 ? "—" : "\(device.rssi)")
-                Spacer(minLength: 2)
-                Image(systemName: device.batterySymbol)
-                Text(device.battery.map { "\($0)%" } ?? "—")
-            }.font(.system(size: 11)).foregroundColor(Theme.muted)
-            Button(action: detail) {
-                Text(device.identityKnown ? device.name : "Name pending")
-                    .font(.system(.subheadline, design: .rounded).weight(.semibold))
-                    .lineLimit(1).minimumScaleFactor(0.75)
-                    .frame(maxWidth: .infinity, minHeight: 44).contentShape(Rectangle())
-            }.buttonStyle(.plain).foregroundColor(.white)
-                .accessibilityLabel("\(device.name), details and rename")
-                .accessibilityIdentifier("device.\(device.name)")
-            if device.identityKnown {
+                if device.lookupError != nil {
+                    Image(systemName: "exclamationmark.circle").foregroundColor(.orange)
+                        .accessibilityLabel("Last operation failed; open switch details")
+                }
+                Spacer(minLength: 4)
+                SignalBars(count: online ? device.signalBars : 0)
+                    .accessibilityIdentifier("signal.\(device.name)")
+                BatteryGlyph(level: device.battery, fill: device.batteryFill, low: device.batteryLow)
+            }.font(.system(size: 10))
+            HStack(spacing: 2) {
+                Button(action: detail) {
+                    Text(device.name).font(.system(.subheadline, design: .rounded).weight(.semibold))
+                        .lineLimit(1).minimumScaleFactor(0.65)
+                        .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+                        .contentShape(Rectangle())
+                }.buttonStyle(.plain).foregroundColor(.white)
+                    .accessibilityLabel("\(device.name), details and rename")
+                    .accessibilityIdentifier("device.\(device.name)")
                 Button(action: power) {
-                    HStack(spacing: 7) {
+                    ZStack {
                         if busy { ProgressView().tint(Theme.mint) }
-                        else { Image(systemName: device.isOn == true ? "lightbulb.fill" : "lightbulb") }
-                        Text(busy ? status : device.powerLabel.uppercased())
-                            .font(.caption.weight(.bold)).lineLimit(1).minimumScaleFactor(0.7)
-                    }.frame(maxWidth: .infinity, minHeight: 44)
-                        .background(device.isOn == true ? Theme.mint.opacity(0.16) : Color.white.opacity(0.04), in: RoundedRectangle(cornerRadius: 12))
-                }.buttonStyle(.plain).foregroundColor(device.isOn == true ? Theme.mint : Theme.muted)
-                    .disabled(busy)
-                    .accessibilityLabel("\(device.name), \(device.powerLabel), turn \(device.isOn == true ? "off" : "on")")
+                        else {
+                            Image(systemName: device.isOn == true ? "lightbulb.fill" : "lightbulb")
+                                .font(.system(size: 25))
+                                .foregroundColor(device.isOn == true ? Theme.bulb : Theme.muted)
+                                .shadow(color: device.isOn == true ? Theme.bulb.opacity(0.7) : .clear, radius: 8)
+                        }
+                    }.frame(width: 44, height: 44)
+                        .background(device.isOn == true ? Theme.bulb.opacity(0.07) : .clear, in: RoundedRectangle(cornerRadius: 12))
+                }.buttonStyle(.plain).disabled(busy)
+                    .accessibilityLabel(busy ? "Updating \(device.name)" : "\(device.name), \(device.powerLabel), turn \(device.isOn == true ? "off" : "on")")
                     .accessibilityIdentifier("toggle.\(device.name)")
-            } else {
-                Button(busy ? status : "Retry name lookup", action: retry)
-                    .font(.caption).frame(minHeight: 44).disabled(busy)
             }
-            Group {
-                if let error = device.lookupError { Text(error).lineLimit(2) }
-                else if let date = device.lastBroadcast, device.stateSource == .advertisement {
-                    HStack(spacing: 3) { Text("Seen"); Text(date, style: .relative) }
-                } else if device.stateSource == .demo { Text(online ? "Online · Demo" : "Offline · Demo") }
-                else if let date = device.lastConfirmed {
-                    HStack(spacing: 3) { Text("Read"); Text(date, style: .relative) }
-                } else { Text(online ? "Online" : "Offline") }
-            }.font(.system(size: 10)).foregroundColor(Theme.muted).padding(.top, 3)
-        }.padding(10)
-            .background(Theme.surface, in: RoundedRectangle(cornerRadius: 18))
-            .overlay(RoundedRectangle(cornerRadius: 18).stroke(Theme.mint.opacity(device.isOn == true ? 0.18 : 0.05), lineWidth: 1))
+        }.padding(8)
+            .background(Theme.surface, in: RoundedRectangle(cornerRadius: 14))
+            .overlay(RoundedRectangle(cornerRadius: 14).stroke(device.isOn == true ? Theme.bulb.opacity(0.20) : .white.opacity(0.05), lineWidth: 1))
+    }
+}
+
+struct SignalBars: View {
+    let count: Int
+    var body: some View {
+        HStack(alignment: .bottom, spacing: 2) {
+            ForEach(0..<3) { index in
+                RoundedRectangle(cornerRadius: 1)
+                    .fill(index < count ? Theme.muted : Theme.muted.opacity(0.2))
+                    .frame(width: 3, height: CGFloat(4 + index * 4))
+            }
+        }.frame(width: 13, height: 12)
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel(count == 0 ? "No signal" : "Signal \(count) of 3 bars")
+    }
+}
+
+struct BatteryGlyph: View {
+    let level: Int?
+    let fill: Double
+    let low: Bool
+    var body: some View {
+        HStack(spacing: 1) {
+            ZStack(alignment: .leading) {
+                RoundedRectangle(cornerRadius: 2).stroke(Theme.muted.opacity(0.7), lineWidth: 1)
+                RoundedRectangle(cornerRadius: 1)
+                    .fill(level == nil ? .clear : low ? .red : .green)
+                    .frame(width: 16 * fill, height: 6).padding(.leading, 2)
+            }.frame(width: 20, height: 10)
+            Capsule().fill(Theme.muted.opacity(0.7)).frame(width: 2, height: 4)
+        }.accessibilityElement(children: .ignore)
+            .accessibilityLabel(level == nil ? "Battery unknown" : low ? "Battery low" : "Battery available; percentage in switch details")
+    }
+}
+
+struct CompactPowerButton: ButtonStyle {
+    let on: Bool
+    @Environment(\.isEnabled) private var enabled
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label.font(.subheadline.weight(.semibold))
+            .frame(maxWidth: .infinity, minHeight: 44)
+            .foregroundColor(on ? Theme.bulb : Theme.muted)
+            .background(on ? Theme.bulb.opacity(0.12) : Theme.surface, in: RoundedRectangle(cornerRadius: 12))
+            .opacity(enabled ? (configuration.isPressed ? 0.6 : 1) : 0.4)
     }
 }

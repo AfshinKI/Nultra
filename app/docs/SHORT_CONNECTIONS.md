@@ -13,10 +13,19 @@ The UI uses compact two-column cards, with a direct power action and a separate 
 
 Validation must exercise the shared transaction state machine: every successful operation emits disconnect, all failures/cancellation/timeouts emit disconnect, late callbacks cannot emit writes, and a queued operation starts only when a slot is available; cancelled slots remain occupied until disconnection is acknowledged. Simulator tests cover a two-column grid, disconnected power actions, and editing rename before any connection. Physical connection durations still need measurement on the actual switches.
 
-## Always-listening dashboard (0.4)
+## Always-listening dashboard
 
 The foreground app starts scanning automatically on launch, on returning from background, and after Bluetooth is restored. It never requires a Find button. Backgrounding still stops scans and cancels transactions. This is foreground monitoring, not iOS background execution.
 
-Successfully read real names persist across launches. Unnamed candidates remain internal and are not rendered as cards. Offline named switches stay visible. A green LED means an advertisement was received in the previous 15 seconds; red means no recent advertisement or scanning unavailable. Presence expires on a one-second UI clock and does not open connections.
+Successfully read real names persist across launches. Unnamed candidates remain internal and are not rendered as cards. Offline named switches stay visible. A blue LED means an advertisement was received in the previous 15 seconds; gray means no recent advertisement or scanning unavailable. Presence expires on a two-second UI clock (at most two seconds after the 15-second threshold) and does not open connections.
 
 All On and All Off snapshot all saved named switches and queue explicit writes, with up to three connections at a time. Each target independently verifies and disconnects. The status reports successful and unsuccessful targets; offline switches are attempted, not silently omitted. Backgrounding cancels unfinished work without replaying it later.
+
+
+## Compact display and Shortcuts (0.5)
+
+Incoming broadcasts update an internal device snapshot without publishing every packet to SwiftUI. The foreground timer publishes telemetry at most once every two seconds; user commands/readback publish immediately. RSSI used for bars samples at most once per five seconds. Power/battery/presence packets are still processed throughout, and GATT readback retains precedence during a transaction.
+
+The fancy thresholds are three bars at RSSI >= -60, two at >= -80, and one below -80. Unknown/offline signal shows zero filled bars. Cards show an icon-only battery, red with a small fill below 10% and green otherwise, and a yellow glowing bulb when on. Only switch details show the battery percentage. Busy controls render a spinner without stage text.
+
+App Intents share the live BluetoothStore used by the foreground UI. All On, All Off, and a selected-switch action validate saved identities, reserve the operation, wait briefly for the radio, then use the same three-slot scheduler. Completion requires readback and disconnection; partial results throw an actionable Shortcuts error. Backgrounding/cancellation stops pending work. No new background BLE entitlement, extension, or permanent connection is added.

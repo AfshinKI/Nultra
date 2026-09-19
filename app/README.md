@@ -19,11 +19,6 @@ The app implements discovery, automatic one-time name lookup, persistent real na
 ## 1. Get Nultra.ipa
 
 
-2. Open the newest successful **iOS validation** run on `main`. Confirm the **build** job passed.
-4. Keep this folder somewhere convenient. `BUILD-INFO.txt` records the source commit and Xcode version. Optional integrity check from that folder: `shasum -a 256 -c Nultra.ipa.sha256`.
-5. AirDrop the included `Nultra-transfer.zip` to your iPhone, save it in **Files**, and tap it to extract `Nultra.ipa`. You can also transfer it using iCloud Drive.
-
-
 ### If AirDrop accepts the IPA but it does not appear in Files
 
 
@@ -46,16 +41,42 @@ The app implements discovery, automatic one-time name lookup, persistent real na
 
 1. If using demo mode, turn off **Menu → Explore demo mode**.
 2. Power your Nultra switch and place it near the iPhone. Release its Raspberry Pi BLE connection during the first test; some firmware may accept only one controller.
-3. Open Nultra and allow Bluetooth access. Listening starts automatically whenever the app is open. Saved switches remain visible across launches and while offline. A small green LED means seen within 15 seconds; red means not currently seen. New switches only appear after their real name has been read.
+3. Open Nultra and allow Bluetooth access. Listening starts automatically whenever the app is open. Saved switches remain visible across launches and while offline. A small blue LED means seen within 15 seconds; gray means not currently seen. New switches only appear after their real name has been read.
 4. New switches automatically make one brief connection using your configured master password to read their real name and firmware, then immediately disconnect. Names are saved on your phone. Known switches are monitored through broadcasts without reconnecting.
-5. Tap the bulb/state control on a card to change power. The app connects, authenticates, writes the requested state, verifies readback, and immediately disconnects. Tap the real name to open details with explicit **On** and **Off** buttons.
+5. Tap the bulb on a card to change power. The app connects, authenticates, writes the requested state, verifies readback, and immediately disconnects. Tap the real name to open details with explicit **On** and **Off** buttons.
 6. Tap the real name → **Rename**, enter exactly eight printable ASCII characters such as `DESKLAMP`, then **Save name**. Editing stays disconnected; Save briefly connects, writes, verifies, and disconnects.
 
 
 Complete the short [hardware acceptance checklist](docs/HARDWARE_ACCEPTANCE.md). Report the app commit, firmware, and symptom if a test fails—never your password.
 
-## Updating Nultra
 
+One-time iPhone steps:
+
+1. AirDrop `dist/Nultra-Updates.mobileconfig` after the Pi service has been configured. Install **Nultra Private Updates** under **Settings → General → VPN & Device Management**.
+
+
+The private HTTPS leaf certificate lasts one year; renewal commands are in the Pi instructions. Reserve the Pi's IP address in your router. No GitHub token is embedded in the iPhone app or source JSON.
+
+
+## Apple Shortcuts
+
+1. Install this release, open Nultra, allow Bluetooth, and let it learn your switches' real names. Turn off demo mode.
+2. Open **Shortcuts → + → Add Action**, search **Nultra**, and choose **Turn All Off**, **Turn All On**, or **Set Switch Power**.
+3. For one switch, select its saved name and the desired On value. Name the shortcut, for example **Lights Off**, and optionally add it to your Home Screen or an automation.
+4. Run it with the iPhone unlocked and switches nearby. Nultra opens, runs up to three brief transactions at once, and reports verified success or failure. Keep Nultra open until it finishes.
+
+These actions use the phone's BLE directly. They do not run a permanent connection or require the Pi. They need the foreground app; this release does not promise locked-phone or unattended background switch control. Demo mode is rejected so a shortcut cannot report fake hardware success.
+
+## Release process and runner usage
+
+Ordinary `main` pushes, documentation edits, and tags do **not** start Actions. Do local checks during development. When ready for a release:
+
+1. Bump `MARKETING_VERSION` and `CURRENT_PROJECT_VERSION` in `scripts/generate_project.py`; regenerate the project.
+2. Write `docs/releases/vX.X.X.md`, run `bash scripts/check.sh` and `python3 -m unittest discover -s distribution/tests -v`, and commit/push `main`.
+3. Push the reviewed commit to `release/vX.X.X`: `git push origin HEAD:refs/heads/release/vX.X.X`.
+4. A single macOS job runs unit tests, builds the IPA once, and validates the iPhone interface. A short Linux job creates the `vX.X.X` tag and GitHub release only after validation succeeds, attaching the IPA, checksum, transfer ZIP, build information, and Pi update bundle. No second build runs for that tag.
+
+Published versions are immutable: make a new version for further changes. Before publication, a failed build can be fixed by advancing the release branch. Manual **Run workflow** is available for a diagnostic build, with optional UI tests; it does not publish when run on `main`. Actions artifacts expire after seven days; the release assets remain.
 
 ## Build it yourself (optional)
 

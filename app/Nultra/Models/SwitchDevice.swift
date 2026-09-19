@@ -1,6 +1,6 @@
 import Foundation
 
-struct SwitchDevice: Identifiable {
+struct SwitchDevice: Identifiable, Equatable {
     let id: UUID
     var name: String
     var rssi: Int
@@ -10,17 +10,22 @@ struct SwitchDevice: Identifiable {
     var lastConfirmed: Date?
     var lastSeen: Date?
     var lastBroadcast: Date?
+    var lastSignalSample: Date?
     var stateSource: StateSource = .unknown
 
     var identityKnown = false
     var lookupError: String?
 
-    enum StateSource { case unknown, advertisement, gatt, demo }
+    enum StateSource: Equatable { case unknown, advertisement, gatt, demo }
 
     /// Only the local name in this packet may supply fresh state. CBPeripheral.name
     /// can be cached by iOS, so callers must not pass that fallback here.
     mutating func observe(localName: String?, rssi: Int, at date: Date, acceptsState: Bool = true) {
-        self.rssi = rssi
+        // Preserve every presence/state packet; sample only the decorative signal bars.
+        if lastSignalSample == nil || date.timeIntervalSince(lastSignalSample!) >= 5 {
+            self.rssi = rssi
+            lastSignalSample = date
+        }
         lastSeen = date
         guard acceptsState, let localName = localName,
               let broadcast = SwitchProtocol.advertisement(localName) else { return }
@@ -40,13 +45,15 @@ struct SwitchDevice: Identifiable {
 
     var powerLabel: String { isOn.map { $0 ? "On" : "Off" } ?? "Unknown" }
 
-    var batterySymbol: String {
-        guard let battery = battery else { return "battery.0" }
-        if battery >= 95 { return "battery.100" }
-        if battery >= 75 { return "battery.75" }
-        if battery >= 50 { return "battery.50" }
-        if battery >= 10 { return "battery.25" }
-        return "battery.0"
+    var batteryFill: Double {
+        guard let battery = battery else { return 0 }
+        return max(0.08, min(1, Double(battery) / 100))
+    }
+    var batteryLow: Bool { battery.map { $0 < 10 } ?? false }
+    /// Same thresholds as fancy/webapp/app/static/js/icon.js.
+    var signalBars: Int {
+        if rssi == 127 { return 0 }
+        return rssi >= -60 ? 3 : rssi >= -80 ? 2 : 1
     }
 
     var signal: String {

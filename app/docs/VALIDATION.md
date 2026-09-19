@@ -1,5 +1,10 @@
 # Validation record
 
+## 0.5 release in progress
+
+
+The previous validated 0.4 release is recorded below for reference.
+
 ## Delivery status
 
 

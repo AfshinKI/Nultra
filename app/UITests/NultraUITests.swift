@@ -22,6 +22,10 @@ final class NultraUITests: XCTestCase {
         XCTAssertFalse(app.buttons["device.UNNAMED"].exists)
         XCTAssertEqual(app.descendants(matching: .any)["presence.HALLWAY1"].label, "Offline")
         XCTAssertEqual(app.descendants(matching: .any)["presence.DESKLAMP"].label, "Online")
+        XCTAssertFalse(app.staticTexts["92%"].exists, "Battery percentage belongs in details only")
+        XCTAssertFalse(app.staticTexts["-48"].exists, "Dashboard uses signal bars")
+        XCTAssertEqual(app.descendants(matching: .any)["signal.DESKLAMP"].label, "Signal 3 of 3 bars")
+        XCTAssertLessThan(app.buttons["toggle.SHELFLED"].frame.maxY, 500, "Compact cards should fit well within the mini screen")
         screenshot("01-dashboard-13-mini")
         app.buttons["all.off"].tap()
         XCTAssertTrue(app.buttons["toggle.DESKLAMP"].label.contains("Off"))
@@ -53,7 +57,7 @@ final class NultraUITests: XCTestCase {
         app.buttons["settings"].tap()
         let toggle = app.switches["demo.toggle"]
         XCTAssertTrue(toggle.waitForExistence(timeout: 5))
-        if !toggle.isHittable { app.swipeUp() }
+        for _ in 0..<4 { if toggle.isHittable { break }; app.swipeUp() }
         toggle.tap()
         app.buttons["Done"].tap()
         let permission = XCUIApplication(bundleIdentifier: "com.apple.springboard").buttons["Allow"]
@@ -61,6 +65,23 @@ final class NultraUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts["scan.status"].waitForExistence(timeout: 5))
         XCTAssertFalse(app.buttons["Find switches"].exists)
         screenshot("03-real-mode-empty-state")
+    }
+    func testBusyCardShowsOnlyProgress() throws {
+        let app = XCUIApplication(); app.launchArguments = ["--demo", "--busy-demo"]; app.launch()
+        XCTAssertTrue(app.buttons["toggle.DESKLAMP"].waitForExistence(timeout: 10))
+        XCTAssertEqual(app.buttons["toggle.DESKLAMP"].label, "Updating DESKLAMP")
+        XCTAssertFalse(app.staticTexts["Connecting…"].exists)
+        XCTAssertFalse(app.staticTexts["Authenticating…"].exists)
+        XCTAssertFalse(app.buttons["toggle.DESKLAMP"].isEnabled)
+        screenshot("07-spinner-only")
+    }
+    func testShortcutRejectsDemoWithoutClaimingRealSuccess() throws {
+        let app = XCUIApplication(); app.launchArguments = ["--demo", "--test-shortcut-all-off"]; app.launch()
+        let alert = app.alerts["Switch needs attention"]
+        XCTAssertTrue(alert.waitForExistence(timeout: 10))
+        XCTAssertTrue(alert.staticTexts["Turn off demo mode in Nultra before running a switch shortcut."].exists)
+        alert.buttons["OK"].tap()
+        XCTAssertTrue(app.buttons["toggle.DESKLAMP"].label.contains("On"))
     }
     func testSwitchPasswordRequiresExplicitSelection() throws {
         let app = XCUIApplication()

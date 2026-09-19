@@ -29,11 +29,15 @@ Status: **not yet run**. Record iPhone model, iOS version, app commit, switch fi
 | Failed discovery | No per-advertisement reconnect loop; explicit retry available | Pending |
 | Browse / edit | Opening detail or typing rename never connects | Pending |
 | Deadline | Entire attempt times out after 8 seconds, requests cancellation, no retries | Pending |
-| Presence | Green on fresh packet, red after 15 seconds without packets; named card remains | Pending |
+| Presence | Blue on fresh packet, gray after 15–17 seconds without packets; named card remains | Pending |
 | Hidden candidates | No card until valid real name read succeeds | Pending |
 | Master password | Save custom value, relaunch, verify use; restore default; no firmware password change | Pending |
 | Bulk controls | All named targets attempted; up to three concurrent links; partial failures reported | Pending |
 | Bulk background | Cancel current/pending work; no automatic command replay on return | Pending |
+| Shortcuts cold launch | All Off opens app, awaits radio, verifies/disconnects all targets; reports actual failures | Pending |
+| Shortcut selected device | Name selection resolves saved UUID, only that device changes | Pending |
+| Shortcuts interrupted | Background/lock/cancel stops unfinished work without replay or fake success | Pending |
+| Signal / battery | Fancy bar boundaries; five-second RSSI sampling; low battery icon red below 10% | Pending |
 | Grid | Six switches fit in two columns at normal text size on 13 mini | Pending |
 | Demo isolation | Label always visible; no real BLE control writes | Pending |
 | Accessibility | VoiceOver announces controls; large text/landscape remain usable | Pending |

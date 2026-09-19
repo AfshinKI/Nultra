@@ -53,7 +53,7 @@ final class SwitchProtocolTests: XCTestCase {
         device.lastConfirmed = first
         device.observe(localName: "Nultra1001", rssi: -40, at: first.addingTimeInterval(3), acceptsState: false)
         XCTAssert(device.isOn == false && device.battery == 91 && device.stateSource == .gatt, "Broadcast replaced active GATT state")
-        XCTAssert(device.rssi == -40 && device.lastSeen == first.addingTimeInterval(3), "Presence not updated during GATT session")
+        XCTAssert(device.rssi == -50 && device.lastSeen == first.addingTimeInterval(3), "Presence must update while decorative signal strength is throttled")
         XCTAssert(device.lastConfirmed == first, "Broadcast confirmed a command")
     }
 

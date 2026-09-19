@@ -55,7 +55,7 @@ struct ProtocolChecks {
         device.lastConfirmed = first
         device.observe(localName: "Nultra1001", rssi: -40, at: first.addingTimeInterval(3), acceptsState: false)
         require(device.isOn == false && device.battery == 91 && device.stateSource == .gatt, "Broadcast replaced active GATT state")
-        require(device.rssi == -40 && device.lastSeen == first.addingTimeInterval(3), "Presence not updated during GATT session")
+        require(device.rssi == -50 && device.lastSeen == first.addingTimeInterval(3), "Presence must update while decorative signal strength is throttled")
         require(device.lastConfirmed == first, "Broadcast confirmed a command")
         for operation: SwitchTransaction.Operation in [.identify, .power(false), .power(true), .rename("BEDROOM1")] {
             var tx = SwitchTransaction(operation: operation)

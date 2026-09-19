@@ -11,4 +11,6 @@ Artwork was generated with the built-in image generation tool, then mechanically
 
 Generated output was 1254px square, opaque; packaged icon sizes are 40, 58, 60, 80, 87, 120, 180, and 1024px (120px has two asset entries). This is a native SwiftUI implementation, not a web view. Physical iPhone layout and accessibility checks remain part of hardware acceptance.
 
-The 0.4 dashboard reserves the top for All Off / All On and compact scan status. A small top-left green/red LED marks recent presence on each card. Only verified real names enter the grid; offline cards remain. The hamburger opens the master-password and discovery settings, keeping setup controls off the main dashboard.
+The dashboard reserves the top for All Off / All On and compact scan status. A small top-left blue/gray LED marks recent presence on each card. Only verified real names enter the grid; offline cards remain. The hamburger opens the master-password and discovery settings, keeping setup controls off the main dashboard.
+
+Version 0.5 reduces cards to a thin status strip plus one name/bulb row. Signal and battery are icons; connection stages and continuously changing timestamps are absent from cards. The yellow bulb glow indicates on, separately from the blue presence dot. Demo mode is last in Menu, after Shortcuts and developer information.

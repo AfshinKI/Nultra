@@ -43,13 +43,25 @@ struct SettingsView: View {
                     }.panel()
                     VStack(alignment: .leading, spacing: 12) {
                         Label("Discovery", systemImage: "antenna.radiowaves.left.and.right").font(.headline)
-                        Text("Named switches stay in your list. Green means seen within 15 seconds; red means not currently seen. Listening runs automatically while Nultra is open.")
+                        Text("Named switches stay in your list. Blue means seen within 15 seconds; gray means not currently seen. Listening runs automatically while Nultra is open.")
                             .font(.subheadline).foregroundColor(Theme.muted)
                         if bluetooth.unnamedCount > 0 && !bluetooth.demo {
                             Text("\(bluetooth.unnamedCount) devices have not returned a name.").font(.caption)
                         }
                         Button("Retry name discovery") { bluetooth.retryDiscovery() }
-                            .disabled(bluetooth.demo).frame(minHeight: 44)
+                            .disabled(bluetooth.demo || bluetooth.hasWork).frame(minHeight: 44)
+                    }.panel()
+                    VStack(alignment: .leading, spacing: 10) {
+                        Label("Shortcuts", systemImage: "square.stack.3d.up.fill").font(.headline)
+                        Text("In Apple Shortcuts, search Nultra for Turn All Off, Turn All On, or Set Switch Power. Actions open this app and briefly connect to your saved switches.")
+                            .font(.subheadline).foregroundColor(Theme.muted)
+                    }.panel()
+                    VStack(alignment: .leading, spacing: 10) {
+                        Text("Afshin Kashani").font(.headline).accessibilityIdentifier("developer.name")
+                        Text("Developer").font(.caption).foregroundColor(Theme.muted)
+                        Link("innovetron.com", destination: URL(string: "https://innovetron.com")!)
+                        Text("VERSION \(Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "0.5.0") · PERSONAL EDITION")
+                            .font(.caption2).foregroundColor(Theme.muted)
                     }.panel()
                     VStack(alignment: .leading, spacing: 12) {
                         Toggle("Explore demo mode", isOn: Binding(get: { bluetooth.demo }, set: { bluetooth.setDemo($0) }))
@@ -57,9 +69,6 @@ struct SettingsView: View {
                         Text("Demo controls never send Bluetooth commands. Your saved real switches return when demo mode is turned off.")
                             .font(.caption).foregroundColor(Theme.muted)
                     }.panel()
-                    Text("Up to three short connections run in parallel. Each disconnects immediately after its operation.")
-                        .font(.caption).foregroundColor(Theme.muted)
-                    Text("VERSION 0.4 · PERSONAL EDITION").font(.caption2).foregroundColor(Theme.muted)
                 }.padding(16)
             }.background(Theme.background.ignoresSafeArea())
                 .navigationTitle("Menu").navigationBarTitleDisplayModeCompat()
