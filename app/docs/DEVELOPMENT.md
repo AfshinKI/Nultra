@@ -26,7 +26,7 @@ xcodebuild -project Nultra.xcodeproj -scheme Nultra \
 bash scripts/check.sh
 ```
 
-The CLI check exhaustively validates all possible state and battery bytes, all valid advertisement state/battery combinations, and malformed credentials/names/advertisements. It also type-checks the shared SwiftUI/CoreBluetooth code against macOS, not iOS. XCTest adds named regression cases, including repeated broadcast updates, GATT precedence, and terminal disconnection for every transaction, timeout, cancellation, and error. The reference checkout must track the `fancy` branch; see `FANCY_REFERENCE.md`. GitHub Actions runs XCTest, an unsigned iPhone release build, and an ad-hoc signed simulator app for UI tests only on release branches (or explicit manual runs). Simulator signing gives Keychain a consistent application identity across relaunch; no Apple account or developer certificate is needed.
+The CLI check exhaustively validates all possible state and battery bytes, all valid advertisement state/battery combinations, and malformed credentials/names/advertisements. It also type-checks the shared SwiftUI/CoreBluetooth code against macOS, not iOS. XCTest adds named regression cases, including repeated broadcast updates, GATT precedence, and terminal disconnection for every transaction, timeout, cancellation, and error. The reference checkout must track the `fancy` branch; see `FANCY_REFERENCE.md`. GitHub Actions runs only on explicit manual requests; simulator UI tests are opt-in. Simulator signing gives Keychain a consistent application identity across relaunch; no Apple account or developer certificate is needed.
 
 Local `swift test` initially fails because the incomplete Command Line Tools setup lacks the Xcode platform path. This is a toolchain limitation, not a passing test result. Use the dependency-free check script locally until Xcode is available.
 
@@ -55,10 +55,10 @@ Local `swift test` initially fails because the incomplete Command Line Tools set
 
 ## Cost-conscious versioned releases
 
-Ordinary pushes no longer start macOS jobs. Push a reviewed version to `release/vX.X.X` to run a macOS iPhone build, a Linux Android build, and a short Linux publication job. iPhone simulator tests run only when iPhone sources change or are explicitly requested. Successful publication creates the `vX.X.X` tag at the tested commit and attaches both IPA and APK. No build is triggered by that tag. The release branch version must exactly match both the IPA and APK versions. Published assets are immutable; advance to a new version for changes. See README for the exact release process and Pi feed setup.
+Hosted builds are manual only. Merge a reviewed PR into `main`, then dispatch the release workflow on `main` with publication enabled. Preflight rejects non-main publication, mismatched versions, missing notes, and already-published versions before allocating macOS/Android runners. Releases are titled exactly `vX.X.X`.
 
-A manual run on main uses the same build checks and iPhone UI change detection, and does not publish a release. Run local checks before using it. Distribution scripts are tested with Python's standard unittest module and no third-party dependencies.
+Diagnostic runs can build only iOS or Android. Simulator tests are opt-in because they dominated runner usage (about eight minutes in the v0.7.0 run); enable them for UI changes when local Xcode validation is unavailable. Distribution tests run on Linux, Swift/Gradle outputs are cached, and compressed artifacts are uploaded without recompression. All actual releases build and validate both packages. See README for the full process.
 
 ## Android builds
 
-The native Android app lives in `android/`. See [Android instructions](ANDROID.md) for Java/SDK setup, signed APK validation, emulator smoke tests, and stable signing-key management. Releases now wait for both iPhone and Android validation, then publish both packages. iPhone simulator tests are skipped when no iPhone sources changed, unless explicitly requested. Android signing secrets are never stored in source or release assets.
+The native Android app lives in `android/`. See [Android instructions](ANDROID.md) for Java/SDK setup, signed APK validation, emulator smoke tests, and stable signing-key management. Releases now wait for both iPhone and Android validation, then publish both packages. iPhone simulator tests run only when explicitly requested. Android signing secrets are never stored in source or release assets.
