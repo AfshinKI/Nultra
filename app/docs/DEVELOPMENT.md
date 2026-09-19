@@ -44,3 +44,8 @@ Local `swift test` initially fails because the incomplete Command Line Tools set
 An unsigned simulator build is not an installable iPhone app. There is no signed IPA or TestFlight release at this stage. A simulator can exercise demo screens but does not establish physical BLE compatibility.
 
 ## Reference boundaries
+
+
+## Optional simulator preview
+
+The Debug build accepts `--demo` to open sample devices without Bluetooth access. After building, `bash scripts/simulator_preview.sh` can boot an available iPhone simulator, install the app, launch demo mode, and save a screenshot under `build/previews/`. GitHub's manually dispatched workflow runs this optional step with a four-minute deadline and uploads a seven-day preview artifact. Normal pushes only run tests and compilation. Hosted simulator boot can be unreliable, so it is not a substitute for local device inspection.
