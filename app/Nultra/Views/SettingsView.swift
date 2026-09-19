@@ -4,6 +4,7 @@ struct SettingsView: View {
     @EnvironmentObject private var bluetooth: BluetoothStore
     @Environment(\.dismiss) private var dismiss
     @State private var password = ""
+    @State private var server = ServerConfiguration()
 
     @State private var credentialDevice: UUID?
     @State private var credentialMessage = ""
@@ -42,8 +43,40 @@ struct SettingsView: View {
                             .font(.caption).foregroundColor(Theme.muted)
                     }.panel()
                     VStack(alignment: .leading, spacing: 12) {
+                        Label("Backup server", systemImage: "network").font(.headline)
+                        Toggle("Enable server fallback", isOn: $server.enabled)
+                            .accessibilityIdentifier("server.enabled")
+                        TextField("http://hostname:port", text: $server.address).asciiEntry()
+                            .padding(12).background(Theme.background, in: RoundedRectangle(cornerRadius: 10))
+                            .accessibilityIdentifier("server.address")
+                        Text("Uses your Nultra web server when a saved switch is outside Bluetooth range. Enter your server address and port; no address is preset. HTTP is unencrypted: use it only on a trusted home network.")
+                            .font(.caption).foregroundColor(Theme.muted)
+                        Button("Save server") { bluetooth.saveServer(server); server = bluetooth.serverConfiguration }
+                            .accessibilityIdentifier("server.save")
+                        Button("Check server and load switches") { Task { await bluetooth.checkServer() } }
+                            .disabled(!bluetooth.serverConfiguration.enabled || bluetooth.checkingServer || bluetooth.demo)
+                            .accessibilityIdentifier("server.check")
+                        Text(bluetooth.serverStatus).font(.caption).foregroundColor(Theme.muted)
+                        if !bluetooth.serverDevices.isEmpty {
+                            Text("Switch mapping").font(.subheadline.bold())
+                            Text("Automatic matching requires an exact, unique name. Once used, the server address is remembered. Select a switch explicitly if names differ.")
+                                .font(.caption).foregroundColor(Theme.muted)
+                            ForEach(bluetooth.visibleDevices) { device in
+                                Picker(device.name, selection: Binding(
+                                    get: { bluetooth.serverConfiguration.mappings[device.id.uuidString] ?? "" },
+                                    set: { bluetooth.mapServer(device.id, address: $0); server = bluetooth.serverConfiguration }
+                                )) {
+                                    Text("Match by name").tag("")
+                                    ForEach(bluetooth.serverDevices.filter { $0.validAddress && !$0.name.isEmpty }) { row in
+                                        Text("\(row.name) · \(row.address)").tag(row.address)
+                                    }
+                                }.font(.caption)
+                            }
+                        }
+                    }.panel().disabled(bluetooth.hasWork)
+                    VStack(alignment: .leading, spacing: 12) {
                         Label("Discovery", systemImage: "antenna.radiowaves.left.and.right").font(.headline)
-                        Text("Named switches stay in your list. Blue means seen within 15 seconds; gray means not currently seen. Listening runs automatically while Nultra is open.")
+                        Text("Named switches stay in your list. Blue means recently seen by Bluetooth or available through your enabled server; gray means neither route is currently available. Listening runs automatically while Nultra is open.")
                             .font(.subheadline).foregroundColor(Theme.muted)
                         if bluetooth.unnamedCount > 0 && !bluetooth.demo {
                             Text("\(bluetooth.unnamedCount) devices have not returned a name.").font(.caption)
@@ -53,7 +86,7 @@ struct SettingsView: View {
                     }.panel()
                     VStack(alignment: .leading, spacing: 10) {
                         Label("Shortcuts", systemImage: "square.stack.3d.up.fill").font(.headline)
-                        Text("In Apple Shortcuts, search Nultra for Turn All Off, Turn All On, or Set Switch Power. Actions open this app and briefly connect to your saved switches.")
+                        Text("In Apple Shortcuts, search Nultra for Turn All Off, Turn All On, or Set Switch Power. Actions run in the background and disconnect after each Bluetooth command. Open Nultra once to grant Bluetooth and local-network access. Server commands report queued status because the server cannot confirm completion.")
                             .font(.subheadline).foregroundColor(Theme.muted)
                     }.panel()
                     VStack(alignment: .leading, spacing: 10) {
@@ -73,6 +106,7 @@ struct SettingsView: View {
             }.background(Theme.background.ignoresSafeArea())
                 .navigationTitle("Menu").navigationBarTitleDisplayModeCompat()
                 .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } } }
+                .onAppear { server = bluetooth.serverConfiguration }
                 .onDisappear { password = "" }
                 .alert("Needs attention", isPresented: Binding(
                     get: { bluetooth.errorMessage != nil }, set: { if !$0 { bluetooth.errorMessage = nil } }

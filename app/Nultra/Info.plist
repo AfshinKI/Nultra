@@ -22,13 +22,24 @@
 	<string>$(CURRENT_PROJECT_VERSION)</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
+	<key>NSAppTransportSecurity</key>
+	<dict>
+		<key>NSAllowsLocalNetworking</key>
+		<true/>
+	</dict>
 	<key>NSBluetoothAlwaysUsageDescription</key>
 	<string>Nultra uses Bluetooth to find and control your nearby switches directly from your iPhone.</string>
+	<key>NSLocalNetworkUsageDescription</key>
+	<string>Nultra contacts your configured backup server to read switch availability and send light commands.</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>
 		<false/>
 	</dict>
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>bluetooth-central</string>
+	</array>
 	<key>UILaunchScreen</key>
 	<dict/>
 	<key>UISupportedInterfaceOrientations</key>

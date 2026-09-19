@@ -4,8 +4,8 @@ import Foundation
 
 struct TurnAllOffIntent: AppIntent {
     static let title: LocalizedStringResource = "Turn All Off"
-    static let description = IntentDescription("Open Nultra and turn off all saved switches using brief Bluetooth connections.")
-    static var openAppWhenRun: Bool = true
+    static let description = IntentDescription("Turn off saved switches in the background using Bluetooth or your enabled backup server.")
+    static var openAppWhenRun: Bool = false
     @MainActor func perform() async throws -> some IntentResult & ProvidesDialog {
         let message = try await BluetoothStore.shared.runShortcut(power: false)
         return .result(dialog: IntentDialog(stringLiteral: message))
@@ -14,8 +14,8 @@ struct TurnAllOffIntent: AppIntent {
 
 struct TurnAllOnIntent: AppIntent {
     static let title: LocalizedStringResource = "Turn All On"
-    static let description = IntentDescription("Open Nultra and turn on all saved switches using brief Bluetooth connections.")
-    static var openAppWhenRun: Bool = true
+    static let description = IntentDescription("Turn on saved switches in the background using Bluetooth or your enabled backup server.")
+    static var openAppWhenRun: Bool = false
     @MainActor func perform() async throws -> some IntentResult & ProvidesDialog {
         let message = try await BluetoothStore.shared.runShortcut(power: true)
         return .result(dialog: IntentDialog(stringLiteral: message))
@@ -45,8 +45,8 @@ struct NultraSwitchQuery: EntityQuery {
 
 struct SetSwitchPowerIntent: AppIntent {
     static let title: LocalizedStringResource = "Set Switch Power"
-    static let description = IntentDescription("Open Nultra to change one saved switch, then immediately disconnect.")
-    static var openAppWhenRun: Bool = true
+    static let description = IntentDescription("Change one saved switch in the background, then immediately disconnect.")
+    static var openAppWhenRun: Bool = false
     @Parameter(title: "Switch") var target: NultraSwitchEntity
     @Parameter(title: "On", default: false) var on: Bool
     static var parameterSummary: some ParameterSummary { Summary("Set \(\.$target) power to \(\.$on)") }

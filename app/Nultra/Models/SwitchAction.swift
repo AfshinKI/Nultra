@@ -18,9 +18,9 @@ enum SwitchAction {
             case .unknownSwitch: return "This switch is no longer saved in Nultra. Select it again in Shortcuts."
             case .demo: return "Turn off demo mode in Nultra before running a switch shortcut."
             case .busy: return "Nultra is handling another operation. Try again when it finishes."
-            case .interrupted: return "The operation was interrupted. Keep Nultra open until it finishes."
+            case .interrupted: return "The operation was interrupted or timed out. Retry the shortcut."
             case .bluetooth(let message): return message
-            case .partial(let success, let total): return "Updated \(success) of \(total) switches. Check Bluetooth and switch range, then retry."
+            case .partial(let success, let total): return "Handled \(success) of \(total) switches (Bluetooth-confirmed or server-queued). Check Bluetooth, switch range, or your backup server, then retry."
             }
         }
     }

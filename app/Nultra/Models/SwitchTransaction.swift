@@ -93,3 +93,8 @@ struct KnownSwitch: Codable, Equatable {
     var name: String
     var firmware: String?
 }
+
+// Only explicit on/off is safe for automatic server fallback; never send toggles or automatic discovery.
+extension SwitchTransaction.Operation {
+    var isPower: Bool { if case .power = self { return true }; return false }
+}

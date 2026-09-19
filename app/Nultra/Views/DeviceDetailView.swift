@@ -22,7 +22,7 @@ struct DeviceDetailView: View {
                         if busy {
                             ProgressView().tint(Theme.mint).accessibilityLabel("Updating switch")
                         } else {
-                            Text("Disconnected").font(.subheadline).foregroundColor(Theme.muted)
+                            Text(bluetooth.serverOnline(device) && !device.isOnline(at: bluetooth.now) ? "Via backup server" : "Disconnected").font(.subheadline).foregroundColor(Theme.muted)
                                 .accessibilityIdentifier("connection.status")
                         }
                         if bluetooth.demo { Text("DEMO SWITCH").font(.caption.bold()).foregroundColor(Theme.mint) }

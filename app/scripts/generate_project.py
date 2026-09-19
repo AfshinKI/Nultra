@@ -50,7 +50,7 @@ for name in ["Debug", "Release"]:
         "PRODUCT_BUNDLE_IDENTIFIER": "com.afshinki.nultra", "PRODUCT_NAME": "$(TARGET_NAME)",
         "GENERATE_INFOPLIST_FILE": "NO", "INFOPLIST_FILE": "Nultra/Info.plist",
         "ASSETCATALOG_COMPILER_APPICON_NAME": "AppIcon", "TARGETED_DEVICE_FAMILY": "1",
-        "CODE_SIGN_STYLE": "Automatic", "CURRENT_PROJECT_VERSION": "6", "MARKETING_VERSION": "0.6.0",
+        "CODE_SIGN_STYLE": "Automatic", "CURRENT_PROJECT_VERSION": "7", "MARKETING_VERSION": "0.7.0",
         "SUPPORTED_PLATFORMS": "iphoneos iphonesimulator", "SUPPORTS_MACCATALYST": "NO",
         "LD_RUNPATH_SEARCH_PATHS": ["$(inherited)", "@executable_path/Frameworks"],
     }))
@@ -109,7 +109,10 @@ info = {
     "CFBundleExecutable": "$(EXECUTABLE_NAME)", "CFBundleIdentifier": "$(PRODUCT_BUNDLE_IDENTIFIER)",
     "CFBundleInfoDictionaryVersion": "6.0", "CFBundleName": "$(PRODUCT_NAME)", "CFBundlePackageType": "APPL",
     "CFBundleShortVersionString": "$(MARKETING_VERSION)", "CFBundleVersion": "$(CURRENT_PROJECT_VERSION)",
-    "LSRequiresIPhoneOS": True, "NSBluetoothAlwaysUsageDescription": "Nultra uses Bluetooth to find and control your nearby switches directly from your iPhone.",
+    "LSRequiresIPhoneOS": True,
+    "UIBackgroundModes": ["bluetooth-central"],
+    "NSLocalNetworkUsageDescription": "Nultra contacts your configured backup server to read switch availability and send light commands.",
+    "NSAppTransportSecurity": {"NSAllowsLocalNetworking": True}, "NSBluetoothAlwaysUsageDescription": "Nultra uses Bluetooth to find and control your nearby switches directly from your iPhone.",
     "UIApplicationSceneManifest": {"UIApplicationSupportsMultipleScenes": False},
     "UILaunchScreen": {}, "UISupportedInterfaceOrientations": ["UIInterfaceOrientationPortrait", "UIInterfaceOrientationLandscapeLeft", "UIInterfaceOrientationLandscapeRight"],
 }

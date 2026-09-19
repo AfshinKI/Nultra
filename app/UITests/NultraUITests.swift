@@ -91,6 +91,27 @@ final class NultraUITests: XCTestCase {
         XCTAssertTrue(app.secureTextFields["master.password"].waitForExistence(timeout: 5))
         XCTAssertFalse(app.buttons["master.save"].isEnabled)
 }
+    func testBackupServerConfigurationPersistsWithoutContactInDemo() throws {
+        let app = launchDemo()
+        app.buttons["settings"].tap()
+        let field = app.textFields["server.address"]
+        for _ in 0..<4 { if field.isHittable { break }; app.swipeUp() }
+        XCTAssertTrue(field.isHittable)
+        field.tap()
+        if let value = field.value as? String, value.hasPrefix("http") {
+            field.typeText(String(repeating: XCUIKeyboardKey.delete.rawValue, count: value.count))
+        }
+        field.typeText("http://example.invalid:5050")
+        let save = app.buttons["server.save"]
+        for _ in 0..<3 { if save.isHittable { break }; app.swipeUp() }
+        save.tap()
+        app.terminate(); app.launch()
+        app.buttons["settings"].tap()
+        for _ in 0..<4 { if field.isHittable { break }; app.swipeUp() }
+        XCTAssertEqual(field.value as? String, "http://example.invalid:5050")
+        XCTAssertFalse(app.buttons["server.check"].isEnabled, "Demo cannot contact the real server")
+        screenshot("08-backup-server-settings")
+    }
     func testLargeTextAndLandscapeRemainNavigable() throws {
         let app = XCUIApplication()
         app.launchArguments = ["--demo", "-UIPreferredContentSizeCategoryName", "UICTContentSizeCategoryAccessibilityXXXL"]

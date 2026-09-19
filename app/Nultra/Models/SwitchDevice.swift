@@ -16,7 +16,7 @@ struct SwitchDevice: Identifiable, Equatable {
     var identityKnown = false
     var lookupError: String?
 
-    enum StateSource: Equatable { case unknown, advertisement, gatt, demo }
+    enum StateSource: Equatable { case unknown, advertisement, gatt, server, demo }
 
     /// Only the local name in this packet may supply fresh state. CBPeripheral.name
     /// can be cached by iOS, so callers must not pass that fallback here.

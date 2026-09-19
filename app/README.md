@@ -75,9 +75,14 @@ The private HTTPS leaf certificate lasts one year; renewal commands are in the P
 1. Install this release, open Nultra, allow Bluetooth, and let it learn your switches' real names. Turn off demo mode.
 2. Open **Shortcuts → + → Add Action**, search **Nultra**, and choose **Turn All Off**, **Turn All On**, or **Set Switch Power**.
 3. For one switch, select its saved name and the desired On value. Name the shortcut, for example **Lights Off**, and optionally add it to your Home Screen or an automation.
-4. Run it with the iPhone unlocked and switches nearby. Nultra opens, runs up to three brief transactions at once, and reports verified success or failure. Keep Nultra open until it finishes.
+4. Run it from Shortcuts with **Show When Run** disabled if offered. Nultra no longer requests its window to open. It runs up to three brief transactions at once and reports Bluetooth confirmation, server queue acceptance, or failure. If an existing shortcut retains old behavior after updating, remove and re-add its Nultra action.
 
-These actions use the phone's BLE directly. They do not run a permanent connection or require the Pi. They need the foreground app; this release does not promise locked-phone or unattended background switch control. Demo mode is rejected so a shortcut cannot report fake hardware success.
+Actions use the phone's BLE first, with optional backup-server fallback. Open the app once to grant permissions and learn names; unlock once after a phone restart. iOS controls background execution time, so locked-phone execution needs device testing. Demo mode is rejected.
+
+### Optional backup server (iPhone)
+
+
+A nearby switch uses phone Bluetooth. If unavailable, an enabled reachable server that recently saw the switch can receive the on/off command. Server replies mean **queued**, not physically confirmed. The server is checked every 15 seconds while the app is open; Shortcuts use on-demand requests. Rename stays Bluetooth-only. Android remains direct-BLE-only. See [server behavior, limits, and phone checks](docs/SERVER_FALLBACK.md).
 
 ## Release process and runner usage
 

@@ -19,16 +19,19 @@ struct MasterPasswordStore {
               let value = String(data: data, encoding: .ascii), (try? SwitchProtocol.eightASCII(value)) != nil else {
             throw StorageError.failed(status: status)
         }
+        // Upgrade existing entries while unlocked; later background shortcuts can read them
+        // after the first device unlock following a restart, without cloud/device migration.
+        SecItemUpdate(query as CFDictionary, [kSecAttrAccessible as String: kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly] as CFDictionary)
         return value
     }
     func save(_ value: String) throws {
         let data = try SwitchProtocol.eightASCII(value)
-        let changes = [kSecValueData as String: data]
+        let changes: [String: Any] = [kSecValueData as String: data, kSecAttrAccessible as String: kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly]
         var status = SecItemUpdate(query as CFDictionary, changes as CFDictionary)
         if status == errSecItemNotFound {
             var item = query
             item[kSecValueData as String] = data
-            item[kSecAttrAccessible as String] = kSecAttrAccessibleWhenUnlockedThisDeviceOnly
+            item[kSecAttrAccessible as String] = kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly
             status = SecItemAdd(item as CFDictionary, nil)
         }
         guard status == errSecSuccess else { throw StorageError.failed(status: status) }
