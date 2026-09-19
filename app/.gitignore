@@ -8,3 +8,5 @@ xcuserdata/
 *.mobileprovision
 *.p12
 .env
+
+dist/

@@ -147,6 +147,7 @@
 			"isa" = "PBXGroup";
 			"children" = (
 				"38A007151ABE87CC01A5B6E9",
+				"9B7BED31F6F48AD5D908B2BC",
 			);
 			"name" = "Products";
 			"sourceTree" = "<group>";
@@ -165,6 +166,7 @@
 				"A2046B35E0C20D7A687F6246",
 				"3685E330EC5277A9DD5661C6",
 				"FBDC4F23F93125BBEEAE800C",
+				"1E6B3F2252EAEDFDCDFE0E55",
 			);
 			"sourceTree" = "<group>";
 		};
@@ -275,6 +277,104 @@
 			"productReference" = "38A007151ABE87CC01A5B6E9";
 			"productType" = "com.apple.product-type.application";
 		};
+		"1E6B3F2252EAEDFDCDFE0E55" = {
+			"isa" = "PBXFileReference";
+			"lastKnownFileType" = "sourcecode.swift";
+			"path" = "UITests/NultraUITests.swift";
+			"sourceTree" = "SOURCE_ROOT";
+		};
+		"9B7BED31F6F48AD5D908B2BC" = {
+			"isa" = "PBXFileReference";
+			"explicitFileType" = "wrapper.cfbundle";
+			"includeInIndex" = 0;
+			"path" = "NultraUITests.xctest";
+			"sourceTree" = "BUILT_PRODUCTS_DIR";
+		};
+		"5F761033789150D3F680926A" = {
+			"isa" = "PBXBuildFile";
+			"fileRef" = "1E6B3F2252EAEDFDCDFE0E55";
+		};
+		"F9ACDEB529017EFC18F5E60A" = {
+			"isa" = "PBXSourcesBuildPhase";
+			"buildActionMask" = 2147483647;
+			"files" = (
+				"5F761033789150D3F680926A",
+			);
+			"runOnlyForDeploymentPostprocessing" = 0;
+		};
+		"BAC435B037607B50C4729BF1" = {
+			"isa" = "XCBuildConfiguration";
+			"name" = "Debug";
+			"buildSettings" = {
+				"PRODUCT_BUNDLE_IDENTIFIER" = "com.afshinki.nultra.uitests";
+				"PRODUCT_NAME" = "$(TARGET_NAME)";
+				"GENERATE_INFOPLIST_FILE" = "YES";
+				"TARGETED_DEVICE_FAMILY" = "1";
+				"CODE_SIGN_STYLE" = "Automatic";
+				"TEST_TARGET_NAME" = "Nultra";
+				"SUPPORTED_PLATFORMS" = "iphoneos iphonesimulator";
+				"LD_RUNPATH_SEARCH_PATHS" = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+			};
+		};
+		"5DE0B96147C56CE7EB664EA3" = {
+			"isa" = "XCBuildConfiguration";
+			"name" = "Release";
+			"buildSettings" = {
+				"PRODUCT_BUNDLE_IDENTIFIER" = "com.afshinki.nultra.uitests";
+				"PRODUCT_NAME" = "$(TARGET_NAME)";
+				"GENERATE_INFOPLIST_FILE" = "YES";
+				"TARGETED_DEVICE_FAMILY" = "1";
+				"CODE_SIGN_STYLE" = "Automatic";
+				"TEST_TARGET_NAME" = "Nultra";
+				"SUPPORTED_PLATFORMS" = "iphoneos iphonesimulator";
+				"LD_RUNPATH_SEARCH_PATHS" = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+			};
+		};
+		"49A6CD41A58AA10A9802997E" = {
+			"isa" = "XCConfigurationList";
+			"buildConfigurations" = (
+				"BAC435B037607B50C4729BF1",
+				"5DE0B96147C56CE7EB664EA3",
+			);
+			"defaultConfigurationIsVisible" = 0;
+			"defaultConfigurationName" = "Release";
+		};
+		"C79C3E4FFACCEA2AC84AC2E0" = {
+			"isa" = "PBXContainerItemProxy";
+			"containerPortal" = "98F54143AB4E86B28C3AFEE0";
+			"proxyType" = 1;
+			"remoteGlobalIDString" = "0E8A3AD980EC179856012B7E";
+			"remoteInfo" = "Nultra";
+		};
+		"FE41E3343258A6882539145A" = {
+			"isa" = "PBXTargetDependency";
+			"target" = "0E8A3AD980EC179856012B7E";
+			"targetProxy" = "C79C3E4FFACCEA2AC84AC2E0";
+		};
+		"794AAC98ACE6EB716B86C3A5" = {
+			"isa" = "PBXNativeTarget";
+			"buildConfigurationList" = "49A6CD41A58AA10A9802997E";
+			"buildPhases" = (
+				"F9ACDEB529017EFC18F5E60A",
+			);
+			"buildRules" = (
+			);
+			"dependencies" = (
+				"FE41E3343258A6882539145A",
+			);
+			"name" = "NultraUITests";
+			"productName" = "NultraUITests";
+			"productReference" = "9B7BED31F6F48AD5D908B2BC";
+			"productType" = "com.apple.product-type.bundle.ui-testing";
+		};
 		"98F54143AB4E86B28C3AFEE0" = {
 			"isa" = "PBXProject";
 			"attributes" = {
@@ -299,6 +399,7 @@
 			"projectRoot" = "";
 			"targets" = (
 				"0E8A3AD980EC179856012B7E",
+				"794AAC98ACE6EB716B86C3A5",
 			);
 		};
 	};

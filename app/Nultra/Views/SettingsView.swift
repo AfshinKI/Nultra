@@ -18,7 +18,7 @@ struct SettingsView: View {
                     }.padding(.vertical, 10)
                     VStack(alignment: .leading, spacing: 16) {
                         Toggle("Explore demo mode", isOn: Binding(get: { bluetooth.demo }, set: { bluetooth.setDemo($0) }))
-                            .disabled(bluetooth.activeID != nil)
+                            .disabled(bluetooth.activeID != nil).accessibilityIdentifier("demo.toggle")
                         Text(bluetooth.activeID != nil ? "Disconnect your current switch to change modes." : "Try the interface with three sample switches. Demo mode never sends Bluetooth commands.")
                             .font(.footnote).foregroundColor(Theme.muted)
                     }.panel()

@@ -13,6 +13,7 @@ struct DashboardView: View {
                     if bluetooth.demo {
                         Label("DEMO · No physical switches are controlled", systemImage: "sparkles")
                             .font(.caption.weight(.semibold)).foregroundColor(Theme.mint)
+                            .accessibilityIdentifier("demo.banner")
                             .padding(14).frame(maxWidth: .infinity, alignment: .leading)
                             .background(Theme.mint.opacity(0.08), in: RoundedRectangle(cornerRadius: 16))
                     }
@@ -59,7 +60,7 @@ struct DashboardView: View {
             Button { showingSettings = true } label: {
                 Image(systemName: "slider.horizontal.3").font(.title3)
                     .frame(width: 48, height: 48).background(Theme.surface, in: Circle())
-            }.accessibilityLabel("Settings")
+            }.accessibilityLabel("Settings").accessibilityIdentifier("settings")
         }
     }
 
@@ -143,5 +144,6 @@ private struct DeviceCard: View {
             }.panel()
         }.buttonStyle(.plain)
         .accessibilityLabel("\(device.name), \(active ? phase.label : "tap to connect")")
+        .accessibilityIdentifier("device.\(device.name)")
     }
 }

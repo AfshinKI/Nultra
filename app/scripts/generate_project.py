@@ -58,9 +58,27 @@ pc = obj("project-configs", "XCConfigurationList", buildConfigurations=project_c
 tc = obj("target-configs", "XCConfigurationList", buildConfigurations=target_configs, defaultConfigurationIsVisible=0, defaultConfigurationName="Release")
 target = obj("target", "PBXNativeTarget", buildConfigurationList=tc, buildPhases=[sources, frameworks, resources],
              buildRules=[], dependencies=[], name="Nultra", productName="Nultra", productReference=product, productType="com.apple.product-type.application")
+# UI regression target, deliberately separate from the Foundation-only Swift package.
+ui_source = obj("ui-source", "PBXFileReference", lastKnownFileType="sourcecode.swift", path="UITests/NultraUITests.swift", sourceTree="SOURCE_ROOT")
+objects[main]["children"].append(ui_source)
+ui_product = obj("ui-product", "PBXFileReference", explicitFileType="wrapper.cfbundle", includeInIndex=0, path="NultraUITests.xctest", sourceTree="BUILT_PRODUCTS_DIR")
+objects[products]["children"].append(ui_product)
+ui_sources = obj("ui-sources", "PBXSourcesBuildPhase", buildActionMask=2147483647, files=[obj("ui-source-build", "PBXBuildFile", fileRef=ui_source)], runOnlyForDeploymentPostprocessing=0)
+ui_configs = []
+for name in ["Debug", "Release"]:
+    ui_configs.append(obj("ui-" + name, "XCBuildConfiguration", name=name, buildSettings={
+        "PRODUCT_BUNDLE_IDENTIFIER": "com.afshinki.nultra.uitests", "PRODUCT_NAME": "$(TARGET_NAME)",
+        "GENERATE_INFOPLIST_FILE": "YES", "TARGETED_DEVICE_FAMILY": "1", "CODE_SIGN_STYLE": "Automatic",
+        "TEST_TARGET_NAME": "Nultra", "SUPPORTED_PLATFORMS": "iphoneos iphonesimulator",
+        "LD_RUNPATH_SEARCH_PATHS": ["$(inherited)", "@executable_path/Frameworks", "@loader_path/Frameworks"],
+    }))
+ui_config_list = obj("ui-config-list", "XCConfigurationList", buildConfigurations=ui_configs, defaultConfigurationIsVisible=0, defaultConfigurationName="Release")
+proxy = obj("ui-proxy", "PBXContainerItemProxy", containerPortal=uid("project"), proxyType=1, remoteGlobalIDString=target, remoteInfo="Nultra")
+dependency = obj("ui-dependency", "PBXTargetDependency", target=target, targetProxy=proxy)
+ui_target = obj("ui-target", "PBXNativeTarget", buildConfigurationList=ui_config_list, buildPhases=[ui_sources], buildRules=[], dependencies=[dependency], name="NultraUITests", productName="NultraUITests", productReference=ui_product, productType="com.apple.product-type.bundle.ui-testing")
 project = obj("project", "PBXProject", attributes={"LastUpgradeCheck": "1420", "TargetAttributes": {target: {"CreatedOnToolsVersion": "14.2"}}},
               buildConfigurationList=pc, compatibilityVersion="Xcode 14.0", developmentRegion="en", hasScannedForEncodings=0,
-              knownRegions=["en", "Base"], mainGroup=main, productRefGroup=products, projectDirPath="", projectRoot="", targets=[target])
+              knownRegions=["en", "Base"], mainGroup=main, productRefGroup=products, projectDirPath="", projectRoot="", targets=[target, ui_target])
 
 # OpenStep serialization (the native pbxproj format); quote all scalar strings.
 def encode(value, indent=0):
@@ -75,10 +93,11 @@ def encode(value, indent=0):
 schemes = PROJECT / "xcshareddata/xcschemes"
 schemes.mkdir(parents=True, exist_ok=True)
 reference = f'<BuildableReference BuildableIdentifier="primary" BlueprintIdentifier="{target}" BuildableName="Nultra.app" BlueprintName="Nultra" ReferencedContainer="container:Nultra.xcodeproj"/>'
+ui_reference = f'<BuildableReference BuildableIdentifier="primary" BlueprintIdentifier="{ui_target}" BuildableName="NultraUITests.xctest" BlueprintName="NultraUITests" ReferencedContainer="container:Nultra.xcodeproj"/>'
 (schemes / "Nultra.xcscheme").write_text(f'''<?xml version="1.0" encoding="UTF-8"?>
 <Scheme LastUpgradeVersion="1420" version="1.3">
-  <BuildAction parallelizeBuildables="YES" buildImplicitDependencies="YES"><BuildActionEntries><BuildActionEntry buildForTesting="YES" buildForRunning="YES" buildForProfiling="YES" buildForArchiving="YES" buildForAnalyzing="YES">{reference}</BuildActionEntry></BuildActionEntries></BuildAction>
-  <TestAction buildConfiguration="Debug" selectedDebuggerIdentifier="Xcode.DebuggerFoundation.Debugger.LLDB" selectedLauncherIdentifier="Xcode.IDEFoundation.Launcher.LLDB" shouldUseLaunchSchemeArgsEnv="YES"><Testables/></TestAction>
+  <BuildAction parallelizeBuildables="YES" buildImplicitDependencies="YES"><BuildActionEntries><BuildActionEntry buildForTesting="YES" buildForRunning="YES" buildForProfiling="YES" buildForArchiving="YES" buildForAnalyzing="YES">{reference}</BuildActionEntry><BuildActionEntry buildForTesting="YES" buildForRunning="NO" buildForProfiling="NO" buildForArchiving="NO" buildForAnalyzing="NO">{ui_reference}</BuildActionEntry></BuildActionEntries></BuildAction>
+  <TestAction buildConfiguration="Debug" selectedDebuggerIdentifier="Xcode.DebuggerFoundation.Debugger.LLDB" selectedLauncherIdentifier="Xcode.IDEFoundation.Launcher.LLDB" shouldUseLaunchSchemeArgsEnv="YES"><Testables><TestableReference skipped="NO">{ui_reference}</TestableReference></Testables></TestAction>
   <LaunchAction buildConfiguration="Debug" selectedDebuggerIdentifier="Xcode.DebuggerFoundation.Debugger.LLDB" selectedLauncherIdentifier="Xcode.IDEFoundation.Launcher.LLDB" launchStyle="0" useCustomWorkingDirectory="NO" ignoresPersistentStateOnLaunch="NO" debugDocumentVersioning="YES" debugServiceExtension="internal" allowLocationSimulation="YES"><BuildableProductRunnable runnableDebuggingMode="0">{reference}</BuildableProductRunnable></LaunchAction>
   <ProfileAction buildConfiguration="Release" shouldUseLaunchSchemeArgsEnv="YES" savedToolIdentifier="" useCustomWorkingDirectory="NO" debugDocumentVersioning="YES"><BuildableProductRunnable runnableDebuggingMode="0">{reference}</BuildableProductRunnable></ProfileAction>
   <AnalyzeAction buildConfiguration="Debug"/>

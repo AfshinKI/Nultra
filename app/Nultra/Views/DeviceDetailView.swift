@@ -81,7 +81,7 @@ struct DeviceDetailView: View {
     private var connectionForm: some View {
         VStack(alignment: .leading, spacing: 16) {
             if !bluetooth.demo && (!hasSavedPassword || editingPassword) {
-                Text("Your switch, securely connected.").font(.headline)
+                Text("Connect your switch.").font(.headline)
                 Text("Enter its 8-character password. It stays in your iPhone’s Keychain.")
                     .font(.subheadline).foregroundColor(Theme.muted)
                 SecureField("Switch password", text: $password).asciiEntry()
@@ -104,15 +104,16 @@ struct DeviceDetailView: View {
     private func controls(_ device: SwitchDevice) -> some View {
         VStack(spacing: 20) {
             HStack {
-                Text(device.isOn == true ? "Power is on" : "Power is off").font(.title3.weight(.semibold))
+                Text(device.isOn.map { $0 ? "Power is on" : "Power is off" } ?? "Reading power…")
+                    .font(.title3.weight(.semibold)).accessibilityIdentifier("power.state")
                 Spacer()
                 if !ready { ProgressView().tint(Theme.mint) }
             }
             HStack(spacing: 12) {
                 Button { bluetooth.setPower(false) } label: { Label("Off", systemImage: "power") }
-                    .buttonStyle(PrimaryButton(subdued: device.isOn != false))
+                    .buttonStyle(PrimaryButton(subdued: device.isOn != false)).accessibilityIdentifier("power.off")
                 Button { bluetooth.setPower(true) } label: { Label("On", systemImage: "bolt.fill") }
-                    .buttonStyle(PrimaryButton(subdued: device.isOn != true))
+                    .buttonStyle(PrimaryButton(subdued: device.isOn != true)).accessibilityIdentifier("power.on")
             }.disabled(!ready)
             if !ready { Text("Waiting for confirmation from the switch.").font(.caption).foregroundColor(Theme.muted) }
             HStack {
@@ -124,7 +125,7 @@ struct DeviceDetailView: View {
             }.font(.caption.weight(.semibold))
             if renaming {
                 VStack(alignment: .leading, spacing: 12) {
-                    TextField("8-character name", text: $newName).asciiEntry()
+                    TextField("8-character name", text: $newName).asciiEntry().accessibilityIdentifier("rename.field")
                         .padding(14).background(Theme.background, in: RoundedRectangle(cornerRadius: 12))
                     Text("Exactly 8 ASCII characters, for example DESKLAMP.").font(.caption).foregroundColor(Theme.muted)
                     Button("Save name") { bluetooth.rename(newName); renaming = false }

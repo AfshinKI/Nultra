@@ -28,11 +28,12 @@ extension View {
 
 struct PrimaryButton: ButtonStyle {
     var subdued = false
+    @Environment(\.isEnabled) private var isEnabled
     func makeBody(configuration: Configuration) -> some View {
         configuration.label.font(.headline).frame(maxWidth: .infinity).padding(.vertical, 16)
             .foregroundColor(subdued ? Theme.mint : Theme.background)
             .background(subdued ? Theme.mint.opacity(0.10) : Theme.mint,
                         in: RoundedRectangle(cornerRadius: 18, style: .continuous))
-            .opacity(configuration.isPressed ? 0.7 : 1)
+            .opacity(!isEnabled ? 0.4 : (configuration.isPressed ? 0.7 : 1))
     }
 }
