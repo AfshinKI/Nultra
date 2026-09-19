@@ -1,3 +1,20 @@
+# Validation record — v0.7.0
+
+
+The iPhone change sets all three App Intents to background presentation, adds bounded BLE command execution, and introduces an opt-in server fallback with explicit/unique-name switch mapping. Android changes only its version/build number.
+
+Local validation passed 1,300 portable protocol assertions, macOS type checking, plist/project validation, and five distribution tests. Full local SwiftPM/iOS builds require Xcode, which this Mac does not have; those checks run in CI. A read-only GET against the existing Pi returned nine recently seen switches with unique names and the expected fancy API fields. No physical light command was sent during this check.
+
+The initial validation run was superseded before publication to shorten background BLE connection waiting to two seconds when a backup server is enabled. Its 29 Foundation tests, iPhone compilation, Android build, server-settings persistence UI test, password persistence test, and other completed UI tests passed. The corrected source passed the release workflow above: **29 Foundation XCTest cases, six iPhone 13 mini/iOS 26.2 UI tests, five distribution tests, iPhone Release build, Android tests/lint/signing, and publication**. Downloaded IPA metadata independently confirms `openAppWhenRun = false` for all three App Intents. The server-settings screenshot was visually reviewed.
+
+
+- IPA verified as arm64 iPhoneOS, minimum iOS 16.0, version 0.7.0 build 7.
+
+
+Physical iPhone BLE, cold background Shortcut presentation, locked-phone execution, real command fallback, and radio disconnect timing require the acceptance checklist in [SERVER_FALLBACK.md](SERVER_FALLBACK.md). Simulator success and server queue admission are not substitutes for physical command confirmation. The server code remains unchanged. No VPN was implemented.
+
+---
+
 # Validation record — v0.6.0
 
 ## Published packages
