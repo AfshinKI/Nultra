@@ -94,10 +94,11 @@ struct SettingsView: View {
                         Stepper("Notify at or below \(batteryThreshold)%", value: $batteryThreshold, in: 1...50)
                             .onChange(of: batteryThreshold) { BatteryNotifications.shared.threshold = $0 }
                             .accessibilityIdentifier("battery.threshold")
-                        Text("Default 5%. One alert per switch until its battery recovers by 10 percentage points above the alert threshold. Alerts use new readings received by Nultra; no monitoring while the app is stopped.")
+                        Text("Default 5%. One alert per switch until its battery recovers by 10 percentage points above the alert threshold. Alerts use new readings received by Nultra; background readings require enabled Background refresh and a reachable backup server.")
                             .font(.caption).foregroundColor(Theme.muted)
                         if !notificationStatus.isEmpty { Text(notificationStatus).font(.caption).foregroundColor(Theme.muted) }
                     }.panel()
+                    RefreshSettingsView()
                     VStack(alignment: .leading, spacing: 12) {
                         Label("Discovery", systemImage: "antenna.radiowaves.left.and.right").font(.headline)
                         Text("Named switches stay in your list. Blue means recently seen by Bluetooth or available through your enabled server; gray means neither route is currently available. Listening runs automatically while Nultra is open.")
@@ -105,20 +106,15 @@ struct SettingsView: View {
                         if bluetooth.unnamedCount > 0 && !bluetooth.demo {
                             Text("\(bluetooth.unnamedCount) devices have not returned a name.").font(.caption)
                         }
+                        Text(bluetooth.connectionSummary).font(.caption.monospaced()).accessibilityIdentifier("connections.summary")
+                        Text("The limit bounds concurrent short transactions; it is not a reported hardware maximum.").font(.caption).foregroundColor(Theme.muted)
                         Button("Retry name discovery") { bluetooth.retryDiscovery() }
                             .disabled(bluetooth.demo || bluetooth.hasWork).frame(minHeight: 44)
                     }.panel()
                     VStack(alignment: .leading, spacing: 10) {
                         Label("Widgets and Shortcuts", systemImage: "square.stack.3d.up.fill").font(.headline)
-                        Text("Add Nultra lights from the Home Screen widget gallery (iOS 17+). Small shows four bulbs, medium eight, and large sixteen. Long-press the widget → Edit Widget to choose lights. Tapping opens Nultra to apply the change. Widget state is last reported, not live.\n\nIn Apple Shortcuts, search Nultra for Turn All Off, Turn All On, or Set Switch Power. Actions run in the background and disconnect after each Bluetooth command. Open Nultra once to grant Bluetooth and local-network access. Server commands report queued status because the server cannot confirm completion.")
+                        Text("Add Nultra lights from the Home Screen widget gallery (iOS 17+). Small shows four bulbs, medium eight, and large sixteen. Long-press the widget → Edit Widget to choose lights. Choose individual lights, All On, All Off, or scenes. Taps run in the background. Widget state is last reported, not live.\n\nIn Apple Shortcuts, search Nultra for Turn All Off, Turn All On, or Set Switch Power. Actions run in the background and disconnect after each Bluetooth command. Open Nultra once to grant Bluetooth and local-network access. Server commands report queued status because the server cannot confirm completion.")
                             .font(.subheadline).foregroundColor(Theme.muted)
-                    }.panel()
-                    VStack(alignment: .leading, spacing: 10) {
-                        Text("Afshin Kashani").font(.headline).accessibilityIdentifier("developer.name")
-                        Text("Developer").font(.caption).foregroundColor(Theme.muted)
-                        Link("innovetron.com", destination: URL(string: "https://innovetron.com")!)
-                        Text("VERSION \(Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "0.5.0") · PERSONAL EDITION")
-                            .font(.caption2).foregroundColor(Theme.muted)
                     }.panel()
                     VStack(alignment: .leading, spacing: 12) {
                         Toggle("Explore demo mode", isOn: Binding(get: { bluetooth.demo }, set: { bluetooth.setDemo($0) }))
@@ -126,6 +122,13 @@ struct SettingsView: View {
                         Text("Demo controls never send Bluetooth commands. Your saved real switches return when demo mode is turned off.")
                             .font(.caption).foregroundColor(Theme.muted)
                     }.panel()
+                    VStack(alignment: .leading, spacing: 10) {
+                        Text("Afshin Kashani").font(.headline).accessibilityIdentifier("developer.name")
+                        Text("Developer").font(.caption).foregroundColor(Theme.muted)
+                        Link("innovetron.com", destination: URL(string: "https://innovetron.com")!)
+                        Text("VERSION \(Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "0.5.0") · PERSONAL EDITION")
+                            .font(.caption2).foregroundColor(Theme.muted)
+                    }.frame(maxWidth: .infinity, alignment: .leading).panel()
                 }.padding(16)
             }.background(Theme.background.ignoresSafeArea())
                 .navigationTitle("Menu").navigationBarTitleDisplayModeCompat()

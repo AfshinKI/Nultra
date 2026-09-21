@@ -15,6 +15,16 @@
 			"isa" = "PBXBuildFile";
 			"fileRef" = "711D85DB6F7CB139BC8A1A30";
 		};
+		"C326660F71165DB2F593A251" = {
+			"isa" = "PBXFileReference";
+			"lastKnownFileType" = "sourcecode.swift";
+			"path" = "Nultra/Bluetooth/BackgroundRefresh.swift";
+			"sourceTree" = "SOURCE_ROOT";
+		};
+		"0D94E746776712090D6869D5" = {
+			"isa" = "PBXBuildFile";
+			"fileRef" = "C326660F71165DB2F593A251";
+		};
 		"F9C5D2A8C6CFA44C09F95E2E" = {
 			"isa" = "PBXFileReference";
 			"lastKnownFileType" = "sourcecode.swift";
@@ -65,6 +75,16 @@
 			"isa" = "PBXBuildFile";
 			"fileRef" = "D561D4786386298650D272C6";
 		};
+		"16E8ACC9C31F6DB7D2957A7E" = {
+			"isa" = "PBXFileReference";
+			"lastKnownFileType" = "sourcecode.swift";
+			"path" = "Nultra/Models/RefreshSettings.swift";
+			"sourceTree" = "SOURCE_ROOT";
+		};
+		"E93A5413344B48BF782B308C" = {
+			"isa" = "PBXBuildFile";
+			"fileRef" = "16E8ACC9C31F6DB7D2957A7E";
+		};
 		"4AAC17EEDD636CA472149FE3" = {
 			"isa" = "PBXFileReference";
 			"lastKnownFileType" = "sourcecode.swift";
@@ -105,6 +125,16 @@
 			"isa" = "PBXBuildFile";
 			"fileRef" = "B12C3DDCC53C2EEDD8D60638";
 		};
+		"5E87CEC7C38C48661167E23A" = {
+			"isa" = "PBXFileReference";
+			"lastKnownFileType" = "sourcecode.swift";
+			"path" = "Nultra/Models/SwitchScene.swift";
+			"sourceTree" = "SOURCE_ROOT";
+		};
+		"913BF9C3AA17B29B237C3E02" = {
+			"isa" = "PBXBuildFile";
+			"fileRef" = "5E87CEC7C38C48661167E23A";
+		};
 		"CDC6718530E74DA3B21BD903" = {
 			"isa" = "PBXFileReference";
 			"lastKnownFileType" = "sourcecode.swift";
@@ -144,6 +174,26 @@
 		"FDEEB8B4AFC03CDE93361967" = {
 			"isa" = "PBXBuildFile";
 			"fileRef" = "6E70E4D583E4F9AB7C6E50A5";
+		};
+		"FC07F374D1CDBA981AA6871F" = {
+			"isa" = "PBXFileReference";
+			"lastKnownFileType" = "sourcecode.swift";
+			"path" = "Nultra/Views/RefreshSettingsView.swift";
+			"sourceTree" = "SOURCE_ROOT";
+		};
+		"88FAB2AFEA07659241A196E7" = {
+			"isa" = "PBXBuildFile";
+			"fileRef" = "FC07F374D1CDBA981AA6871F";
+		};
+		"B5E4ED6E6162948329E75BDA" = {
+			"isa" = "PBXFileReference";
+			"lastKnownFileType" = "sourcecode.swift";
+			"path" = "Nultra/Views/ScenesView.swift";
+			"sourceTree" = "SOURCE_ROOT";
+		};
+		"361129CA035BCF1C4015411E" = {
+			"isa" = "PBXBuildFile";
+			"fileRef" = "B5E4ED6E6162948329E75BDA";
 		};
 		"6A845B1E84DCE8E1FC44FA85" = {
 			"isa" = "PBXFileReference";
@@ -208,19 +258,24 @@
 			"buildActionMask" = 2147483647;
 			"files" = (
 				"EA93BBC0A9CAB6A23AC9059D",
+				"0D94E746776712090D6869D5",
 				"B822B61EF39F07E36921CC11",
 				"2258E33C1E07B3FD509E84DD",
 				"FEB6BE0F4D917142A4D158A8",
 				"E953DBC602764BFF3C49148D",
 				"96EF42F768900305A77234E0",
+				"E93A5413344B48BF782B308C",
 				"79465FFBF0EE75ACAAF49053",
 				"5F1580B1825E381B5CF6346F",
 				"28A062B5F962D316BFEA2B30",
 				"ABADEF303512A8BB00542B3C",
+				"913BF9C3AA17B29B237C3E02",
 				"3027F73FCA902CEE34CA36CA",
 				"9A19D744ADFDA15F87F540C9",
 				"6F5BDBC8B2FE69D48DA2A0D4",
 				"FDEEB8B4AFC03CDE93361967",
+				"88FAB2AFEA07659241A196E7",
+				"361129CA035BCF1C4015411E",
 				"96231D36325082896B8908F8",
 				"00E4FFB713CA4EB0805692B9",
 				"8517BAF363F9AB6C57C08920",
@@ -256,19 +311,24 @@
 			"isa" = "PBXGroup";
 			"children" = (
 				"711D85DB6F7CB139BC8A1A30",
+				"C326660F71165DB2F593A251",
 				"F9C5D2A8C6CFA44C09F95E2E",
 				"5A5BA7277A8582655B37548F",
 				"A7A1E26C07606C305B618F0E",
 				"A35021A4D089FC3A31DB4D16",
 				"D561D4786386298650D272C6",
+				"16E8ACC9C31F6DB7D2957A7E",
 				"4AAC17EEDD636CA472149FE3",
 				"B075F4895DE23D62E175FD50",
 				"B1674B572AA41F8719E66D04",
 				"B12C3DDCC53C2EEDD8D60638",
+				"5E87CEC7C38C48661167E23A",
 				"CDC6718530E74DA3B21BD903",
 				"F6C928D465F351DE54756C82",
 				"5618CE652B29857EC71D9FDC",
 				"6E70E4D583E4F9AB7C6E50A5",
+				"FC07F374D1CDBA981AA6871F",
+				"B5E4ED6E6162948329E75BDA",
 				"6A845B1E84DCE8E1FC44FA85",
 				"A2046B35E0C20D7A687F6246",
 				"7717F0920AB95A7A710BD6E9",
@@ -307,8 +367,8 @@
 				"TARGETED_DEVICE_FAMILY" = "1";
 				"CODE_SIGN_STYLE" = "Automatic";
 				"CODE_SIGN_ENTITLEMENTS" = "Nultra/Nultra.entitlements";
-				"CURRENT_PROJECT_VERSION" = "9";
-				"MARKETING_VERSION" = "0.9.0";
+				"CURRENT_PROJECT_VERSION" = "10";
+				"MARKETING_VERSION" = "0.10.0";
 				"SUPPORTED_PLATFORMS" = "iphoneos iphonesimulator";
 				"SUPPORTS_MACCATALYST" = "NO";
 				"LD_RUNPATH_SEARCH_PATHS" = (
@@ -344,8 +404,8 @@
 				"TARGETED_DEVICE_FAMILY" = "1";
 				"CODE_SIGN_STYLE" = "Automatic";
 				"CODE_SIGN_ENTITLEMENTS" = "Nultra/Nultra.entitlements";
-				"CURRENT_PROJECT_VERSION" = "9";
-				"MARKETING_VERSION" = "0.9.0";
+				"CURRENT_PROJECT_VERSION" = "10";
+				"MARKETING_VERSION" = "0.10.0";
 				"SUPPORTED_PLATFORMS" = "iphoneos iphonesimulator";
 				"SUPPORTS_MACCATALYST" = "NO";
 				"LD_RUNPATH_SEARCH_PATHS" = (
@@ -534,8 +594,8 @@
 				"INFOPLIST_FILE" = "NultraWidgets/Info.plist";
 				"CODE_SIGN_ENTITLEMENTS" = "NultraWidgets/NultraWidgets.entitlements";
 				"CODE_SIGN_STYLE" = "Automatic";
-				"CURRENT_PROJECT_VERSION" = "9";
-				"MARKETING_VERSION" = "0.9.0";
+				"CURRENT_PROJECT_VERSION" = "10";
+				"MARKETING_VERSION" = "0.10.0";
 				"TARGETED_DEVICE_FAMILY" = "1";
 				"IPHONEOS_DEPLOYMENT_TARGET" = "17.0";
 				"APPLICATION_EXTENSION_API_ONLY" = "YES";
@@ -560,8 +620,8 @@
 				"INFOPLIST_FILE" = "NultraWidgets/Info.plist";
 				"CODE_SIGN_ENTITLEMENTS" = "NultraWidgets/NultraWidgets.entitlements";
 				"CODE_SIGN_STYLE" = "Automatic";
-				"CURRENT_PROJECT_VERSION" = "9";
-				"MARKETING_VERSION" = "0.9.0";
+				"CURRENT_PROJECT_VERSION" = "10";
+				"MARKETING_VERSION" = "0.10.0";
 				"TARGETED_DEVICE_FAMILY" = "1";
 				"IPHONEOS_DEPLOYMENT_TARGET" = "17.0";
 				"APPLICATION_EXTENSION_API_ONLY" = "YES";

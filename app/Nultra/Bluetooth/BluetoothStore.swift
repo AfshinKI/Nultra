@@ -20,6 +20,31 @@ final class BluetoothStore: NSObject, ObservableObject {
     @Published private(set) var bulkStatus: String?
     @Published private(set) var shortcutRunning = false
     @Published var errorMessage: String?
+    @Published private(set) var savedScenes = SceneCatalog().load()
+    @Published private var demoScenes: [SwitchScene] = []
+    var scenes: [SwitchScene] { demo ? demoScenes : savedScenes }
+    var connectionSummary: String { "\(schedule.active.count) active · \(schedule.pending.count) queued · limit \(schedule.limit)" }
+    func saveScene(_ scene: SwitchScene) {
+        var value = scene
+        value.name = String(value.name.trimmingCharacters(in: .whitespacesAndNewlines).prefix(40))
+        value.members = scene.targets(known: visibleDevices.map(\.id))
+        guard !value.name.isEmpty, !value.members.isEmpty else { return }
+        var list = scenes
+        if let index = list.firstIndex(where: { $0.id == value.id }) { list[index] = value }
+        else { list.append(value) }
+        persistScenes(list)
+    }
+    func deleteScene(_ id: UUID) { persistScenes(scenes.filter { $0.id != id }) }
+    private func persistScenes(_ list: [SwitchScene]) {
+        if demo { demoScenes = list }
+        else { savedScenes = list; SceneCatalog().save(list); widgetLights = nil; publishDevices() }
+    }
+    func scenePower(_ scene: SwitchScene, _ on: Bool) {
+        let targets = scene.targets(known: visibleDevices.map(\.id))
+        guard !hasWork, !targets.isEmpty else { return }
+        startBulk(targets: targets, power: on)
+    }
+
 
     @Published private(set) var serverConfiguration = ServerConfiguration.load()
     @Published private(set) var serverDevices: [ServerSwitch] = []
@@ -43,6 +68,9 @@ final class BluetoothStore: NSObject, ObservableObject {
             serverDevices = []; serverCheckedAt = nil; serverStatus = "Not checked"
             serverPoll?.cancel(); serverPoll = nil
             if !suspended { startServerPolling() }
+            #if os(iOS)
+            Task { @MainActor in BackgroundRefresh.shared.schedule() }
+            #endif
         } catch { errorMessage = error.localizedDescription }
     }
     func mapServer(_ id: UUID, address: String) {
@@ -74,6 +102,37 @@ final class BluetoothStore: NSObject, ObservableObject {
         } catch {
             guard configuration == serverConfiguration else { return }
             serverCheckedAt = nil; serverStatus = "Unavailable: \(error.localizedDescription)"
+        }
+    }
+    @MainActor func refreshInBackground() async -> Bool {
+        let settings = RefreshSettings()
+        let configuration = serverConfiguration
+        guard settings.enabled, configuration.enabled, !demo, !hasWork, !checkingServer else { return false }
+        checkingServer = true
+        defer { checkingServer = false }
+        do {
+            let client = try ServerClient(configuration: configuration)
+            defer { client.close() }
+            let rows = try await client.devices()
+            try Task.checkCancellation()
+            guard settings.enabled, configuration == serverConfiguration, !demo, !hasWork else { return false }
+            serverDevices = rows; serverCheckedAt = Date()
+            let known = catalog.load()
+            for device in known where !liveDevices.contains(where: { $0.id == device.id && $0.isOnline(at: Date()) }) {
+                guard let row = try? ServerMapping.resolve(device, known: known, rows: rows, configuration: configuration) else { continue }
+                update(device.id, publish: false) {
+                    $0.isOn = row.switch_state.flatMap { [0, 1].contains($0) ? $0 == 1 : nil }
+                    $0.battery = row.battery.flatMap { (0...100).contains($0) ? $0 : nil }
+                    $0.lastConfirmed = Date(); $0.stateSource = .server
+                }
+            }
+            widgetLights = nil; publishDevices()
+            UserDefaults.standard.set(Date(), forKey: "refresh.lastSuccess")
+            UserDefaults.standard.set("Backup server refreshed", forKey: "refresh.status")
+            return true
+        } catch {
+            if !Task.isCancelled { UserDefaults.standard.set("Server unavailable; last reported state kept", forKey: "refresh.status") }
+            return false
         }
     }
     private func startServerPolling() {
@@ -431,9 +490,16 @@ final class BluetoothStore: NSObject, ObservableObject {
         // Demo data must never replace the real widget catalog.
         if !demo {
             let lights = visibleDevices.map { WidgetLight(id: $0.id, name: $0.name, isOn: $0.isOn) }
-            if lights != widgetLights {
-                widgetLights = lights
-                WidgetSnapshot(date: now, lights: lights).save()
+            let controls = lights + [
+                WidgetLight(id: WidgetLight.allOnID, name: "All On", isOn: WidgetLight.groupState(lights), members: lights.map(\.id), fixedPower: true),
+                WidgetLight(id: WidgetLight.allOffID, name: "All Off", isOn: WidgetLight.groupState(lights), members: lights.map(\.id), fixedPower: false)
+            ] + savedScenes.map { scene in
+                let targets = scene.targets(known: lights.map(\.id))
+                return WidgetLight(id: scene.id, name: scene.name, isOn: WidgetLight.groupState(lights.filter { targets.contains($0.id) }), members: targets)
+            }
+            if controls != widgetLights {
+                widgetLights = controls
+                WidgetSnapshot(date: now, lights: controls).save()
                 WidgetCenter.shared.reloadTimelines(ofKind: WidgetSnapshot.kind)
             }
         }
@@ -448,7 +514,11 @@ final class BluetoothStore: NSObject, ObservableObject {
         }
     }
     private func restoreKnownDevices() {
-        liveDevices = catalog.load().map { SwitchDevice(id: $0.id, name: $0.name, rssi: 127, firmware: $0.firmware, identityKnown: true) }
+        let snapshot = WidgetSnapshot.load()
+        liveDevices = catalog.load().map { known in
+            let previous = snapshot.lights.first { $0.id == known.id }
+            return SwitchDevice(id: known.id, name: known.name, rssi: 127, isOn: previous?.isOn, firmware: known.firmware, identityKnown: true)
+        }
         publishDevices()
     }
     #if DEBUG
@@ -459,7 +529,7 @@ final class BluetoothStore: NSObject, ObservableObject {
     #endif
     func setDemo(_ enabled: Bool) {
         guard !hasWork else { return }
-        stopScan(); serverPoll?.cancel(); serverPoll = nil; demo = enabled; bulk = nil; bulkStatus = nil
+        stopScan(); serverPoll?.cancel(); serverPoll = nil; demoScenes = []; demo = enabled; bulk = nil; bulkStatus = nil
         if enabled {
             liveDevices = ["DESKLAMP", "CORNER01", "SHELFLED", "BEDROOM1", "KITCHEN1", "HALLWAY1"].enumerated().map { index, name in
                 SwitchDevice(id: UUID(), name: name, rssi: -48 - index * 5, battery: index == 5 ? 7 : 92 - index * 7,

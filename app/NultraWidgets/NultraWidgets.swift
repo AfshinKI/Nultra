@@ -47,22 +47,22 @@ struct LightWidgetView: View {
                                 let index = row * columns + column
                                 if index < lights.count {
                                     let light = lights[index]
-                                    Button(intent: WidgetPowerIntent(id: light.id, on: !(light.isOn ?? false))) {
+                                    Button(intent: WidgetPowerIntent(id: light.id, on: light.commandPower)) {
                                         VStack(spacing: 3) {
-                                            Image(systemName: light.isOn == true ? "lightbulb.fill" : "lightbulb")
+                                            Image(systemName: light.fixedPower != nil ? "power" : light.members != nil ? "square.stack.3d.up.fill" : light.isOn == true ? "lightbulb.fill" : "lightbulb")
                                                 .font(.system(size: family == .systemLarge ? 27 : 23))
                                                 .foregroundStyle(light.isOn == true ? Color.yellow : Color.gray)
                                             Text(light.name).font(.system(size: 10, weight: .medium))
                                                 .lineLimit(1).minimumScaleFactor(0.7)
                                         }.frame(maxWidth: .infinity, maxHeight: .infinity)
                                     }.buttonStyle(.plain)
-                                    .accessibilityLabel("\(light.name), last reported \(light.isOn.map { $0 ? "on" : "off" } ?? "unknown"). Open Nultra to turn \(light.isOn == true ? "off" : "on")")
+                                    .accessibilityLabel("\(light.name), last reported \(light.isOn.map { $0 ? "on" : "off" } ?? "unknown"). Turn \(light.commandPower ? "on" : "off")")
                                 } else { Color.clear.frame(maxWidth: .infinity, maxHeight: .infinity) }
                             }
                         }
                     }
                 }
-                Text("Last seen in app").font(.system(size: 8)).foregroundStyle(.secondary)
+                Text(WidgetSnapshot.commandStatus ?? "Last reported · not live").font(.system(size: 8)).foregroundStyle(.secondary).lineLimit(2)
             }
         }
         .containerBackground(Color(red: 0.03, green: 0.06, blue: 0.09), for: .widget)
@@ -76,7 +76,7 @@ struct NultraLightsWidget: Widget {
             LightWidgetView(entry: entry)
         }
         .configurationDisplayName("Nultra lights")
-        .description("Choose lights and tap a bulb to open Nultra and change its power. State is last reported, not live.")
+        .description("Choose lights, all switches, or scenes. Tap to change power in the background. State is last reported, not live.")
         .supportedFamilies([.systemSmall, .systemMedium, .systemLarge])
     }
 }

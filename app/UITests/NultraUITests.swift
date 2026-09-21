@@ -57,7 +57,7 @@ final class NultraUITests: XCTestCase {
         app.buttons["settings"].tap()
         let toggle = app.switches["demo.toggle"]
         XCTAssertTrue(toggle.waitForExistence(timeout: 5))
-        for _ in 0..<4 { if toggle.isHittable { break }; app.swipeUp() }
+        for _ in 0..<8 { if toggle.isHittable { break }; app.swipeUp() }
         toggle.tap()
         app.buttons["Done"].tap()
         let permission = XCUIApplication(bundleIdentifier: "com.apple.springboard").buttons["Allow"]
@@ -65,6 +65,29 @@ final class NultraUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts["scan.status"].waitForExistence(timeout: 5))
         XCTAssertFalse(app.buttons["Find switches"].exists)
         screenshot("03-real-mode-empty-state")
+    }
+    func testScenesControlOnlyTheirMembersAndCanBeDeleted() throws {
+        let app = launchDemo()
+        app.buttons["all.off"].tap()
+        app.buttons["scene.add"].tap()
+        let name = app.textFields["scene.name"]
+        XCTAssertTrue(name.waitForExistence(timeout: 5))
+        name.tap(); name.typeText("Evening")
+        let membership = app.switches["DESKLAMP"]
+        // Form exposes the labeled row and its actual trailing switch separately.
+        membership.switches.firstMatch.tap()
+        XCTAssertEqual(membership.value as? String, "1")
+        XCTAssertTrue(app.buttons["scene.save"].isEnabled)
+        app.buttons["scene.save"].tap()
+        XCTAssertTrue(app.buttons["Edit scene Evening"].waitForExistence(timeout: 5))
+        app.buttons["On"].tap()
+        XCTAssertTrue(app.buttons["toggle.DESKLAMP"].label.contains("On"))
+        XCTAssertTrue(app.buttons["toggle.BEDROOM1"].label.contains("Off"))
+        screenshot("09-scenes")
+        app.buttons["Edit scene Evening"].tap()
+        app.buttons["Delete scene"].tap()
+        app.alerts.buttons["Delete"].tap()
+        XCTAssertFalse(app.buttons["Edit scene Evening"].exists)
     }
     func testBusyCardShowsOnlyProgress() throws {
         let app = XCUIApplication(); app.launchArguments = ["--demo", "--busy-demo"]; app.launch()

@@ -38,6 +38,7 @@ struct DashboardView: View {
                     if let message = bluetooth.bulkStatus {
                         Text(message).font(.caption).foregroundColor(Theme.mint).accessibilityIdentifier("bulk.status")
                     }
+                    ScenesPanel()
                     if bluetooth.visibleDevices.isEmpty {
                         VStack(spacing: 18) {
                             Image(systemName: "dot.radiowaves.left.and.right").font(.largeTitle).foregroundColor(Theme.mint)

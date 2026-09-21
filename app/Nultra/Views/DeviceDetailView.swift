@@ -61,6 +61,7 @@ struct DeviceDetailView: View {
                             Button("Retry name lookup") { bluetooth.identify(deviceID) }
                                 .buttonStyle(PrimaryButton()).disabled(busy)
                         }
+                        if device.identityKnown { DeviceScenesView(deviceID: deviceID) }
                         HStack(alignment: .top) {
                             metric("BATTERY", device.battery.map { "\($0)%" } ?? "—")
                             Spacer()

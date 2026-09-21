@@ -23,6 +23,33 @@ final class BleStore {
     return instance;
   }
 
+  static final int CONNECTION_LIMIT = 3;
+  final List<Scenes.Scene> demoScenes = new ArrayList<>();
+  List<Scenes.Scene> scenes() { return demo ? new ArrayList<>(demoScenes) : Scenes.load(context); }
+  void saveScene(Scenes.Scene value) {
+    List<Scenes.Scene> all = scenes();
+    int index = -1;
+    for (int i = 0; i < all.size(); i++) if (all.get(i).id.equals(value.id)) index = i;
+    if (index >= 0) all.set(index, value); else all.add(value);
+    persistScenes(all);
+  }
+  void deleteScene(String id) {
+    List<Scenes.Scene> all = scenes(); all.removeIf(s -> s.id.equals(id)); persistScenes(all);
+  }
+  void persistScenes(List<Scenes.Scene> all) {
+    if (demo) { demoScenes.clear(); demoScenes.addAll(all); }
+    else { Scenes.save(context, all); SwitchWidget.refresh(context); }
+    notifyUI();
+  }
+  List<Device> targets(String target) {
+    List<Device> list = visible();
+    if (target.startsWith("scene:")) {
+      Scenes.Scene scene = scenes().stream().filter(s -> s.target().equals(target)).findFirst().orElse(null);
+      list.removeIf(d -> scene == null || !scene.members.contains(d.address));
+    } else if (!target.equals("*")) list.removeIf(d -> !d.address.equals(target));
+    return list;
+  }
+  String connectionSummary() { return (sessions.size() + remote.size()) + " active · " + queue.size() + " queued · limit " + CONNECTION_LIMIT; }
   final ServerSettings server;
   final BatteryNotifications batteryAlerts;
   final ExecutorService network = Executors.newFixedThreadPool(3);
@@ -70,7 +97,19 @@ final class BleStore {
     return ServerClient.resolve(d.address, d.name, server.mapping(d.address), same == 1, rows);
   }
 
+  void applyBackgroundRows(List<ServerClient.Row> rows) {
+    serverRows = rows; serverSeen = SystemClock.elapsedRealtime();
+    for (Device d : visible()) try {
+      if (d.online(SystemClock.elapsedRealtime()) || busy(d)) continue;
+      ServerClient.Row row = match(d, rows);
+      d.power = row.power; d.battery = row.battery; d.serverReported = true;
+      d.reportedAt = System.currentTimeMillis(); batteryAlerts.observe(d);
+    } catch (Exception ignored) { }
+    notifyUI();
+  }
+
   void serverChanged() {
+    BackgroundRefresh.schedule(context);
     generation++;
     cancelPoll();
     for (Remote r : new ArrayList<>(remote.values())) r.finish("Server settings changed.", false);
@@ -143,6 +182,7 @@ final class BleStore {
                           ServerClient.Row row = match(d, result);
                           if (server.mapping(d.address) == null) server.map(d.address, row.address);
                           if (!d.online(SystemClock.elapsedRealtime()) && !busy(d)) {
+                            d.reportedAt = System.currentTimeMillis();
                             d.power = row.power;
                             d.battery = row.battery;
                             batteryAlerts.observe(d);
@@ -246,8 +286,7 @@ final class BleStore {
 
   boolean backgroundPower(String address, boolean on, java.util.function.Consumer<String> done) {
     if (demo || anyBusy() || backgroundCommand) return false;
-    List<Device> list = visible();
-    if (!address.equals("*")) list.removeIf(d -> !d.address.equals(address));
+    List<Device> list = targets(address);
     if (list.isEmpty()) return false;
     cancelPoll();
     backgroundCommand = true;
@@ -272,7 +311,7 @@ final class BleStore {
     String name = "", firmware = "";
     Boolean power;
     int battery = -1, rssi = -100;
-    long seen = -1, signalAt = -1;
+    long seen = -1, signalAt = -1, reportedAt;
     boolean attempted, serverReported;
 
     Device(String a) {
@@ -345,6 +384,7 @@ final class BleStore {
         Device d = new Device(a);
         d.name = j.getString("name");
         d.firmware = j.optString("firmware");
+        WidgetReadings.restore(context, d);
         if (!d.name.isEmpty()) devices.put(a, d);
       }
     } catch (JSONException ignored) {
@@ -353,6 +393,7 @@ final class BleStore {
   }
 
   void notifyUI() {
+    if (!demo) WidgetReadings.save(context, visible());
     if (listener != null) listener.changed();
   }
 
@@ -500,6 +541,7 @@ final class BleStore {
       int[] state = Protocol.advertisement(advertised);
       if (state != null) {
         d.serverReported = false;
+        d.reportedAt = System.currentTimeMillis();
         d.power = state[0] == 1;
         d.battery = state[1];
         if (!demo) batteryAlerts.observe(d);
@@ -537,7 +579,7 @@ final class BleStore {
 
   void pump() {
     if ((!foreground && !backgroundCommand) || demo) return;
-    while (sessions.size() + remote.size() < 3 && !queue.isEmpty()) {
+    while (sessions.size() + remote.size() < CONNECTION_LIMIT && !queue.isEmpty()) {
       String address = queue.keySet().iterator().next();
       Transaction t = queue.remove(address);
       Device d = devices.get(address);
@@ -587,9 +629,11 @@ final class BleStore {
     return true;
   }
 
-  void all(boolean on) {
+  void all(boolean on) { group("*", on); }
+
+  void group(String target, boolean on) {
     if (anyBusy()) return;
-    List<Device> list = visible();
+    List<Device> list = targets(target);
     if (demo) {
       for (Device d : list) d.power = on;
       notifyUI();
@@ -625,6 +669,7 @@ final class BleStore {
 
   void demo(boolean enabled) {
     if (demo == enabled) return;
+    demoScenes.clear();
     stopScan();
     cancelPoll();
     cancelBackground();
@@ -778,6 +823,7 @@ final class BleStore {
             batteryAlerts.observe(d);
           }
           if (t.power != null) {
+            d.reportedAt = System.currentTimeMillis();
             d.power = t.power;
             d.serverReported = false;
             message = d.name + ": confirmed.";

@@ -30,9 +30,11 @@ public final class WidgetConfigurationActivity extends Activity {
       return;
     }
     List<BleStore.Device> devices = store.visible();
-    String[] names = new String[devices.size() + 1];
+    List<Scenes.Scene> scenes = store.scenes();
+    String[] names = new String[devices.size() + scenes.size() + 1];
     names[0] = "All switches";
     for (int i = 0; i < devices.size(); i++) names[i + 1] = devices.get(i).name;
+    for (int i = 0; i < scenes.size(); i++) names[devices.size() + i + 1] = "Scene · " + scenes.get(i).name;
     new AlertDialog.Builder(this)
         .setTitle("Nultra background controls")
         .setItems(
@@ -40,7 +42,7 @@ public final class WidgetConfigurationActivity extends Activity {
             (d, index) -> {
               getSharedPreferences("widgets", 0)
                   .edit()
-                  .putString("target:" + id, index == 0 ? "*" : devices.get(index - 1).address)
+                  .putString("target:" + id, index == 0 ? "*" : index <= devices.size() ? devices.get(index - 1).address : scenes.get(index - devices.size() - 1).target())
                   .putString("name:" + id, names[index])
                   .apply();
               SwitchWidget.update(this, id, "Tap Off or On");

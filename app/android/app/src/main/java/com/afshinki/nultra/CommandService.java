@@ -36,7 +36,7 @@ public final class CommandService extends Service {
             .build());
     if (running) return START_NOT_STICKY;
     String address = intent == null ? null : intent.getStringExtra("target");
-    if (address == null || !(address.equals("*") || ServerClient.validAddress(address))) {
+    if (address == null || !(address.equals("*") || ServerClient.validAddress(address) || Scenes.load(this).stream().anyMatch(s -> s.target().equals(address)))) {
       finish("Choose a saved switch in the Nultra widget.");
       return START_NOT_STICKY;
     }

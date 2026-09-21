@@ -23,7 +23,8 @@ public final class MainActivity extends Activity implements BleStore.Listener {
       BLUE = Color.rgb(63, 149, 255),
       GRAY = Color.rgb(69, 86, 98);
   BleStore store;
-  LinearLayout content, grid;
+  LinearLayout content, grid, scenesPanel;
+  String scenesKey = "";
   TextView status;
   Button allOff, allOn, allow;
   final Map<String, Card> cards = new LinkedHashMap<>();
@@ -33,6 +34,7 @@ public final class MainActivity extends Activity implements BleStore.Listener {
   public void onCreate(Bundle state) {
     super.onCreate(state);
     store = BleStore.get(this);
+    BackgroundRefresh.schedule(this);
     store.listener = this;
     LinearLayout root = column();
     root.setBackgroundColor(BG);
@@ -78,6 +80,8 @@ public final class MainActivity extends Activity implements BleStore.Listener {
     space(content, 8);
     allow = button("Allow Bluetooth access", MINT, this::requestBluetooth);
     content.addView(allow);
+    scenesPanel = column();
+    content.addView(scenesPanel);
     grid = column();
     content.addView(grid);
     setContentView(root);
@@ -133,6 +137,7 @@ public final class MainActivity extends Activity implements BleStore.Listener {
   public void changed() {
     if (isFinishing()) return;
     List<BleStore.Device> list = store.visible();
+    updateScenes();
     status.setText(
         store.demo
             ? "DEMO · No physical switches controlled"
@@ -266,6 +271,7 @@ public final class MainActivity extends Activity implements BleStore.Listener {
     view.addView(power);
     ProgressBar wait = new ProgressBar(this);
     view.addView(wait, new LinearLayout.LayoutParams(dp(28), dp(28)));
+    view.addView(button("Scenes · View and edit membership", MINT, () -> deviceScenes(d)));
     Button rename = button("Rename", MINT, () -> rename(d));
     view.addView(rename);
     space(view, 12);
@@ -304,6 +310,81 @@ public final class MainActivity extends Activity implements BleStore.Listener {
     dialog.setOnDismissListener(v -> h.removeCallbacks(update));
     dialog.show();
     h.post(update);
+  }
+
+  void updateScenes() {
+    String key = store.demo + Scenes.encode(store.scenes()) + store.anyBusy() + store.visible().size();
+    if (key.equals(scenesKey)) return;
+    scenesKey = key;
+    scenesPanel.removeAllViews();
+    LinearLayout title = row();
+    title.addView(text("Scenes", 16, INK), new LinearLayout.LayoutParams(0, -2, 1));
+    Button add = button("+", MINT, () -> sceneEditor(new Scenes.Scene(UUID.randomUUID().toString(), "", Collections.emptyList())));
+    add.setContentDescription("Add scene"); add.setEnabled(!store.visible().isEmpty());
+    title.addView(add, new LinearLayout.LayoutParams(dp(48), dp(48)));
+    scenesPanel.addView(title);
+    for (Scenes.Scene scene : store.scenes()) {
+      LinearLayout line = row();
+      Button name = button(scene.name + " · Edit", INK, () -> sceneEditor(scene));
+      name.setContentDescription("Edit scene " + scene.name);
+      line.addView(name, new LinearLayout.LayoutParams(0, -2, 1));
+      for (boolean on : new boolean[] {false, true}) {
+        Button power = button(on ? "On" : "Off", on ? YELLOW : MUTED, () -> store.group(scene.target(), on));
+        power.setEnabled(!store.anyBusy()); line.addView(power, new LinearLayout.LayoutParams(dp(56), -2));
+      }
+      scenesPanel.addView(line);
+    }
+  }
+
+  void sceneEditor(Scenes.Scene scene) {
+    ScrollView scroll = new ScrollView(this);
+    LinearLayout view = column(); view.setPadding(dp(16), dp(8), dp(16), dp(8)); scroll.addView(view);
+    EditText name = edit(scene.name, false); name.setHint("Scene name"); name.setContentDescription("Scene name");
+    view.addView(name);
+    view.addView(text("Lights may belong to multiple scenes.", 14, MUTED));
+    Set<String> members = new LinkedHashSet<>(scene.members);
+    members.retainAll(store.visible().stream().map(d -> d.address).collect(java.util.stream.Collectors.toList()));
+    for (BleStore.Device d : store.visible()) {
+      CheckBox check = new CheckBox(this); check.setText(d.name); check.setTextColor(INK); check.setChecked(members.contains(d.address));
+      check.setOnCheckedChangeListener((b, on) -> { if (on) members.add(d.address); else members.remove(d.address); });
+      view.addView(check);
+    }
+    final AlertDialog[] editor = new AlertDialog[1];
+    if (store.scenes().stream().anyMatch(s -> s.id.equals(scene.id))) view.addView(button("Delete scene", MUTED, () -> {
+      new AlertDialog.Builder(this).setTitle("Delete " + scene.name + "?")
+        .setMessage("Lights and their other scenes are kept.").setNegativeButton("Cancel", null)
+        .setPositiveButton("Delete", (d, w) -> { store.deleteScene(scene.id); editor[0].dismiss(); }).show();
+    }));
+    AlertDialog dialog = new AlertDialog.Builder(this).setTitle("Scene").setView(scroll).setNegativeButton("Cancel", null).setPositiveButton("Save", null).create();
+    editor[0] = dialog;
+    dialog.setOnShowListener(x -> dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener(w -> {
+      String value = name.getText().toString().trim();
+      if (value.isEmpty() || value.length() > 40) { name.setError("Enter a name of 1–40 characters"); return; }
+      if (members.isEmpty()) { toast("Choose at least one light"); return; }
+      store.saveScene(new Scenes.Scene(scene.id, value, members)); dialog.dismiss();
+    }));
+    dialog.show();
+  }
+
+  void deviceScenes(BleStore.Device device) {
+    List<Scenes.Scene> scenes = store.scenes();
+    if (scenes.isEmpty()) { toast("Create a scene from the home screen first"); return; }
+    LinearLayout view = column(); view.setPadding(dp(16), dp(8), dp(16), dp(8));
+    final AlertDialog[] membershipDialog = new AlertDialog[1];
+    for (Scenes.Scene scene : scenes) {
+      LinearLayout line = row();
+      CheckBox member = new CheckBox(this); member.setText(scene.name); member.setTextColor(INK); member.setChecked(scene.members.contains(device.address));
+      member.setOnCheckedChangeListener((b, on) -> {
+        Set<String> ids = new LinkedHashSet<>(scene.members);
+        if (on) ids.add(device.address); else ids.remove(device.address);
+        if (ids.isEmpty()) { member.setChecked(true); toast("Edit to replace the last light or delete the scene"); return; }
+        scene.members.clear(); scene.members.addAll(ids); store.saveScene(scene);
+      });
+      line.addView(member, new LinearLayout.LayoutParams(0, -2, 1));
+      line.addView(button("Edit", MINT, () -> { membershipDialog[0].dismiss(); sceneEditor(scene); })); view.addView(line);
+    }
+    ScrollView scroll = new ScrollView(this); scroll.addView(view);
+    membershipDialog[0] = new AlertDialog.Builder(this).setTitle(device.name + " · Scenes").setView(scroll).setPositiveButton("Done", null).show();
   }
 
   void rename(BleStore.Device d) {
@@ -367,15 +448,19 @@ public final class MainActivity extends Activity implements BleStore.Listener {
     }));
     space(v, 20);
     v.addView(button("Battery alerts", MINT, this::batterySettings));
+    v.addView(button("Background refresh", MINT, this::refreshSettings));
     v.addView(button("Backup server", MINT, this::serverSettings));
     v.addView(
         text(
             "Background controls: add the Nultra widget from your home screen. Choose all switches"
-                + " or one saved light; Off/On runs without opening the app.",
+                + " or a scene or one saved light; Off/On runs without opening the app.",
             15,
             MUTED));
     space(v, 20);
     v.addView(text("Discovery", 20, INK));
+    TextView connections = text(store.connectionSummary(), 14, MUTED);
+    v.addView(connections);
+    v.addView(text("Limit bounds short transactions; it is not a reported hardware maximum.", 14, MUTED));
     v.addView(
         text(
             "Blue means recently seen by Bluetooth or the enabled server; gray means offline. Real"
@@ -400,33 +485,68 @@ public final class MainActivity extends Activity implements BleStore.Listener {
                         android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
                         Uri.parse("package:" + getPackageName())))));
     space(v, 20);
-    v.addView(text("Afshin Kashani", 20, INK));
-    v.addView(
+    Switch demo = new Switch(this);
+    demo.setText("Explore demo mode");
+    demo.setTextColor(MINT);
+    demo.setChecked(store.demo);
+    v.addView(demo);
+    space(v, 20);
+    LinearLayout developer = column();
+    developer.setPadding(dp(14), dp(14), dp(14), dp(14));
+    developer.setBackground(shape(CARD, 0xff1b2833, 14));
+    developer.addView(text("Afshin Kashani", 20, INK));
+    developer.addView(
         button(
             "innovetron.com",
             MINT,
             () ->
                 startActivity(
                     new Intent(Intent.ACTION_VIEW, Uri.parse("https://innovetron.com")))));
-    v.addView(text("Nultra " + BuildConfig.VERSION_NAME + " · Android", 14, MUTED));
-    space(v, 24);
-    Switch demo = new Switch(this);
-    demo.setText("Explore demo mode");
-    demo.setTextColor(MINT);
-    demo.setChecked(store.demo);
-    v.addView(demo);
+    developer.addView(text("Nultra " + BuildConfig.VERSION_NAME + " · Android", 14, MUTED));
+
+    v.addView(developer, new LinearLayout.LayoutParams(-1, -2));
+
     AlertDialog dialog =
         new AlertDialog.Builder(this)
             .setTitle("Menu")
             .setView(scroll)
             .setPositiveButton("Done", null)
             .create();
+    Handler connectionTimer = new Handler(Looper.getMainLooper());
+    Runnable updateConnections = new Runnable() { public void run() {
+      connections.setText(store.connectionSummary());
+      if (dialog.isShowing()) connectionTimer.postDelayed(this, 500);
+    }};
+    dialog.setOnDismissListener(x -> connectionTimer.removeCallbacks(updateConnections));
+    dialog.setOnShowListener(x -> connectionTimer.post(updateConnections));
     demo.setOnCheckedChangeListener(
         (b, checked) -> {
           store.demo(checked);
           dialog.dismiss();
         });
     dialog.show();
+  }
+
+  void refreshSettings() {
+    LinearLayout view = column(); view.setPadding(dp(20), dp(8), dp(20), dp(16));
+    Switch enabled = new Switch(this); enabled.setText("Enable background refresh"); enabled.setTextColor(INK);
+    enabled.setChecked(BackgroundRefresh.enabled(this)); view.addView(enabled);
+    view.addView(text("Requested interval", 16, INK));
+    RadioGroup frequency = new RadioGroup(this);
+    for (int m : new int[] {15, 30, 60}) {
+      RadioButton b = new RadioButton(this); b.setId(m); b.setText(m + " minutes"); b.setTextColor(INK); frequency.addView(b);
+    }
+    frequency.check(BackgroundRefresh.minutes(this)); view.addView(frequency);
+    view.addView(text("Refreshes battery and widget state through your enabled backup server. Android chooses when to run; intervals are best effort. Battery restrictions, force-stop, or an unreachable server can prevent refresh. Bluetooth discovery resumes when you open Nultra.", 14, MUTED));
+    if (!store.server.enabled()) view.addView(text("Configure and enable Backup server first.", 14, MINT));
+    long last = BackgroundRefresh.prefs(this).getLong("lastSuccess", 0);
+    if (last > 0) view.addView(text("Last background refresh: " + java.text.DateFormat.getDateTimeInstance().format(new Date(last)), 14, MUTED));
+    ScrollView scroll = new ScrollView(this); scroll.addView(view);
+    new AlertDialog.Builder(this).setTitle("Background refresh").setView(scroll).setNegativeButton("Cancel", null)
+      .setPositiveButton("Save", (d, w) -> {
+        BackgroundRefresh.prefs(this).edit().putBoolean("enabled", enabled.isChecked()).putInt("minutes", frequency.getCheckedRadioButtonId()).apply();
+        BackgroundRefresh.schedule(this);
+      }).show();
   }
 
   void batterySettings() {
@@ -442,7 +562,7 @@ public final class MainActivity extends Activity implements BleStore.Listener {
     threshold.setContentDescription("Battery alert threshold percent");
     view.addView(text("Notify at or below (%)", 16, INK));
     view.addView(threshold);
-    view.addView(text("Default 5%. One alert per switch until its battery recovers by 10 percentage points above the alert threshold. Alerts use new readings received while Nultra is active; no monitoring while the app is stopped.", 14, MUTED));
+    view.addView(text("Default 5%. One alert per switch until its battery recovers by 10 percentage points above the alert threshold. Alerts use new readings received while Nultra is active; background readings require enabled Background refresh and a reachable backup server.", 14, MUTED));
     if (!store.batteryAlerts.permitted()) view.addView(text("Notifications are currently blocked. Allow them in Android Settings → Apps → Nultra → Notifications.", 14, MUTED));
     AlertDialog dialog = new AlertDialog.Builder(this).setTitle("Battery alerts").setView(view).setNegativeButton("Cancel", null).setPositiveButton("Save", null).create();
     dialog.setOnShowListener(x -> dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener(w -> {

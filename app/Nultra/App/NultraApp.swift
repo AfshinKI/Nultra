@@ -18,6 +18,7 @@ struct NultraApp: App {
         #endif
         _bluetooth = StateObject(wrappedValue: store)
         #if os(iOS)
+        BackgroundRefresh.shared.register()
         NultraShortcuts.updateAppShortcutParameters()
         #endif
     }
@@ -39,7 +40,12 @@ struct NultraApp: App {
                     #endif
                 }
                 .onChange(of: scenePhase) { phase in
-                    if phase == .background { bluetooth.suspend() }
+                    if phase == .background {
+                        bluetooth.suspend()
+                        #if os(iOS)
+                        BackgroundRefresh.shared.schedule()
+                        #endif
+                    }
                     else if phase == .active { bluetooth.resume() }
                 }
         }

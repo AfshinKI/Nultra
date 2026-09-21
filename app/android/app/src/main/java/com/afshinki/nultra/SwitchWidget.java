@@ -24,6 +24,12 @@ public final class SwitchWidget extends AppWidgetProvider {
     edit.apply();
   }
 
+  static void refresh(Context context) {
+    AppWidgetManager manager = AppWidgetManager.getInstance(context);
+    for (int id : manager.getAppWidgetIds(new ComponentName(context, SwitchWidget.class)))
+      update(context, id, context.getSharedPreferences("widgets", 0).getString("status:" + id, "Tap Off or On"));
+  }
+
   static void status(Context context, String message) {
     AppWidgetManager manager = AppWidgetManager.getInstance(context);
     for (int id : manager.getAppWidgetIds(new ComponentName(context, SwitchWidget.class)))
@@ -34,12 +40,15 @@ public final class SwitchWidget extends AppWidgetProvider {
     SharedPreferences prefs = context.getSharedPreferences("widgets", 0);
     String target = prefs.getString("target:" + id, "*");
     RemoteViews views = new RemoteViews(context.getPackageName(), R.layout.switch_widget);
-    views.setTextViewText(R.id.widget_title, prefs.getString("name:" + id, "All switches"));
+    String name = prefs.getString("name:" + id, "All switches");
+    if (target.startsWith("scene:")) name = Scenes.load(context).stream().filter(s -> s.target().equals(target)).map(s -> s.name).findFirst().orElse("Scene removed");
+    String state = WidgetReadings.state(context, target);
+    views.setTextViewText(R.id.widget_title, name + " · " + state);
     views.setTextViewText(R.id.widget_status, message);
     prefs.edit().putString("status:" + id, message).apply();
     int height = AppWidgetManager.getInstance(context).getAppWidgetOptions(id).getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_HEIGHT, 56);
     views.setViewVisibility(R.id.widget_status, height >= 100 ? android.view.View.VISIBLE : android.view.View.GONE);
-    views.setContentDescription(R.id.widget_title, prefs.getString("name:" + id, "All switches") + ". " + message);
+    views.setContentDescription(R.id.widget_title, name + ". Last reported " + state + ". " + message);
     for (boolean on : new boolean[] {false, true}) {
       Intent intent =
           new Intent(context, CommandService.class)

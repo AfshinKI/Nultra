@@ -62,3 +62,5 @@ Diagnostic runs can build only iOS or Android. Simulator tests are opt-in becaus
 ## Android builds
 
 The native Android app lives in `android/`. See [Android instructions](ANDROID.md) for Java/SDK setup, signed APK validation, emulator smoke tests, and stable signing-key management. Releases now wait for both iPhone and Android validation, then publish both packages. iPhone simulator tests run only when explicitly requested. Android signing secrets are never stored in source or release assets.
+
+A PR labeled `validate-ios-scenes` runs only the scene UI acceptance test plus model/distribution checks, skipping the device IPA build. Use it for an isolated scene-test retry after the complete product build and other UI tests have passed. `validate-ios-ui` remains the full simulator suite; `publish-release` still builds both install packages from main after merge.

@@ -1,0 +1,12 @@
+# Scenes and background refresh (0.10)
+
+Scenes are named sets of saved light identifiers, with stable scene IDs. Membership is many-to-many. Group actions use the existing bounded transaction queue, explicit on/off writes, independent per-light results, and immediate BLE disconnection. Empty or deleted scene targets never become an All action. Demo scenes are in memory only and do not modify real scenes or widget data.
+
+Both platforms expose a read-only active / queued / limit indicator in Settings. The current limit remains three; neither SDK exposes a dependable portable radio connection maximum. Increasing concurrency requires measurements with the actual phones and switches, including failure rates and completion time, before changing this limit.
+
+Background refresh defaults to enabled with a requested 30-minute interval, configurable to 15 or 60 minutes. It requires the user's enabled backup server. iOS registers a BGAppRefreshTask and resubmits the next request; Android uses a persisted periodic JobScheduler job. Refresh only reads the devices endpoint. It does not scan, connect, or send power commands. Data applies only if the operation has not expired/cancelled, settings still match, real mode is active, and no command is running. Available, unambiguously mapped server rows update offline saved lights and feed the existing battery alert suppression policy. Unavailable rows never invent a fresh state. Disabling refresh cancels scheduled work and prevents late results from applying.
+
+
+Widget choices include saved devices and scenes, plus All On / All Off on iPhone. Existing iPhone UUID selections remain compatible. The iPhone intent is in both targets and conforms to ForegroundContinuableIntent only in the containing app; openAppWhenRun is false and it never requests foreground continuation. This selects the app process, where Bluetooth permissions and Keychain credentials reside. Android uses the existing private connected-device foreground service started by the explicit widget PendingIntent. Server acceptance remains distinct from confirmed switch state.
+
+References: [Apple widget interactivity](https://developer.apple.com/documentation/widgetkit/adding-interactivity-to-widgets-and-live-activities), [Apple scheduling](https://developer.apple.com/documentation/backgroundtasks/bgtaskrequest/earliestbegindate), [Android periodic jobs](https://developer.android.com/reference/android/app/job/JobInfo.Builder#setPeriodic(long)).
