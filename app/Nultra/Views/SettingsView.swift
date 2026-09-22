@@ -107,13 +107,13 @@ struct SettingsView: View {
                             Text("\(bluetooth.unnamedCount) devices have not returned a name.").font(.caption)
                         }
                         Text(bluetooth.connectionSummary).font(.caption.monospaced()).accessibilityIdentifier("connections.summary")
-                        Text("The limit bounds concurrent short transactions; it is not a reported hardware maximum.").font(.caption).foregroundColor(Theme.muted)
+                        Text("Up to six short transactions at once. Active includes Bluetooth and backup-server work; queued requests wait for a slot. The phone does not report a hardware maximum.").font(.caption).foregroundColor(Theme.muted)
                         Button("Retry name discovery") { bluetooth.retryDiscovery() }
                             .disabled(bluetooth.demo || bluetooth.hasWork).frame(minHeight: 44)
                     }.panel()
                     VStack(alignment: .leading, spacing: 10) {
                         Label("Widgets and Shortcuts", systemImage: "square.stack.3d.up.fill").font(.headline)
-                        Text("Add Nultra lights from the Home Screen widget gallery (iOS 17+). Small shows four bulbs, medium eight, and large sixteen. Long-press the widget → Edit Widget to choose lights. Choose individual lights, All On, All Off, or scenes. Taps run in the background. Widget state is last reported, not live.\n\nIn Apple Shortcuts, search Nultra for Turn All Off, Turn All On, or Set Switch Power. Actions run in the background and disconnect after each Bluetooth command. Open Nultra once to grant Bluetooth and local-network access. Server commands report queued status because the server cannot confirm completion.")
+                        Text("Add Nultra lights from the Home Screen widget gallery (iOS 17+). Small shows four bulbs, medium eight, and large sixteen. Long-press the widget → Edit Widget to choose lights. Choose individual lights, All On, All Off, or scenes. Taps run in the background. Widget state is last reported, not live.\n\nIn Apple Shortcuts, search Nultra for Turn All Off, Turn All On, or Set Switch Power. Shortcuts return immediately when accepted, then try Bluetooth followed by the enabled backup server. Later failures are dismissed silently. Acceptance does not confirm a light changed; iOS may end background work. Widgets still report the completed attempt. Open Nultra once to grant Bluetooth and local-network access. Server commands report queued status because the server cannot confirm completion.")
                             .font(.subheadline).foregroundColor(Theme.muted)
                     }.panel()
                     VStack(alignment: .leading, spacing: 12) {

@@ -32,7 +32,7 @@ Status: **not yet run**. Record iPhone model, iOS version, app commit, switch fi
 | Presence | Blue on fresh packet, gray after 15–17 seconds without packets; named card remains | Pending |
 | Hidden candidates | No card until valid real name read succeeds | Pending |
 | Master password | Save custom value, relaunch, verify use; restore default; no firmware password change | Pending |
-| Bulk controls | All named targets attempted; up to three concurrent links; partial failures reported | Pending |
+| Bulk controls | All named targets attempted; up to six concurrent links; partial failures reported | Pending |
 | Bulk background | Cancel current/pending work; no automatic command replay on return | Pending |
 | Shortcuts cold launch | All Off opens app, awaits radio, verifies/disconnects all targets; reports actual failures | Pending |
 | Shortcut selected device | Name selection resolves saved UUID, only that device changes | Pending |

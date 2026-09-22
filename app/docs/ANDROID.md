@@ -10,7 +10,7 @@
 
 Android 8.0 (API 26) or newer. Native Java views and Android BluetoothGatt; no web wrapper; an optional user-configured Pi backup is supported. Android identifies a peripheral by its Bluetooth address, separately from the iPhone's CoreBluetooth UUID. Saved names are read from GATT, never taken from state advertisement names.
 
-The app listens only while its activity is foregrounded. Each transaction has one purpose and an eight-second total deadline: connect, discover service, authenticate, perform the operation, verify readback, disconnect and close. Up to three transactions can run concurrently. There is no bonding request, notification subscription, automatic command retry, or idle connection. A failed initial name lookup waits for the user's Retry command.
+The app listens only while its activity is foregrounded. Each transaction has one purpose and an eight-second total deadline: connect, discover service, authenticate, perform the operation, verify readback, disconnect and close. Up to six transactions can run concurrently. There is no bonding request, notification subscription, automatic command retry, or idle connection. A failed initial name lookup waits for the user's Retry command.
 
 State and battery broadcasts update internal observations immediately, with a two-second UI cadence and five-second RSSI sampling. Online presence expires after 15 seconds. Names persist across launch, while power and battery start unknown. Custom passwords use Android Keystore AES-GCM encryption; backup is disabled to avoid restoring ciphertext without its device key.
 
@@ -59,7 +59,7 @@ The emulator cannot verify real BLE timing, MAC address stability on firmware us
 - Configurable, disabled-by-default backup URL and port, persisted in private preferences. No embedded server address. Cleartext HTTP is allowed for a configured trusted LAN; HTTPS uses normal certificate validation, with no trust bypass.
 - `GET /devices` while foregrounded every 15 seconds; cached reachability expires at 30 seconds. No requests in demo mode or idle background. Only GATT-named saved switches appear.
 - Match stable Android Bluetooth MAC first, then a unique exact name. Explicit/learned mapping is pinned and is never silently replaced; changing base URL clears it. UI supports explicit selection.
-- All commands share a three-slot queue. Server fallback begins only once a failed BLE session is closed. Background actions try the known BLE device first, with a two-second connection wait when fallback is enabled and eight-second total BLE deadline. Server GET+POST has an eight-second combined deadline. Rename remains BLE-only.
+- All commands share a six-slot queue. Server fallback begins only once a failed BLE session is closed. Background actions try the known BLE device first, with a two-second connection wait when fallback is enabled and eight-second total BLE deadline. Server GET+POST has an eight-second combined deadline. Rename remains BLE-only.
 - App and widget share one process store. Widget PendingIntents target a non-exported service, are immutable, and set explicit on/off. Widget configuration validates the widget belongs to Nultra. Android foreground-service lifecycle bounds commands to 24 seconds and cancels remaining work on destruction; no MainActivity launch is requested. Completed or already queued commands cannot be undone by cancellation.
 - GET provides server-reported cached state. POST OK only reports queued; it never changes the displayed state optimistically. Partial batches distinguish failed and queued work.
 

@@ -75,8 +75,11 @@ final class NultraUITests: XCTestCase {
         name.tap(); name.typeText("Evening")
         let membership = app.switches["DESKLAMP"]
         // Form exposes the labeled row and its actual trailing switch separately.
-        membership.switches.firstMatch.tap()
-        XCTAssertEqual(membership.value as? String, "1")
+        let control = membership.switches.firstMatch
+        control.tap()
+        // Read the actual switch, not the Form row's accessibility wrapper.
+        let selected = expectation(for: NSPredicate(format: "value == %@", "1"), evaluatedWith: control)
+        wait(for: [selected], timeout: 5)
         XCTAssertTrue(app.buttons["scene.save"].isEnabled)
         app.buttons["scene.save"].tap()
         XCTAssertTrue(app.buttons["Edit scene Evening"].waitForExistence(timeout: 5))
@@ -105,6 +108,16 @@ final class NultraUITests: XCTestCase {
         XCTAssertTrue(alert.staticTexts["Turn off demo mode in Nultra before running a switch shortcut."].exists)
         alert.buttons["OK"].tap()
         XCTAssertTrue(app.buttons["toggle.DESKLAMP"].label.contains("On"))
+    }
+    func testSettingsShowsReadOnlyConcurrencyLimit() throws {
+        let app = launchDemo()
+        app.buttons["settings"].tap()
+        let summary = app.staticTexts["connections.summary"]
+        for _ in 0..<8 { if summary.isHittable { break }; app.swipeUp() }
+        XCTAssertTrue(summary.exists)
+        XCTAssertTrue(summary.label.contains("limit 6"))
+        XCTAssertTrue(summary.label.contains("active"))
+        XCTAssertTrue(summary.label.contains("queued"))
     }
     func testSwitchPasswordRequiresExplicitSelection() throws {
         let app = XCUIApplication()

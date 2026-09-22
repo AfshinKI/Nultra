@@ -18,12 +18,21 @@ While Nultra is open, the enabled server's cached device list is fetched every 1
 - `seen_recently == 1` means the Pi saw the switch within **six minutes**, not proof it can connect now. Older values are rejected for fallback.
 - `POST /toggle/<MAC>/0` or `/1`: explicit off/on. `status == OK` means **queued**, not completed. HTTP errors, JSON errors, redirects, and `status == ERROR` are failures.
 - The server catches execution failures asynchronously and exposes no per-command receipt. Therefore the app never claims a queued request is hardware-confirmed and never optimistically sets its power state. Later GET responses provide server-reported state, which can itself be cached. Retries are not sent automatically after uncertain HTTP results.
-- iPhone requests have 5-second request / 8-second resource timeouts. Android uses 4-second connect/read timeouts and an 8-second combined GET/POST deadline. At most three operations occupy scheduler slots, across both BLE and HTTP.
+- iPhone requests have 5-second request / 8-second resource timeouts. Android uses 4-second connect/read timeouts and an 8-second combined GET/POST deadline. At most six operations occupy scheduler slots, across both BLE and HTTP.
 - The phone password is used only for phone BLE; it is never sent to the server. The Pi uses its own configured credentials.
 
 The server may spend longer connecting/retrying than the phone. This app cannot shorten the existing server's BLE implementation without changing that read-only project.
 
 ## Shortcuts
+
+From v0.11, valid requests return to Shortcuts immediately without a result dialog.
+The return acknowledges acceptance, not a changed light. A retained task tries BLE
+and then enabled server fallback; later failures end silently. Invalid targets,
+demo mode, busy state, and denied background execution are rejected before acceptance.
+Background time is reserved before returning and ended on completion/expiry. Once
+accepted, cancelling the calling shortcut does not cancel the independent worker;
+iOS expiration does cancel it and prevent new fallback work. Widgets still await
+and report the attempt result. Test locked-phone behavior on the owner's hardware.
 
 All three App Intents set `openAppWhenRun = false`. They initialize Bluetooth without starting foreground scanning, retrieve saved peripherals, and keep the existing authenticate/write/read/disconnect transaction. `bluetooth-central` permits command callbacks in the background. Scene background transitions stop discovery but do not cancel an active Shortcut. A bounded background task, 24-second command deadline, cancellation handling, and immediate disconnect prevent an indefinite session.
 
@@ -32,7 +41,7 @@ Saved password accessibility is AfterFirstUnlockThisDeviceOnly (including migrat
 ## Physical acceptance (requires iPhone)
 
 1. Run all three actions from Shortcuts with Show When Run off, including cold app launch, and confirm no Nultra window appears.
-2. Repeat after backgrounding, locking, and restarting/unlocking the phone. Verify BLE readback and immediate disconnect. Cancel midway; ensure no later server fallback is launched by cancelled work.
+2. Repeat after backgrounding, locking, and restarting/unlocking the phone. Verify BLE readback and immediate disconnect. After acceptance, stop the caller and verify the bounded worker can finish. Verify expiration stops unfinished work without starting more fallback.
 3. Configure server, grant LAN permission, use unique names; disable Bluetooth and send explicit on/off. Confirm server reports queued and physical lights actually change.
 4. Check mixed local/remote All On/Off, server offline, stale server switch, denied LAN permission, ambiguous names, changed URL, and explicit mapping after rename.
 5. Ensure normal discovery/polling stop when backgrounded, no idle BLE connections remain, and re-enabling foreground scanning updates broadcasts.

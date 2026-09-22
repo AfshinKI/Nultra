@@ -2,13 +2,13 @@ import XCTest
 @testable import NultraProtocol
 
 final class SwitchScheduleTests: XCTestCase {
-    func testThreeParallelSlotsAndReleaseOnlyAfterAcknowledgement() {
-        var queue = SwitchSchedule(limit: 3)
-        let ids = (0..<6).map { _ in UUID() }
+    func testSixParallelSlotsAndReleaseOnlyAfterAcknowledgement() {
+        var queue = SwitchSchedule()
+        let ids = (0..<8).map { _ in UUID() }
         ids.forEach { queue.enqueue(SwitchRequest(id: $0, operation: .power(true))) }
         let first = queue.takeNext()!
-        _ = queue.takeNext(); _ = queue.takeNext()
-        XCTAssertEqual(queue.active.count, 3)
+        for _ in 0..<5 { _ = queue.takeNext() }
+        XCTAssertEqual(queue.active.count, 6)
         XCTAssertNil(queue.takeNext())
         XCTAssertFalse(queue.enqueue(SwitchRequest(id: first.id, operation: .power(false))))
         // A transaction asking to disconnect does not free its scheduler slot.
@@ -17,8 +17,8 @@ final class SwitchScheduleTests: XCTestCase {
         XCTAssertNil(queue.takeNext())
         _ = transaction.handle(.disconnected)
         queue.finished(first.id)
-        XCTAssertEqual(queue.takeNext()?.id, ids[3])
-        XCTAssertEqual(queue.active.count, 3)
+        XCTAssertEqual(queue.takeNext()?.id, ids[6])
+        XCTAssertEqual(queue.active.count, 6)
     }
     func testUserCommandsPrecedeIdentificationAndCancellationKeepsActiveSlots() {
         var queue = SwitchSchedule(limit: 3)

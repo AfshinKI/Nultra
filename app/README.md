@@ -25,7 +25,7 @@ Actual iOS 26.2 simulator captures; the shown switches are demo devices.
 
 ## What is ready, and what is still a phone test?
 
-The app implements discovery, automatic one-time name lookup, persistent real names, live battery/state broadcasts, on/off with readback, and rename. Every lookup or change uses a brief connection followed by immediate disconnection. A labeled demo lets you explore without touching real switches. The compact dashboard uses **two columns**. The app processes up to three switch transactions in parallel and never remains connected while idle or while you edit a name.
+The app implements discovery, automatic one-time name lookup, persistent real names, live battery/state broadcasts, on/off with readback, and rename. Every lookup or change uses a brief connection followed by immediate disconnection. A labeled demo lets you explore without touching real switches. The compact dashboard uses **two columns**. The app processes up to six switch transactions in parallel and never remains connected while idle or while you edit a name.
 
 
 ## 1. Get Nultra.ipa
@@ -75,7 +75,7 @@ The private HTTPS leaf certificate lasts one year; renewal commands are in the P
 1. Install this release, open Nultra, allow Bluetooth, and let it learn your switches' real names. Turn off demo mode.
 2. Open **Shortcuts → + → Add Action**, search **Nultra**, and choose **Turn All Off**, **Turn All On**, or **Set Switch Power**.
 3. For one switch, select its saved name and the desired On value. Name the shortcut, for example **Lights Off**, and optionally add it to your Home Screen or an automation.
-4. Run it from Shortcuts with **Show When Run** disabled if offered. Nultra no longer requests its window to open. It runs up to three brief transactions at once and reports Bluetooth confirmation, server queue acceptance, or failure. If an existing shortcut retains old behavior after updating, remove and re-add its Nultra action.
+4. Run it from Shortcuts with **Show When Run** disabled if offered. Nultra no longer requests its window to open. It accepts the request immediately, then runs up to six brief transactions at once with enabled server fallback. Later failures are silent; an accepted Shortcut is not physical confirmation. Widgets still report the attempt result. If an existing shortcut retains old behavior after updating, remove and re-add its Nultra action.
 
 Actions use the phone's BLE first, with optional backup-server fallback. Open the app once to grant permissions and learn names; unlock once after a phone restart. iOS controls background execution time, so locked-phone execution needs device testing. Demo mode is rejected.
 
@@ -91,7 +91,7 @@ A nearby switch uses phone Bluetooth. If unavailable, an enabled reachable serve
 3. On your Samsung home screen, long-press an empty area → **Widgets → Nultra**. Add the widget and choose **All switches** or a saved switch.
 4. Tap **Off** or **On** on the widget. Nultra runs a short foreground service without opening its app window. The widget reports the result; Android may show an active-task notification. No service, scan, or server polling remains running after the action.
 
-A widget action has a 24-second limit, up to three concurrent operations, and no automatic HTTP retry. Large batches or unreachable switches can partially finish; check the reported result. A server “queued” result is not physical confirmation. Samsung power-management and real BLE behaviour still need testing on your phone. Apple Shortcuts itself is iPhone-only; the Android equivalent provided here is the home-screen widget.
+A widget action has a 24-second limit, up to six concurrent operations, and no automatic HTTP retry. Large batches or unreachable switches can partially finish; check the reported result. A server “queued” result is not physical confirmation. Samsung power-management and real BLE behaviour still need testing on your phone. Apple Shortcuts itself is iPhone-only; the Android equivalent provided here is the home-screen widget.
 
 ## Widgets, power toggles, and battery alerts (v0.9.0)
 
@@ -103,19 +103,15 @@ Enable **Battery alerts** in Menu and allow notifications. Set a threshold from 
 
 ## Release process and runner usage
 
-Pushes, ordinary PRs, documentation edits, and tags do **not** start hosted builds. Run local checks during development, and use a PR to merge changes into `main` before publishing.
+Development and releases are **local-first**. Pushes, PR labels, merges, and tags do not start hosted builds. Build and test locally, then upload validated packages with GitHub CLI: this release path uses **zero Actions runner minutes**.
 
-1. Bump `MARKETING_VERSION` and `CURRENT_PROJECT_VERSION` in `scripts/generate_project.py`; regenerate the project. Set matching `versionName` and an increased `versionCode` in `android/app/build.gradle`.
-2. Write `docs/releases/vX.X.X.md`, run `bash scripts/check.sh`, Android unit tests/lint, and `python3 -m unittest discover -s distribution/tests -v`. Open and merge the PR into `main`.
-3. For automatic publication after merge, add the `publish-release` label to the PR before merging. Otherwise, in Actions → **iPhone and Android release** → **Run workflow**, select `main` and enable **Publish a new version**. Publication from other branches is rejected before build jobs start. Both platforms are always built for publication.
-4. Leave **Run expensive iPhone simulator tests** off unless UI validation is needed. Run those tests locally when possible; if no compatible local Xcode is available, enable them for UI changes. Diagnostic runs can select just `ios` or `android` to avoid an unrelated build. Adding the `validate-ios-ui` label to a same-repository PR requests one iPhone build with simulator tests; it does not build Android or publish. Remove and re-add that label only if the PR changes and needs another check.
-5. A short Linux preflight checks matching versions, release notes, and already-published versions, and runs distribution tests. macOS runs Swift tests and builds the IPA; Linux runs Android tests/lint and builds the APK. Publication creates the `vX.X.X` tag and a release titled exactly `vX.X.X` at the validated commit. No second build runs for the tag.
+See [local setup, validation, and release commands](docs/LOCAL_FIRST.md). Run `source scripts/local_env.sh` to use the existing Android/GitHub tools and `bash scripts/local_doctor.sh` to check prerequisites. This Mac now has macOS 27.0 and Xcode 27.0; see the local guide for validation results and the Desktop file-provider workaround.
 
-Published versions are immutable: bump the version for further changes. A failed run may be retried using **Re-run failed jobs** to retain successful build outputs. Diagnostic runs leave **Publish a new version** disabled and never publish. An explicitly labeled release PR publishes only on its successful merge into main, using the merge commit. Swift and Gradle caches reduce repeated work; ZIP/APK/IPA uploads avoid redundant compression. Artifacts expire after seven days; release assets remain. Publication runs are serialized per branch instead of cancelling a release halfway through asset upload.
+The **Hosted fallback build and release** workflow is manual-only and requires explicit acknowledgement of hosted usage. Use it only when authorized; select one platform for diagnostics and avoid repeating successful jobs. Published versions remain immutable. The existing Pi source discovers published releases normally.
 
 ## Build it yourself (optional)
 
-The checked-in `Nultra.xcodeproj` has no third-party app dependencies. CI uses **Xcode 26.2 on macOS 15**, matching your iOS version. Xcode 26.2 requires macOS 15.6 or later; this Mac is on 13.0.1, so Xcode 26.2 was not installed locally. The hosted build avoids an OS upgrade for this installation route. [Apple toolchain requirements](https://developer.apple.com/xcode/system-requirements)
+The checked-in `Nultra.xcodeproj` has no third-party app dependencies. The local Mac now uses **Xcode 27.0 on macOS 27.0** with an iOS 27.0 simulator. Hosted fallback remains pinned to **Xcode 26.2 on macOS 15**. See [local setup and validation](docs/LOCAL_FIRST.md) for current results and limitations.
 
 On a compatible Mac with Xcode:
 

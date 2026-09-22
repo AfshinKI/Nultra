@@ -4,21 +4,21 @@ import Foundation
 
 struct TurnAllOffIntent: AppIntent {
     static let title: LocalizedStringResource = "Turn All Off"
-    static let description = IntentDescription("Turn off saved switches in the background using Bluetooth or your enabled backup server.")
+    static let description = IntentDescription("Accept an off request immediately, then try Bluetooth and your enabled backup server in the background. Completion is not confirmed.")
     static var openAppWhenRun: Bool = false
-    @MainActor func perform() async throws -> some IntentResult & ProvidesDialog {
-        let message = try await BluetoothStore.shared.runShortcut(power: false)
-        return .result(dialog: IntentDialog(stringLiteral: message))
+    @MainActor func perform() async throws -> some IntentResult {
+        try BluetoothStore.shared.acceptShortcut(power: false)
+        return .result()
     }
 }
 
 struct TurnAllOnIntent: AppIntent {
     static let title: LocalizedStringResource = "Turn All On"
-    static let description = IntentDescription("Turn on saved switches in the background using Bluetooth or your enabled backup server.")
+    static let description = IntentDescription("Accept an on request immediately, then try Bluetooth and your enabled backup server in the background. Completion is not confirmed.")
     static var openAppWhenRun: Bool = false
-    @MainActor func perform() async throws -> some IntentResult & ProvidesDialog {
-        let message = try await BluetoothStore.shared.runShortcut(power: true)
-        return .result(dialog: IntentDialog(stringLiteral: message))
+    @MainActor func perform() async throws -> some IntentResult {
+        try BluetoothStore.shared.acceptShortcut(power: true)
+        return .result()
     }
 }
 
@@ -45,14 +45,14 @@ struct NultraSwitchQuery: EntityQuery {
 
 struct SetSwitchPowerIntent: AppIntent {
     static let title: LocalizedStringResource = "Set Switch Power"
-    static let description = IntentDescription("Change one saved switch in the background, then immediately disconnect.")
+    static let description = IntentDescription("Accept a saved switch request immediately, then try Bluetooth and your enabled backup server. Completion is not confirmed.")
     static var openAppWhenRun: Bool = false
     @Parameter(title: "Switch") var target: NultraSwitchEntity
     @Parameter(title: "On", default: false) var on: Bool
     static var parameterSummary: some ParameterSummary { Summary("Set \(\.$target) power to \(\.$on)") }
-    @MainActor func perform() async throws -> some IntentResult & ProvidesDialog {
-        let message = try await BluetoothStore.shared.runShortcut(power: on, ids: [target.id])
-        return .result(dialog: IntentDialog(stringLiteral: message))
+    @MainActor func perform() async throws -> some IntentResult {
+        try BluetoothStore.shared.acceptShortcut(power: on, ids: [target.id])
+        return .result()
     }
 }
 

@@ -14,6 +14,13 @@ xcrun lipo "$binary" -verify_arch arm64
 
 The Android package script produced a signed installation package. Signing setup and distribution artifacts were omitted during the archive import.
 
+The script also wrote the Git revision and Java runtime version to the build record using the following commands.
+
+```sh
+echo "Source commit: $(git rev-parse HEAD)"
+java -version 2>&1
+```
+
 ## iOS installation host compatibility
 
 The original feasibility notes proposed checking Linux ARM userspace and binary compatibility before moving an installation service. They called for an owner-approved USB pairing trial and keeping the working installation available during testing. They recorded no successful migration. The archive omits local host configuration and deployment details.

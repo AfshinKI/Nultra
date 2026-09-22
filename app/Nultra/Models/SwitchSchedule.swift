@@ -9,7 +9,9 @@ struct SwitchRequest {
 
 /// Slots remain occupied until the transport acknowledges disconnection.
 struct SwitchSchedule {
+    static let defaultLimit = 6
     let limit: Int
+    init(limit: Int = Self.defaultLimit) { self.limit = max(1, limit) }
     private(set) var pending: [SwitchRequest] = []
     private(set) var active = Set<UUID>()
     var hasWork: Bool { !active.isEmpty || !pending.isEmpty }

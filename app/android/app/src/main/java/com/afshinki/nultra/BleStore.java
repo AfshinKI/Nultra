@@ -23,7 +23,7 @@ final class BleStore {
     return instance;
   }
 
-  static final int CONNECTION_LIMIT = 3;
+  static final int CONNECTION_LIMIT = 6;
   final List<Scenes.Scene> demoScenes = new ArrayList<>();
   List<Scenes.Scene> scenes() { return demo ? new ArrayList<>(demoScenes) : Scenes.load(context); }
   void saveScene(Scenes.Scene value) {
@@ -52,7 +52,7 @@ final class BleStore {
   String connectionSummary() { return (sessions.size() + remote.size()) + " active · " + queue.size() + " queued · limit " + CONNECTION_LIMIT; }
   final ServerSettings server;
   final BatteryNotifications batteryAlerts;
-  final ExecutorService network = Executors.newFixedThreadPool(3);
+  final ExecutorService network = Executors.newFixedThreadPool(CONNECTION_LIMIT);
   final Map<String, Remote> remote = new LinkedHashMap<>();
   List<ServerClient.Row> serverRows = new ArrayList<>();
   long serverSeen = -1;

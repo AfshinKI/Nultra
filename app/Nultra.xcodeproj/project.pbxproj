@@ -95,6 +95,16 @@
 			"isa" = "PBXBuildFile";
 			"fileRef" = "4AAC17EEDD636CA472149FE3";
 		};
+		"438540F01655EC18A2A35E98" = {
+			"isa" = "PBXFileReference";
+			"lastKnownFileType" = "sourcecode.swift";
+			"path" = "Nultra/Models/SilentCommandRunner.swift";
+			"sourceTree" = "SOURCE_ROOT";
+		};
+		"05DC4004C72982CDC780BABB" = {
+			"isa" = "PBXBuildFile";
+			"fileRef" = "438540F01655EC18A2A35E98";
+		};
 		"B075F4895DE23D62E175FD50" = {
 			"isa" = "PBXFileReference";
 			"lastKnownFileType" = "sourcecode.swift";
@@ -266,6 +276,7 @@
 				"96EF42F768900305A77234E0",
 				"E93A5413344B48BF782B308C",
 				"79465FFBF0EE75ACAAF49053",
+				"05DC4004C72982CDC780BABB",
 				"5F1580B1825E381B5CF6346F",
 				"28A062B5F962D316BFEA2B30",
 				"ABADEF303512A8BB00542B3C",
@@ -319,6 +330,7 @@
 				"D561D4786386298650D272C6",
 				"16E8ACC9C31F6DB7D2957A7E",
 				"4AAC17EEDD636CA472149FE3",
+				"438540F01655EC18A2A35E98",
 				"B075F4895DE23D62E175FD50",
 				"B1674B572AA41F8719E66D04",
 				"B12C3DDCC53C2EEDD8D60638",
@@ -367,8 +379,8 @@
 				"TARGETED_DEVICE_FAMILY" = "1";
 				"CODE_SIGN_STYLE" = "Automatic";
 				"CODE_SIGN_ENTITLEMENTS" = "Nultra/Nultra.entitlements";
-				"CURRENT_PROJECT_VERSION" = "10";
-				"MARKETING_VERSION" = "0.10.0";
+				"CURRENT_PROJECT_VERSION" = "11";
+				"MARKETING_VERSION" = "0.11.0";
 				"SUPPORTED_PLATFORMS" = "iphoneos iphonesimulator";
 				"SUPPORTS_MACCATALYST" = "NO";
 				"LD_RUNPATH_SEARCH_PATHS" = (
@@ -404,8 +416,8 @@
 				"TARGETED_DEVICE_FAMILY" = "1";
 				"CODE_SIGN_STYLE" = "Automatic";
 				"CODE_SIGN_ENTITLEMENTS" = "Nultra/Nultra.entitlements";
-				"CURRENT_PROJECT_VERSION" = "10";
-				"MARKETING_VERSION" = "0.10.0";
+				"CURRENT_PROJECT_VERSION" = "11";
+				"MARKETING_VERSION" = "0.11.0";
 				"SUPPORTED_PLATFORMS" = "iphoneos iphonesimulator";
 				"SUPPORTS_MACCATALYST" = "NO";
 				"LD_RUNPATH_SEARCH_PATHS" = (
@@ -594,8 +606,8 @@
 				"INFOPLIST_FILE" = "NultraWidgets/Info.plist";
 				"CODE_SIGN_ENTITLEMENTS" = "NultraWidgets/NultraWidgets.entitlements";
 				"CODE_SIGN_STYLE" = "Automatic";
-				"CURRENT_PROJECT_VERSION" = "10";
-				"MARKETING_VERSION" = "0.10.0";
+				"CURRENT_PROJECT_VERSION" = "11";
+				"MARKETING_VERSION" = "0.11.0";
 				"TARGETED_DEVICE_FAMILY" = "1";
 				"IPHONEOS_DEPLOYMENT_TARGET" = "17.0";
 				"APPLICATION_EXTENSION_API_ONLY" = "YES";
@@ -620,8 +632,8 @@
 				"INFOPLIST_FILE" = "NultraWidgets/Info.plist";
 				"CODE_SIGN_ENTITLEMENTS" = "NultraWidgets/NultraWidgets.entitlements";
 				"CODE_SIGN_STYLE" = "Automatic";
-				"CURRENT_PROJECT_VERSION" = "10";
-				"MARKETING_VERSION" = "0.10.0";
+				"CURRENT_PROJECT_VERSION" = "11";
+				"MARKETING_VERSION" = "0.11.0";
 				"TARGETED_DEVICE_FAMILY" = "1";
 				"IPHONEOS_DEPLOYMENT_TARGET" = "17.0";
 				"APPLICATION_EXTENSION_API_ONLY" = "YES";

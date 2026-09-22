@@ -460,7 +460,7 @@ public final class MainActivity extends Activity implements BleStore.Listener {
     v.addView(text("Discovery", 20, INK));
     TextView connections = text(store.connectionSummary(), 14, MUTED);
     v.addView(connections);
-    v.addView(text("Limit bounds short transactions; it is not a reported hardware maximum.", 14, MUTED));
+    v.addView(text("Up to six short transactions at once. Active includes Bluetooth and backup-server work. The phone does not report a hardware maximum.", 14, MUTED));
     v.addView(
         text(
             "Blue means recently seen by Bluetooth or the enabled server; gray means offline. Real"
