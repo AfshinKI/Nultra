@@ -9,7 +9,7 @@
 - `MasterPasswordStore`: validated eight-byte password in this-device-only Keychain storage, with default fallback only when no item exists.
 - `SwitchDevice`: observed state, broadcast/read timestamps, identity lookup status.
 - `KnownSwitch`: Codable real name and firmware keyed by peripheral UUID; persisted in UserDefaults. State/battery are not restored as fresh observations.
-- `BluetoothStore`: main-queue CoreBluetooth adapter, up to three independent sessions, user-prioritized queue, eight-second total deadline, automatic first identification. Uses a per-transaction snapshot of the master credential from Keychain, with the supplied bundled default when no override exists.
+- `BluetoothStore`: main-queue CoreBluetooth adapter, up to six independent sessions, user-prioritized queue, eight-second total deadline, automatic first identification. Uses a per-transaction snapshot of the master credential from Keychain, with the supplied bundled default when no override exists.
 - Views: compact two-column dashboard with direct power controls and separate name/details action. Details and rename editing never connect.
 
 ## Transaction lifecycle
