@@ -6,7 +6,7 @@ import UIKit
 import WidgetKit
 #endif
 
-/// Main-queue adapter: at most three independent short transactions, no idle connections.
+/// Main-queue adapter: at most six independent short transactions, no idle connections.
 final class BluetoothStore: NSObject, ObservableObject {
     @MainActor static let shared = BluetoothStore()
     private var liveDevices: [SwitchDevice] = []
@@ -55,6 +55,10 @@ final class BluetoothStore: NSObject, ObservableObject {
     private var remoteTasks: [UUID: Task<Void, Never>] = [:]
     private var remoteQueued = Set<UUID>()
     private var shortcutExpired = false
+    private let acceptedShortcuts = SilentCommandRunner()
+    #if os(iOS)
+    private var shortcutBackground: UIBackgroundTaskIdentifier = .invalid
+    #endif
     private var canOperate: Bool { !suspended || shortcutRunning }
 
     func saveServer(_ value: ServerConfiguration) {
@@ -206,7 +210,7 @@ final class BluetoothStore: NSObject, ObservableObject {
     private var central: CBCentralManager?
     private var peripherals: [UUID: CBPeripheral] = [:]
     private var sessions: [UUID: Session] = [:]
-    private var schedule = SwitchSchedule(limit: 3)
+    private var schedule = SwitchSchedule()
     private var bulk: BulkProgress?
     private var attemptedIdentification = Set<UUID>()
     private var suspended = true
@@ -309,24 +313,55 @@ final class BluetoothStore: NSObject, ObservableObject {
         for id in targets { schedule.enqueue(SwitchRequest(id: id, operation: .power(value), batch: true)) }
         syncWork(); pump()
     }
-    /// Runs in the intent's background execution window; never opens the scene or starts discovery.
-    @MainActor func runShortcut(power: Bool, ids: [UUID]? = nil) async throws -> String {
+    /// Reserve the operation and background allowance before acknowledging Shortcuts.
+    @MainActor private func reserveShortcut(ids: [UUID]?) throws -> [UUID] {
         guard !demo else { throw SwitchAction.Failure.demo }
         guard !hasWork else { throw SwitchAction.Failure.busy }
         let targets = try SwitchAction.targets(requested: ids, known: catalog.load())
-        shortcutRunning = true; shortcutExpired = false
         #if os(iOS)
-        let background = UIApplication.shared.beginBackgroundTask(withName: "Nultra shortcut") { [weak self] in
-            self?.shortcutExpired = true; self?.cancelOperations()
+        shortcutBackground = UIApplication.shared.beginBackgroundTask(withName: "Nultra shortcut") { [weak self] in
+            self?.shortcutExpired = true
+            self?.acceptedShortcuts.cancel()
+            self?.cancelOperations()
+        }
+        guard shortcutBackground != .invalid else { throw SwitchAction.Failure.interrupted }
+        #endif
+        shortcutRunning = true; shortcutExpired = false
+        return targets
+    }
+
+    @MainActor private func finishShortcut() {
+        shortcutRunning = false
+        if suspended { stopScan() }
+        #if os(iOS)
+        if shortcutBackground != .invalid {
+            UIApplication.shared.endBackgroundTask(shortcutBackground)
+            shortcutBackground = .invalid
         }
         #endif
-        defer {
-            shortcutRunning = false
-            if suspended { stopScan() }
-            #if os(iOS)
-            if background != .invalid { UIApplication.shared.endBackgroundTask(background) }
-            #endif
+    }
+
+    /// Returns on acceptance. The retained worker continues independently of the intent.
+    @MainActor func acceptShortcut(power: Bool, ids: [UUID]? = nil) throws {
+        let targets = try reserveShortcut(ids: ids)
+        do {
+            try acceptedShortcuts.submit(operation: { [self] in
+                _ = try await performShortcut(power: power, targets: targets)
+            }, completion: { [self] in finishShortcut() })
+        } catch {
+            finishShortcut()
+            throw error
         }
+    }
+
+    /// Widgets still await the real Bluetooth-confirmed/server-queued result.
+    @MainActor func runShortcut(power: Bool, ids: [UUID]? = nil) async throws -> String {
+        let targets = try reserveShortcut(ids: ids)
+        defer { finishShortcut() }
+        return try await performShortcut(power: power, targets: targets)
+    }
+
+    @MainActor private func performShortcut(power: Bool, targets: [UUID]) async throws -> String {
         do {
             if central == nil { central = CBCentralManager(delegate: self, queue: .main) }
             let radioDeadline = Date().addingTimeInterval(3)

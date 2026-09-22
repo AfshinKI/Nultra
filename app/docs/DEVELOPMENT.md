@@ -4,6 +4,7 @@
 
 The project targets iPhone on iOS 16+. Use a complete Xcode installation whose device support covers the owner's iOS version. Apple’s [Xcode system requirements](https://developer.apple.com/xcode/system-requirements) are the authoritative compatibility table. Install Xcode through the Mac App Store or [Apple Developer downloads](https://developer.apple.com/download/all/); older versions may require Apple Account sign-in.
 
+The development Mac now has macOS 27.0 and full Xcode 27.0, selected at `/Applications/Xcode.app/Contents/Developer`. The iPhoneOS 27 SDK and iOS 27 simulator runtime are installed. The hosted fallback remains on Xcode 26.2. See [LOCAL_FIRST.md](LOCAL_FIRST.md) for the readiness results, Desktop file-provider issue, and local validation commands. Apple sign-in and GitHub CLI authentication are separate.
 
 No Homebrew packages, npm dependencies, or third-party BLE SDKs are required. The checked-in Xcode project opens directly. Regenerate only after changing the source layout:
 
@@ -28,7 +29,7 @@ bash scripts/check.sh
 
 The CLI check exhaustively validates all possible state and battery bytes, all valid advertisement state/battery combinations, and malformed credentials/names/advertisements. It also type-checks the shared SwiftUI/CoreBluetooth code against macOS, not iOS. XCTest adds named regression cases, including repeated broadcast updates, GATT precedence, and terminal disconnection for every transaction, timeout, cancellation, and error. The reference checkout must track the `fancy` branch; see `FANCY_REFERENCE.md`. GitHub Actions runs only on explicit manual requests; simulator UI tests are opt-in. Simulator signing gives Keychain a consistent application identity across relaunch; no Apple account or developer certificate is needed.
 
-Local `swift test` initially fails because the incomplete Command Line Tools setup lacks the Xcode platform path. This is a toolchain limitation, not a passing test result. Use the dependency-free check script locally until Xcode is available.
+Use `swift test --scratch-path /private/tmp/nultra-swift-build` on this Mac. The Desktop file provider attached Finder metadata to default build products, causing a signing failure; the temporary scratch directory avoids this. Full Xcode is now installed.
 
 ## Alternative: install directly with Xcode
 
@@ -53,14 +54,9 @@ Local `swift test` initially fails because the incomplete Command Line Tools set
 `bash scripts/build_ipa.sh` compiles a Release `iphoneos` binary without signing, checks arm64/platform metadata, packages `Payload/Nultra.app` into `dist/Nultra.ipa`, and produces a SHA-256 checksum plus source/build information. `python3 scripts/verify_ipa.py path/to/Nultra.ipa` independently validates the ZIP layout, iPhone metadata, Bluetooth purpose string, and Mach-O platform. No Apple credentials, signing certificates, profiles, or public distribution are involved in CI. Artifacts stay in the private app repository.
 
 
-## Cost-conscious versioned releases
+## Local-first releases and Android builds
 
-Hosted builds require manual dispatch or an explicit PR label. Merge a reviewed PR into `main`, then dispatch the release workflow on `main` with publication enabled. Preflight rejects non-main publication, mismatched versions, missing notes, and already-published versions before allocating macOS/Android runners. Releases are titled exactly `vX.X.X`. Alternatively, label a PR `publish-release` before merging to publish the merged main commit. Label `validate-ios-ui` requests an iPhone-only diagnostic run with simulator tests before merge; ordinary PR activity allocates no runner.
-
-Diagnostic runs can build only iOS or Android. Simulator tests are opt-in because they dominated runner usage (about eight minutes in the v0.7.0 run); enable them for UI changes when local Xcode validation is unavailable. Distribution tests run on Linux, Swift/Gradle outputs are cached, and compressed artifacts are uploaded without recompression. All actual releases build and validate both packages. See README for the full process.
-
-## Android builds
-
-The native Android app lives in `android/`. See [Android instructions](ANDROID.md) for Java/SDK setup, signed APK validation, emulator smoke tests, and stable signing-key management. Releases now wait for both iPhone and Android validation, then publish both packages. iPhone simulator tests run only when explicitly requested. Android signing secrets are never stored in source or release assets.
-
-A PR labeled `validate-ios-scenes` runs only the scene UI acceptance test plus model/distribution checks, skipping the device IPA build. Use it for an isolated scene-test retry after the complete product build and other UI tests have passed. `validate-ios-ui` remains the full simulator suite; `publish-release` still builds both install packages from main after merge.
+The current policy and exact commands are in [LOCAL_FIRST.md](LOCAL_FIRST.md).
+Build/test locally and upload release assets with GitHub CLI. PR labels and merges
+no longer allocate runners. The hosted workflow is a manual, cost-acknowledged
+fallback only. See [ANDROID.md](ANDROID.md) for Android signing and hardware checks.

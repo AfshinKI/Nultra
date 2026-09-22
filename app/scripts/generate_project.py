@@ -50,7 +50,7 @@ for name in ["Debug", "Release"]:
         "PRODUCT_BUNDLE_IDENTIFIER": "com.afshinki.nultra", "PRODUCT_NAME": "$(TARGET_NAME)",
         "GENERATE_INFOPLIST_FILE": "NO", "INFOPLIST_FILE": "Nultra/Info.plist",
         "ASSETCATALOG_COMPILER_APPICON_NAME": "AppIcon", "TARGETED_DEVICE_FAMILY": "1",
-        "CODE_SIGN_STYLE": "Automatic", "CODE_SIGN_ENTITLEMENTS": "Nultra/Nultra.entitlements", "CURRENT_PROJECT_VERSION": "10", "MARKETING_VERSION": "0.10.0",
+        "CODE_SIGN_STYLE": "Automatic", "CODE_SIGN_ENTITLEMENTS": "Nultra/Nultra.entitlements", "CURRENT_PROJECT_VERSION": "11", "MARKETING_VERSION": "0.11.0",
         "SUPPORTED_PLATFORMS": "iphoneos iphonesimulator", "SUPPORTS_MACCATALYST": "NO",
         "LD_RUNPATH_SEARCH_PATHS": ["$(inherited)", "@executable_path/Frameworks"],
     }))
@@ -92,7 +92,7 @@ for name in ["Debug", "Release"]:
         "PRODUCT_BUNDLE_IDENTIFIER": "com.afshinki.nultra.widgets", "PRODUCT_NAME": "$(TARGET_NAME)",
         "GENERATE_INFOPLIST_FILE": "NO", "INFOPLIST_FILE": "NultraWidgets/Info.plist",
         "CODE_SIGN_ENTITLEMENTS": "NultraWidgets/NultraWidgets.entitlements", "CODE_SIGN_STYLE": "Automatic",
-        "CURRENT_PROJECT_VERSION": "10", "MARKETING_VERSION": "0.10.0", "TARGETED_DEVICE_FAMILY": "1",
+        "CURRENT_PROJECT_VERSION": "11", "MARKETING_VERSION": "0.11.0", "TARGETED_DEVICE_FAMILY": "1",
         "IPHONEOS_DEPLOYMENT_TARGET": "17.0", "APPLICATION_EXTENSION_API_ONLY": "YES", "SKIP_INSTALL": "YES",
         "SWIFT_ACTIVE_COMPILATION_CONDITIONS": "WIDGET_EXTENSION" + (" DEBUG" if name == "Debug" else ""),
         "SUPPORTED_PLATFORMS": "iphoneos iphonesimulator", "SUPPORTS_MACCATALYST": "NO",
