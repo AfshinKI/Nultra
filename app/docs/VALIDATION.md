@@ -1,3 +1,18 @@
+# Validation record — v0.11.0
+
+Local validation on macOS 27.0 / Xcode 27.0:
+
+- 37 Swift unit tests passed, including accepted-work lifetime, early return, overlapping request rejection, late-failure cleanup, expiration cancellation, and six-slot scheduling/disconnection accounting.
+- 1,300 portable protocol checks plus widget/scene checks, macOS type-checking, and plist/project validation passed.
+- 11 distribution/release tests passed.
+- Eight iPhone 13 mini / iOS 27.0 UI tests passed according to the test-suite summary, including read-only active/queued/limit display, demo Shortcut rejection, scene membership, server/password persistence, and dashboard controls. A scene accessibility wrapper assertion was corrected to read the actual switch.
+- 29 Android unit tests, release lint, debug build, and six Android 15/API 35 instrumentation tests passed. The new loopback fixture held six requests active, verified the seventh remained queued, then received all seven explicit Off commands after slots became available. It used fictional switches and did not contact the owner's server or lights.
+
+Shortcuts acknowledge accepted work, not physical completion. A retained bounded task tries Bluetooth then enabled server fallback; late failures are silent. Widgets still await the attempt result. Six is the chosen app transaction limit, not an OS-reported radio maximum.
+
+
+---
+
 # Validation record — v0.8.0
 
 Android adds optional server fallback and home-screen background controls. iPhone behaviour is unchanged; only its version/build changes to 0.8.0 (8).
