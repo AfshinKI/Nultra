@@ -1,0 +1,11 @@
+.build/
+.DS_Store
+DerivedData/
+xcuserdata/
+.gradle/
+local.properties
+**/build/
+*.keystore
+*.jks
+*.p12
+*.mobileprovision

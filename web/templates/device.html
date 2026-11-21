@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block title %}{{ device.display_name }} · Nultra{% endblock %}
+{% block content %}
+<h1>{{ device.display_name }}</h1>
+<p>{{ device.address }} · {{ device.version }}</p><p data-detail="{{ device.address }}">{{ 'On' if device.switch_state else 'Off' }} · Battery {{ device.battery }}% · {{ device.rssi }} dBm</p>
+<nav><button data-command="/toggle/{{ device.address }}/1">On</button><button data-command="/toggle/{{ device.address }}/0">Off</button>
+<button data-command="/retrieve/{{ device.address }}">Read switch</button><a href="">Refresh</a></nav>
+<form data-route="/rename/{{ device.address }}" data-fields="name">
+<label>Switch name <input required maxlength="8" name="name" value="{{ device.display_name.strip() }}"></label><button>Rename</button></form>
+<section><h2>Timer</h2>
+<form data-route="/timer/set/{{ device.address }}" data-fields="duration,action">
+<label>Minutes <input required name="duration" type="number" min="1" max="1440" value="{{ timer.duration }}"></label>
+<label>Action <select name="action">{% for a in ('on','off') %}<option {{ 'selected' if timer.action == a }}>{{ a }}</option>{% endfor %}</select></label><button>Save</button>
+</form><button data-command="/timer/toggle/{{ device.address }}/{{ 0 if timer.enabled else 1 }}">{{ 'Disable' if timer.enabled else 'Enable' }} timer</button></section>
+<section><h2>Schedules</h2>
+{% for entry in schedules + [none] %}
+<form data-route="/schedule/{{ 'update' if entry else 'add' }}/{{ device.address }}{% if entry %}/{{ entry.uuid }}{% endif %}" data-fields="name,time,action,days">
+<label>Name <input name="name" required maxlength="64" value="{{ entry.name if entry else '' }}"></label>
+<label>Time <input name="time" type="time" required value="{{ entry.time if entry else '' }}"></label>
+<label>Action <select name="action">{% for a in ('on','off') %}<option {{ 'selected' if entry and entry.action == a }}>{{ a }}</option>{% endfor %}</select></label>
+<fieldset><legend>Days</legend>{% for day in days %}<label><input type="checkbox" name="days" value="{{ day }}" {{ 'checked' if not entry or day in entry.days }}>{{ day }}</label>{% endfor %}</fieldset>
+<button>{{ 'Save changes' if entry else 'Add schedule' }}</button>
+{% if entry %}<button type="button" data-command="/schedule/toggle/{{ device.address }}/{{ entry.uuid }}/{{ 0 if entry.enabled else 1 }}">{{ 'Disable' if entry.enabled else 'Enable' }}</button>
+<button type="button" data-command="/schedule/remove/{{ device.address }}/{{ entry.uuid }}">Remove</button>{% endif %}</form>
+{% endfor %}</section>{% endblock %}

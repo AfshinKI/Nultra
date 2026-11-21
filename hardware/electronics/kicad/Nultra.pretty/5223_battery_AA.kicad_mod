@@ -1,0 +1,65 @@
+(footprint "5223_battery_AA"
+	(version 20260206)
+	(generator "pcbnew")
+	(generator_version "10.0")
+	(layer "F.Cu")
+	(property "Reference" "REF**"
+		(at -1.469082 1.449199 180)
+		(unlocked yes)
+		(layer "F.SilkS")
+		(hide yes)
+		(uuid "5cd9f12d-5187-42f4-a251-fc19b6f05542")
+		(effects
+			(font
+				(size 0.762 0.762)
+				(thickness 0.1524)
+			)
+		)
+	)
+	(property "Value" "5223_battery_AA"
+		(at 0.244838 6.714181 0)
+		(unlocked yes)
+		(layer "F.SilkS")
+		(hide yes)
+		(uuid "0ce457b6-c21b-4e87-993e-fc52da958f32")
+		(effects
+			(font
+				(size 0.762 0.762)
+				(thickness 0.1524)
+			)
+		)
+	)
+	(property "Datasheet" ""
+		(at 0 0 0)
+		(layer "F.Fab")
+		(hide yes)
+		(uuid "d599a64e-db60-4988-9d58-f69f3dba5641")
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+		)
+	)
+	(property "Description" ""
+		(at 0 0 0)
+		(layer "F.Fab")
+		(hide yes)
+		(uuid "05d6f7b9-7ee7-4091-a56b-ad2551e1f9b0")
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+		)
+	)
+	(duplicate_pad_numbers_are_jumpers no)
+	(pad "" np_thru_hole roundrect
+		(at 0.25115 -0.04787)
+		(size 6 2)
+		(drill oval 3.35 0.65)
+		(layers "*.Cu" "*.Mask")
+		(roundrect_rratio 0.25)
+		(solder_mask_margin 0.0254)
+		(uuid "1de4ab7e-e6f3-44ef-8dc1-c6d6da0c29d1")
+	)
+	(embedded_fonts no)
+)

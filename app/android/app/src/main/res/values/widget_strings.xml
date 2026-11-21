@@ -1,0 +1,7 @@
+<resources>
+    <string name="widget_app">Nultra</string>
+    <string name="widget_off">Off</string>
+    <string name="widget_on">On</string>
+    <string name="widget_off_description">Turn selected switches off</string>
+    <string name="widget_on_description">Turn selected switches on</string>
+</resources>

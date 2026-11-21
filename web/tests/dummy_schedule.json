@@ -1,0 +1,51 @@
+{
+  "version": "1.1.0",
+  "devices": {
+    "02:00:00:00:00:01": {
+      "schedules": [
+        {
+          "uuid": "00000000-0000-4000-8000-000000000001",
+          "name": "fixture-1",
+          "time": "7:00",
+          "days": [
+            "Mon",
+            "Tue",
+            "Wed",
+            "Thu",
+            "Fri",
+            "Sat",
+            "Sun"
+          ],
+          "action": "on",
+          "enabled": true,
+          "done": false
+        },
+        {
+          "uuid": "00000000-0000-4000-8000-000000000002",
+          "name": "fixture-2",
+          "time": "23:00",
+          "days": [
+            "Mon",
+            "Tue",
+            "Wed",
+            "Thu",
+            "Fri",
+            "Sat",
+            "Sun"
+          ],
+          "action": "off",
+          "enabled": true,
+          "done": true
+        }
+      ],
+      "timer": {
+        "enabled": true,
+        "duration": 1,
+        "action": "off",
+        "activated": false,
+        "remaining_duration": null,
+        "due_time": null
+      }
+    }
+  }
+}

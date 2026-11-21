@@ -1,0 +1,46 @@
+name: Software checks
+
+on: [push, pull_request, workflow_dispatch]
+
+permissions:
+  contents: read
+
+jobs:
+  ios:
+    runs-on: macos-15
+    timeout-minutes: 25
+    defaults:
+      run:
+        working-directory: app
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - run: swift test
+      - name: Build iPhone app and widget for the simulator
+        run: xcodebuild -quiet -project Nultra.xcodeproj -scheme Nultra -configuration Debug -destination 'generic/platform=iOS Simulator' CODE_SIGNING_ALLOWED=NO build
+
+  android:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Run unit tests and build the debug app
+        working-directory: app/android
+        run: JAVA_HOME="$JAVA_HOME_17_X64" ./gradlew --no-daemon testDebugUnitTest assembleDebug
+
+  gateway:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - run: python3 -m venv "$RUNNER_TEMP/gateway"
+      - run: '"$RUNNER_TEMP/gateway/bin/python" -m pip install -r requirements.txt'
+      - run: '"$RUNNER_TEMP/gateway/bin/python" -m unittest discover -s tests'

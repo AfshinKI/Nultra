@@ -1,0 +1,14 @@
+/BLE_Peripheral_Lite/Core/Inc/device_credentials.h
+/BLE_Peripheral_Lite/Drivers/
+/BLE_Peripheral_Lite/Middlewares/
+/BLE_Peripheral_Lite/Projects/
+/BLE_Peripheral_Lite/Utilities/
+/BLE_Peripheral_Lite/STM32CubeIDE/Debug/
+/BLE_Peripheral_Lite/STM32CubeIDE/Release/
+/build/
+*.elf
+*.hex
+*.bin
+*.map
+.metadata/
+__pycache__/

@@ -1,0 +1,18 @@
+Nultra license notice
+
+Copyright (c) 2026 Afshin Kashani Ilkhechi and Nultra contributors.
+
+Original Nultra software and documentation are released under the MIT License
+in LICENSES/MIT.txt. Original hardware design files under hardware/, the CAD
+mesh in docs/assets/switch.json and the assembly renders in docs/assets/assembly/
+are released under CERN-OHL-P-2.0. The complete hardware license is in
+LICENSES/CERN-OHL-P-2.0.txt. Source location: https://github.com/AfshinKI/Nultra
+
+Third-party material retains its own license. In particular, STMicroelectronics
+application sources in firmware/BLE_Peripheral_Lite/ retain the vendor terms
+identified in firmware/README.md and the accompanying license notices. The
+vendor SDK fetched at build time has its own component-specific terms.
+DM Sans is distributed under the SIL Open Font License in
+docs/assets/dm-sans-LICENSE.txt. Other notices included with files also apply.
+
+These licenses include warranty disclaimers and limitations of liability.

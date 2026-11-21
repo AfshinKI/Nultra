@@ -1,0 +1,4 @@
+(fp_lib_table
+  (version 7)
+  (lib (name "Nultra")(type "KiCad")(uri "${KIPRJMOD}/Nultra.pretty")(options "")(descr "Land patterns used on the Nultra board"))
+)
