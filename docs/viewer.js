@@ -207,9 +207,13 @@
     const concurrency = limited ? 1 : 2;
     const low = sheetOf(Math.floor(frame)), high = sheetOf(Math.ceil(frame));
     const candidates = [low, high];
+    const ahead = direction > 0 ? high : low;
     if (!limited && (frame > 0 || target > hardwareStart)) {
-      const ahead = direction > 0 ? high : low;
       candidates.push(ahead + direction, ahead + 2 * direction);
+    } else if (saveData && !motion.matches && !pendingSeek && position !== target) {
+      // One in flight. Fetch an adjacent sheet only if the scroll target already requires it.
+      const destination = sheetOf(Math.round(frameAt(target)));
+      if ((destination - ahead) * direction > 0) candidates.push(ahead + direction);
     }
     wantedSheets = [...new Set(candidates)].slice(0, limited ? 2 : 3);
     for (const index of wantedSheets) {
