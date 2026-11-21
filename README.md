@@ -31,6 +31,10 @@ The battery illustration shows more than a year of use on one AA. Its curve is i
 
 To preview the site locally, run `python -m http.server --bind 127.0.0.1 --directory docs 8000` from the repository root.
 
+## Firmware history
+
+Firmware development began in March 2025. The public archive preserves the original commit dates and merges. Device credentials and compiled firmware images were omitted from those revisions. [Browse the 2025 firmware commits](https://github.com/AfshinKI/Nultra/commits/d4c3cc2b9a1dbfadcdf72ec14c10238a79e72ddd/)
+
 ## Licenses
 
 The original Nultra hardware uses CERN-OHL-P-2.0. Original software and documentation use MIT. The ST-derived firmware files retain ST’s SLA0044 terms, including its ST-hardware restriction. The license notice identifies those files and other third-party materials. [License scope and notices](LICENSE)
