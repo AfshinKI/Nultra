@@ -6,4 +6,5 @@ gradlew text eol=lf
 *.webp binary
 *.ttf binary
 *.woff2 binary
+docs/assets/room/switch.bin binary
 *.pdf binary

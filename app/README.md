@@ -1,6 +1,6 @@
 # Mobile controllers
 
-The iPhone and Android apps discover Nultra switches over Bluetooth LE. Each app can control individual switches, group lights into scenes, show battery readings, and run commands from home-screen widgets. A backup gateway is optional.
+The iPhone and Android apps discover Nultra switches over Bluetooth LE. Each app can control individual switches, group lights into scenes, show battery readings, and run commands from home-screen widgets.
 
 ## First connection
 
@@ -26,9 +26,5 @@ cd android
 ```
 
 The debug APK is written to `app/build/outputs/apk/debug/`. The release signing configuration accepts a developer-owned keystore through environment variables. Keep distribution keys outside the checkout.
-
-## Backup gateway
-
-In **Menu → Backup server**, enter the gateway’s HTTPS URL and token, then check the connection. HTTP is available through a loopback SSH tunnel. The app saves each gateway token against its URL. A gateway response acknowledges the queued command, and an on-device readback confirms a direct Bluetooth command. [Gateway setup](../web/README.md)
 
 The Gradle wrapper scripts and JAR are distributed under the [Apache License 2.0](android/gradle/wrapper/LICENSE).

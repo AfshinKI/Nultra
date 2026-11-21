@@ -3,13 +3,13 @@
 Requires Python 3.12, mitsuba==3.9.1, numpy and Pillow. Example:
     python tools/render_product.py /path/to/Nultra.obj --battery /path/to/placed-cell.npz
 
-The source OBJ is an offline input. GitHub Pages serves the finished renders.
+The source OBJ is an offline input. GitHub Pages serves transparent stills and
+233 poses packed into four-frame WebP sheets. The single last pose has one tile.
 Use --variant llvm_ad_rgb on a CPU with LLVM, or cuda_ad_rgb with NVIDIA OptiX.
 """
 import argparse
 import json
 import math
-import shutil
 from collections import defaultdict
 from pathlib import Path
 
@@ -19,7 +19,9 @@ import numpy as np
 from PIL import Image, ImageFilter
 
 ASSETS = Path(__file__).resolve().parents[1] / "docs" / "assets"
-FRAME_COUNT = 73
+FRAME_COUNT = 233
+TILES_PER_SHEET = 4
+LEGACY_LAST_POSTER = 72
 TRAVEL = {"faceplate": 107, "wordmark": 107, "battery": 62, "carrier": 16, "pcb": -29, "shell": -85}
 
 
@@ -52,15 +54,25 @@ def read_board(obj):
                 finish = "traces" if material == "copper" and (group == "Nets" or name == "PolyRegion") else material
                 if group == "Components" and name == "*" and material == "copper":
                     finish = "antenna"
+                part = "pcb"
+                if group in {"J6", "J7"} and name.startswith("ComponentBody"):
+                    # Each terminal's source mesh contains two disconnected solids.
+                    # Its mounted body ends at X=16.802 mm; its backed-out screw starts
+                    # at X=23.704 mm. Classify within the measured 6.902 mm air gap.
+                    xs = [vertices[v][0] * 10 for v in indices]
+                    if min(xs) > 20:
+                        part = "loose_screws"
+                    elif max(xs) > 20:
+                        raise ValueError(f"{group} crosses the original terminal/screw gap; inspect the updated CAD")
                 for i in range(1, len(indices)-1):
-                    faces[finish].append((indices[0], indices[i], indices[i+1]))
+                    faces[part, finish].append((indices[0], indices[i], indices[i+1]))
     # This Altium OBJ uses cm. Align the PCB top with the existing enclosure's PCB datum.
     xyz = np.asarray(vertices, dtype=np.float32) * 10
     xyz[:, 2] += .87
     meshes = []
-    for material, triangles in faces.items():
+    for (part, material), triangles in faces.items():
         ids, remap = np.unique(np.asarray(triangles, dtype=np.uint32).ravel(), return_inverse=True)
-        meshes.append(("pcb", material, xyz[ids].copy(), remap.astype(np.uint32)))
+        meshes.append((part, material, xyz[ids].copy(), remap.astype(np.uint32)))
     return meshes, colors
 
 
@@ -73,6 +85,10 @@ def read_housing():
     anchors["mcu"] = np.array([2.68,15.46,1.419])  # U1, upper package face.
     anchors["testpoint"] = np.array([7.74,21.81,2.00])  # J3, packaged test point.
     anchors["antenna"] = np.array([-4.005,26.611,.784])  # Interior of the IFA_CC2430DB copper arm.
+    # Measured exterior surfaces from the named component meshes in the Altium OBJ.
+    anchors["debug"] = np.array([-10.271,-18.402,.78364])  # J5 pin 5 (SWDIO), below the AA.
+    anchors["dcdc"] = np.array([-9.89,13.85,-2.32368])  # U4 TPS613221A, rear package face.
+    anchors["relay"] = np.array([-1.144,-12.065,-6.29268])  # R5 AGQ21TA2H, rear molded lid.
     return meshes, anchors
 
 
@@ -173,7 +189,8 @@ def assembly_offsets(index):
     back = eased((index-36)/10)
     face_travel = 67*front + (TRAVEL["faceplate"]-67)*eased((index-32)/14)
     return {"faceplate":face_travel, "wordmark":face_travel, "battery":TRAVEL["battery"]*cell,
-            "carrier":TRAVEL["carrier"]*back, "pcb":TRAVEL["pcb"]*back, "shell":TRAVEL["shell"]*back}
+            "carrier":TRAVEL["carrier"]*back, "pcb":TRAVEL["pcb"]*back,
+            "loose_screws":TRAVEL["pcb"]*back, "shell":TRAVEL["shell"]*back}
 
 
 def shot_layout(meshes, shot, size, index):
@@ -182,10 +199,14 @@ def shot_layout(meshes, shot, size, index):
     orbit = eased(index/18)
     peel = eased((index-18)/12) if shot == "sequence" else 0.
     back = eased((index-36)/10) if shot == "sequence" else 0.
-    inspect = eased((index-46)/26) if shot == "sequence" else 0.
+    inspect = eased((index-46)/20) if shot == "sequence" else 0.
+    front_pan = eased((index-66)/16)
+    turn = eased((index-82)/20)
+    rear_pan = eased((index-102)/14)
     if shot == "sequence":
-        look, right, up = axes(-43+76*orbit+23*peel+2*back-37*inspect,
-                               13+5*orbit-4*peel+2*inspect, -15+7*orbit+6*peel-9*inspect)
+        look, right, up = axes(-43+76*orbit+23*peel+2*back-43*inspect-15*front_pan-156*turn-10*rear_pan,
+                               13+5*orbit-4*peel-7*inspect-2*front_pan+4*turn+2*rear_pan,
+                               -15+7*orbit+6*peel-6*inspect+3*front_pan+12*turn-3*rear_pan)
     elif shot == "hero":
         look, right, up = axes(35, 19, 27)
     else:
@@ -195,7 +216,7 @@ def shot_layout(meshes, shot, size, index):
     offsets = assembly_offsets(index if shot=="sequence" else 0)
     shifts = {part:np.array([0,0,distance],dtype=np.float32) for part,distance in offsets.items()}
     for part,delta in {"faceplate":(-145,0,8),"wordmark":(-145,0,8),"carrier":(-115,0,7),
-                       "shell":(150,0,-16),"battery":(-4,0,TRAVEL["pcb"]-TRAVEL["battery"])}.items():
+                       "shell":(150,0,-16),"battery":(-150,16,12),"loose_screws":(155,0,0)}.items():
         shifts[part] += np.array(delta,dtype=np.float32)*inspect
     for part, _, xyz, _ in displayed:
         layers.append(xyz+np.array([0,0,offsets[part]],dtype=np.float32))
@@ -205,8 +226,18 @@ def shot_layout(meshes, shot, size, index):
     half_w *= 1.15 if shot == "sequence" else 1.08
     center = right*(xs.min()+xs.max())/2 + up*(ys.min()+ys.max())/2 + look*np.mean(xyz @ look)
     if inspect:
-        center = (1-inspect)*center + inspect*np.array([2.,18.,1.+TRAVEL["pcb"]])
-        half_w = (1-inspect)*half_w + inspect*24.
+        # Fit the projected *complete* populated mesh at each camera angle,
+        # including both soldered terminal bodies and the battery contacts.
+        board = np.concatenate([xyz for part, _, xyz, _ in meshes if part == "pcb"]) + shifts["pcb"]
+        bx, by = board @ right, board @ up
+        board_half = max(np.ptp(bx), np.ptp(by)*aspect) * .59
+        board_center = right*(bx.min()+bx.max())/2 + up*(by.min()+by.max())/2 + look*np.mean(board @ look)
+        center = (1-inspect)*center + inspect*board_center
+        half_w = (1-inspect)*half_w + inspect*board_half
+        if inspect == 1:
+            # Once the other pieces have cleared the image, orbit only the circuit
+            # assembly so they cannot reappear behind it on the reverse angle.
+            displayed = [layer for layer in displayed if layer[0] == "pcb"]
     if shot == "detail":
         center = np.array([2, 15, 1.2])
         half_w = 21.0
@@ -224,25 +255,31 @@ def project_anchors(anchors, shifts, right, up, center, half_w, aspect):
     return projected
 
 
-def render(meshes, colors, anchors, target_file, shot, size, samples, index=0):
+def render(meshes, colors, anchors, shot, size, samples, index=0):
     width, height = size
     displayed, shifts, inspect, look, right, up, center, half_w = shot_layout(meshes,shot,size,index)
     scene = {"type":"scene", "integrator":{"type":"path","max_depth":5,"hide_emitters":True}}
     # Fade the Altium solder mask for the inspection camera so the etched antenna is visible.
-    mask = mi.load_dict({"type":"mask","opacity":.87-.64*inspect,"nested":colors["solder_t"]})
+    mask = mi.load_dict({"type":"mask","opacity":.87-.48*inspect,"nested":colors["solder_t"]})
     for i,(part, mat, xyz, tri) in enumerate(displayed):
         scene[f"shape-{i}"] = mesh_object(i,xyz+shifts[part],tri,mask if mat=="solder_t" else colors[mat])
     camera = mi.ScalarTransform4f.look_at(origin=(center+look*450).tolist(), target=center.tolist(), up=up.tolist())
     # Feather the main light across the PCB and give the AA sleeve an edge reflection.
+    sweep = math.sin((index-62)*math.pi/23)
+    def studio_light(position, scale, radiance, travel=0):
+        a,b,c = position
+        local = right*(a+sweep*travel) + up*b + look*c
+        blended = np.array(position)*(1-inspect) + local*inspect
+        return light(center, blended, scale, radiance)
     scene.update({
         "camera":{"type":"orthographic","to_world":camera @ mi.ScalarTransform4f.scale([half_w,half_w,1]),
               "sampler":{"type":"independent","sample_count":samples},
               "film":{"type":"hdrfilm","width":width,"height":height,"pixel_format":"rgba","rfilter":{"type":"tent"}}},
-        "key":light(center,[-87,113,125],[82,58],[3.8,3.50,3.20]),
-        "fill":light(center,[95,-36,122],[64,84],[1.15,1.27,1.31]),
-        "rim":light(center,[44,90,-94],[30,72],[2.45,2.73,2.65]),
-        "edge":light(center,[-112,-53,-71],[22,75],[1.45,1.26,.88]),
-        "strip":light(center,[-105,10,77],[8,80],[2.6,2.75,2.82]),
+        "key":studio_light([-87,113,125],[82,58],[3.8,3.50,3.20],28),
+        "fill":studio_light([95,-36,122],[64,84],[1.15,1.27,1.31]),
+        "rim":studio_light([44,90,-94],[30,72],[2.45,2.73,2.65]),
+        "edge":studio_light([-112,-53,-71],[22,75],[1.45,1.26,.88]),
+        "strip":studio_light([-105,10,77],[8,80],[2.6,2.75,2.82],95),
         "ambient":{"type":"constant","radiance":{"type":"rgb","value":[.13,.145,.14]}}
     })
     scene = mi.load_dict(scene)
@@ -267,17 +304,82 @@ def render(meshes, colors, anchors, target_file, shot, size, samples, index=0):
     rgb = rgb / (1 + .22*rgb)
     rgb = np.where(rgb < .0031308,12.92*rgb,1.055*rgb**(1/2.4)-.055)
     pixels = np.uint8(255*np.clip(np.concatenate([rgb,alpha],axis=2),0,1)+.5)
-    target_file.parent.mkdir(parents=True,exist_ok=True)
     image = Image.fromarray(pixels)
     cleaned = image.convert("RGB").filter(ImageFilter.MedianFilter(3))
     cleaned.putalpha(image.getchannel("A"))
-    cleaned.save(target_file,quality=84 if shot == "sequence" else 91,method=5)
-    if shot != "sequence" and width >= 768:
-        mobile = cleaned.resize((768,round(height*768/width)),Image.Resampling.LANCZOS)
-        mobile.save(target_file.with_name(f"{shot}-768.webp"),quality=85,method=5)
     del scene
     dr.flush_malloc_cache()
-    return project_anchors(anchors,shifts,right,up,center,half_w,width/height)
+    return cleaned, project_anchors(anchors,shifts,right,up,center,half_w,width/height)
+
+
+def render_sequence(meshes, finishes, anchors, size, args):
+    stills = args.dest / "frames"
+    motion = args.dest / "motion"
+    stills.mkdir(parents=True, exist_ok=True)
+    motion.mkdir(parents=True, exist_ok=True)
+    width, height = size
+    sheet_count = math.ceil(FRAME_COUNT / TILES_PER_SHEET)
+    coordinates = {}
+    for index in range(FRAME_COUNT):
+        _, shifts, _, _, right, up, center, half = shot_layout(meshes, "sequence", size, index / 2)
+        coordinates[str(index)] = project_anchors(anchors, shifts, right, up, center, half, width/height)
+    last = FRAME_COUNT - 1
+    poster_indices = {*range(0, 2*LEGACY_LAST_POSTER+1, 2), last}
+    legacy_points = {str(i//2): coordinates[str(i)] for i in sorted(poster_indices)}
+    # Render a front and rear view first so the feature targets can be inspected.
+    priority = (0, 36, sheet_count - 1)
+    order = [*priority, *(s for s in range(sheet_count) if s not in priority)]
+    held_pose = None
+    for sheet in order:
+        start = sheet * TILES_PER_SHEET
+        stop = min(start + TILES_PER_SHEET, FRAME_COUNT)
+        sheet_size = (2 * width, 2 * height) if stop - start > 1 else size
+        dest = motion / f"{sheet:03d}.webp"
+        if args.reuse_opening and stop <= 92 and dest.exists():
+            with Image.open(dest) as old:
+                if old.size != sheet_size:
+                    raise ValueError(f"{dest} must have size {sheet_size} for --reuse-opening")
+            continue
+        atlas = Image.new("RGBA", sheet_size)
+        for index in range(start, stop):
+            legacy = index // 2
+            still = stills / f"{legacy:03d}.webp"
+            reuse = args.reuse_opening and index <= 92 and index % 2 == 0
+            if reuse:
+                with Image.open(still) as source:
+                    tile = source.convert("RGBA")
+                if tile.size != size:
+                    raise ValueError(f"{still} must have size {size} for --reuse-opening")
+            elif 60 < index <= 64 and held_pose is not None:
+                tile = held_pose
+            else:
+                samples = args.spp or (256 if index == 0 else 88)
+                tile, _ = render(meshes, finishes, anchors, "sequence", size, samples, index / 2)
+            if index == 60:
+                held_pose = tile
+            if index in poster_indices and not reuse:
+                tile.save(still, quality=84, method=5)
+            position = ((index % 2) * width, ((index % 4) // 2) * height)
+            atlas.paste(tile, position)
+        atlas.save(dest, quality=84, method=5)
+        print(f"Motion sheet {dest.name}, poses {start}–{stop-1}, {dest.stat().st_size:,} bytes", flush=True)
+    # Publish the complete pose map only after all referenced images have been written.
+    for path, points in ((motion / "anchors.json", coordinates), (args.dest / "anchors.json", legacy_points)):
+        path.write_text(json.dumps(points, separators=(",", ":")) + "\n")
+
+
+def render_selected_stills(meshes, finishes, anchors, size, args):
+    # Individual still indices correspond to every second native motion pose.
+    stills = args.dest / "frames"
+    stills.mkdir(parents=True, exist_ok=True)
+    manifest = args.dest / "anchors.json"
+    points = json.loads(manifest.read_text()) if manifest.exists() else {}
+    for index in args.frames:
+        samples = args.spp or (256 if index == 0 else 88)
+        tile, point = render(meshes, finishes, anchors, "sequence", size, samples, index)
+        tile.save(stills / f"{index:03d}.webp", quality=84, method=5)
+        points[str(index)] = point
+    manifest.write_text(json.dumps(points, separators=(",", ":")) + "\n")
 
 
 def main():
@@ -287,12 +389,15 @@ def main():
     ap.add_argument("--variant", default="cuda_ad_rgb", choices=["cuda_ad_rgb","llvm_ad_rgb","scalar_rgb"])
     ap.add_argument("--dest",type=Path,default=ASSETS/"product")
     ap.add_argument("--shots",nargs="+",choices=["hero","detail","sequence"], default=["hero","detail","sequence"])
-    ap.add_argument("--frames",nargs="+",type=int,default=list(range(FRAME_COUNT)))
+    ap.add_argument("--frames", nargs="+", type=int, choices=range((FRAME_COUNT+1)//2),
+                    help="Render only specific half-rate stills (0–116) without building motion sheets")
+    ap.add_argument("--reuse-opening", action="store_true",
+                    help="Reuse settled whole-frame poses through the explosion when the opening CAD, lights and camera match the previous render")
     ap.add_argument("--spp",type=int,help="Override the default sampling rate")
     ap.add_argument("--scale",type=float,default=1)
     args = ap.parse_args()
-    if args.scale<=0 or args.spp is not None and args.spp<1 or any(f not in range(FRAME_COUNT) for f in args.frames):
-        ap.error(f"Raster scale and samples must be positive; frame indices must be 0–{FRAME_COUNT-1}.")
+    if args.scale<=0 or args.spp is not None and args.spp<1:
+        ap.error("Raster scale and samples must be positive.")
     mi.set_variant(args.variant)
     board, materials = read_board(args.obj)
     housing, anchors = read_housing()
@@ -302,19 +407,18 @@ def main():
     for shot in args.shots:
         w,h = {"hero":(1440,1200),"detail":(1440,960),"sequence":(1056,864)}[shot]
         dim = (round(w*args.scale),round(h*args.scale))
-        coordinates = {}
-        for i in args.frames if shot=="sequence" else [0]:
-            dest = args.dest/"frames"/f"{i:03d}.webp" if shot=="sequence" else args.dest/f"{shot}.webp"
-            if shot=="sequence" and i in (31,32) and "30" in coordinates:
-                # Freeze the shot after removing the front, including its fine reflections.
-                shutil.copyfile(dest.with_name("030.webp"),dest)
-                coordinates[str(i)] = coordinates["30"]
+        if shot == "sequence":
+            if args.frames is None:
+                render_sequence(meshes, finishes, anchors, dim, args)
             else:
-                samples = (256 if i==0 else 88) if shot=="sequence" else 160
-                coordinates[str(i)] = render(meshes,finishes,anchors,dest,shot,dim,args.spp or samples,i)
-            print(f"{dest.name} ({dest.stat().st_size:,} bytes)",flush=True)
-        if shot=="sequence" and len(coordinates)==FRAME_COUNT:
-            (args.dest/"anchors.json").write_text(json.dumps(coordinates,separators=(",",":"))+"\n")
+                render_selected_stills(meshes, finishes, anchors, dim, args)
+        else:
+            args.dest.mkdir(parents=True, exist_ok=True)
+            image, _ = render(meshes, finishes, anchors, shot, dim, args.spp or 160)
+            image.save(args.dest / f"{shot}.webp", quality=91, method=5)
+            if dim[0] >= 768:
+                mobile = image.resize((768, round(dim[1]*768/dim[0])), Image.Resampling.LANCZOS)
+                mobile.save(args.dest / f"{shot}-768.webp", quality=85, method=5)
 
 
 if __name__ == "__main__":

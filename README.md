@@ -1,8 +1,8 @@
 # Nultra
 
-Nultra is a Bluetooth LE wall switch designed for switch boxes without a neutral wire. A battery powers the control electronics and a button on the faceplate operates a latching relay. The iPhone and Android apps control the switch nearby, and an optional Linux gateway adds schedules and timers.
+Nultra is a Bluetooth LE wall switch designed for switch boxes without a neutral wire. One AA cell powers the control electronics. A faceplate button or the nearby iPhone and Android apps can operate the latching relay.
 
-[Explore the switch in an exploded view](https://afshinki.github.io/Nultra/) · [Open the enclosure document in Onshape](https://cad.onshape.com/documents/3cb2e23a19093c4389ce2f07/w/3be343cdcd1e5951d1a37be1)
+[Try the light and explore the switch](https://afshinki.github.io/Nultra/) · [Open the enclosure document in Onshape](https://cad.onshape.com/documents/3cb2e23a19093c4389ce2f07/w/3be343cdcd1e5951d1a37be1)
 
 <img src="docs/assets/product/frames/046.webp" alt="Exploded Nultra switch, from front to back: faceplate, AA cell, carrier, populated circuit board and rear shell" width="460">
 
@@ -14,7 +14,6 @@ Nultra is a Bluetooth LE wall switch designed for switch boxes without a neutral
 | Study the circuit or inspect the original v2 manufacturing outputs | [Electronics, KiCad review findings and archived fabrication files](hardware/README.md#electronics) |
 | Build firmware for the STM32WB05KZ and provision a switch | [Firmware build and pairing](firmware/README.md) |
 | Control a switch from a phone | [iOS and Android setup](app/README.md) |
-| Run a local dashboard, weekly schedule or timer | [Linux Bluetooth gateway](web/README.md) |
 
 Start with the firmware guide when building a new unit. It generates a separate pairing PIN and command password for each switch. Keep the generated header and firmware image private. Owners upgrading older devices should provision fresh credentials, clear old Bluetooth bonds and pair their controllers again.
 
@@ -22,9 +21,13 @@ The KiCad project is an editable conversion with outstanding connectivity findin
 
 ## Project site
 
-Scroll to rotate the assembled switch, lift off the faceplate and separate the AA cell, carrier, board and rear shell. The camera then moves in on the printed antenna, Bluetooth controller and J3 test point. The populated Altium PCB and project AA model are path-traced offline. The browser loads compressed frames as needed. Chapter buttons and a keyboard-accessible slider offer direct control. [Render script](tools/render_product.py) · [AA model preparation](tools/prepare_render_battery.py)
+The 3D demo opens Nultra on the phone and turns on the room lamp. Scrolling takes over the camera and brings the wall switch into view. The room uses baked light for its lamp-on and lamp-off states. Use the chapter buttons or keyboard-accessible slider to jump directly to the teardown. [Room lighting](tools/render_room.py)
 
-The phone demo uses Nultra’s iOS demo screens. Opening the app and tapping DESKLAMP changes the simulated room light locally in the browser.
+The faceplate lifts first. The AA cell moves forward, exposing the SWD debug pads beneath it. Both sides of the PCB stay in frame as the camera identifies the printed antenna, CPU, DC/DC converter and latching relay. The teardown uses the populated Altium PCB and the project's AA model. Its path-traced images load in small groups. [Render script](tools/render_product.py) · [AA model preparation](tools/prepare_render_battery.py)
+
+J5 carries SWDIO and SWCLK. U1 is the STM32WB05KZ Bluetooth MCU. On the opposite side, U4 is the TPS613221A boost converter and R5 is the Panasonic AGQ21TA2H latching relay. [V2 pad connections](hardware/electronics/fabrication/v2/Nultra-v2-pad-connections.csv) · [V2 bill of materials](hardware/electronics/fabrication/v2/Nultra-v2-BOM.csv)
+
+The battery illustration shows more than a year of use on one AA. Its curve is illustrative. The firmware requests a 2 ms pulse to change the latching relay, then disables the drive. The relay holds its position with its coil unpowered. The controller can sleep between radio events. [Relay drive](firmware/BLE_Peripheral_Lite/Core/Src/main.c#L887) · [Controller sleep](firmware/BLE_Peripheral_Lite/Core/Src/app_entry.c#L310)
 
 To run the site locally, start `python -m http.server --bind 127.0.0.1 --directory docs 8000` from the repository root and open [the local preview](http://127.0.0.1:8000/).
 

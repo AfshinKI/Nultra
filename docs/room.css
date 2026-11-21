@@ -1,0 +1,13 @@
+#room-stage { position: absolute; inset: 0; overflow: hidden; }
+#room-canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+.room-poster-canvas { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+#room-stage[data-renderer='webgl'] .room-poster-canvas { display: none; }
+#room-stage::before, #room-stage::after { content: ''; position: absolute; inset: 0; pointer-events: none; background-size: 100% 100%; }
+#room-stage::before { background-image: url('assets/room/open-wide.webp?v=3'); }
+#room-stage[data-fallback='on']::after { background-image: url('assets/room/lit-wide.webp?v=3'); }
+#room-stage[data-renderer='webgl']::before, #room-stage[data-renderer='webgl']::after { display: none; }
+#room-stage[data-poster-ready]::before, #room-stage[data-poster-ready]::after { display: none; }
+@media (max-aspect-ratio: 1/1) {
+  #room-stage::before { background-image: url('assets/room/open-tall.webp?v=3'); }
+  #room-stage[data-fallback='on']::after { background-image: url('assets/room/lit-tall.webp?v=3'); }
+}

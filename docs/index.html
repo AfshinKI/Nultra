@@ -5,116 +5,98 @@
   <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self'; font-src 'self'; connect-src 'self'; base-uri 'none'; form-action 'none'">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#101a17">
-  <meta name="description" content="Rotate and take apart the Nultra Bluetooth switch, explore its circuit board and try the iPhone light-control demo.">
+  <meta name="description" content="Turn on a lamp in a 3D room, then follow the Nultra wall switch from its faceplate to its low-power Bluetooth circuit.">
   <title>Nultra Switch — Open hardware</title>
   <link rel="icon" href="assets/mark.svg" type="image/svg+xml">
   <link rel="preload" href="assets/dm-sans.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="preload" href="assets/instrument-serif-italic.woff2" as="font" type="font/woff2" crossorigin>
-  <link rel="preload" href="assets/product/frames/000.webp" as="image" fetchpriority="high">
-  <link rel="stylesheet" href="site.css">
-  <link rel="stylesheet" href="phone.css">
-  <script defer src="viewer.js"></script>
-  <script defer src="phone.js"></script>
+  <link rel="stylesheet" href="site.css?v=3">
+  <link rel="stylesheet" href="room.css?v=3">
+  <script defer src="room.js?v=3"></script>
+  <script defer src="viewer.js?v=3"></script>
 </head>
 <body>
 <a class="skip" href="#files">Skip to build files</a>
 <header class="mast">
   <div class="mast-inner wrap">
-    <a class="brand" href="#sequence" aria-label="Nultra home"><span class="brand-mark" aria-hidden="true"></span>nultra</a>
-    <nav aria-label="Main navigation"><a class="nav-product" href="#sequence">Switch</a><a href="#control">App demo</a><a href="#files">Build files</a></nav>
+    <a class="brand" href="#sequence" data-story-at="0" aria-label="Nultra home"><span class="brand-mark" aria-hidden="true"></span>nultra</a>
+    <nav aria-label="Main navigation"><a href="#control" data-story-at="0">Room</a><a href="#sequence" data-story-at=".37">Teardown</a><a href="#files">Build files</a></nav>
     <a class="github" href="https://github.com/AfshinKI/Nultra"><svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M8 .6a7.45 7.45 0 0 0-2.35 14.52c.37.07.5-.16.5-.36v-1.39c-2.07.45-2.51-.88-2.51-.88-.34-.86-.83-1.09-.83-1.09-.68-.46.05-.45.05-.45.75.06 1.14.77 1.14.77.67 1.14 1.75.81 2.18.62.07-.48.27-.8.48-.99-1.65-.19-3.39-.83-3.39-3.69 0-.81.29-1.48.77-2-.08-.19-.33-.95.08-1.98 0 0 .63-.2 2.05.77a7.15 7.15 0 0 1 3.73 0c1.42-.97 2.05-.77 2.05-.77.41 1.03.16 1.79.08 1.98.48.52.76 1.19.76 2 0 2.87-1.74 3.5-3.4 3.69.27.23.51.68.51 1.38v2.03c0 .2.13.43.51.36A7.45 7.45 0 0 0 8 .6Z"/></svg> GitHub</a>
   </div>
 </header>
 <main>
-  <section id="sequence" class="sequence" aria-label="Nultra switch, assembly and circuit board" data-chapter="0">
+  <h1 class="visually-hidden">Nultra Bluetooth wall switch</h1>
+  <section id="sequence" class="sequence" aria-label="Explore the Nultra switch" data-chapter="0">
     <div class="sequence-pin">
-      <div class="stage-field" aria-hidden="true"><i></i><i></i></div>
-      <div class="hardware-stage wrap">
-        <div class="stage-copy">
-          <div data-chapter-copy>
-            <p class="kicker"><span class="hairline" aria-hidden="true"></span> Open hardware</p>
-            <h1>Nultra <em>Switch.</em></h1>
-            <p class="lead">Bluetooth control for switch boxes without a neutral wire. Powered by one AA cell.</p>
-          </div>
-          <div data-chapter-copy hidden>
-            <p class="kicker"><span class="hairline" aria-hidden="true"></span> Assembly</p>
-            <h2>Layer by <em>layer.</em></h2>
-            <p class="lead">The faceplate lifts off first. The AA cell then moves forward from the carrier.</p>
-          </div>
-          <div data-chapter-copy hidden>
-            <p class="kicker"><span class="hairline" aria-hidden="true"></span> Electronics</p>
-            <h2>On the <em>board.</em></h2>
-            <p class="lead">Follow the printed antenna to the Bluetooth controller.</p>
-          </div>
-          <div class="scroll-cue"><span aria-hidden="true"></span><span>Scroll to explore</span></div>
-          <div class="static-links"><a href="assets/product/frames/046.webp">Exploded assembly</a><a href="assets/product/frames/072.webp">Circuit close-up</a></div>
-        </div>
-        <figure class="assembly-figure">
-          <div class="model-wrap">
-            <img id="sequence-poster" src="assets/product/frames/000.webp" width="1056" height="864" fetchpriority="high" alt="Assembled single-gang Nultra wall switch seen at a three-quarter angle">
-            <canvas id="sequence-canvas" width="1056" height="864" aria-hidden="true"></canvas>
-            <svg id="sequence-labels" viewBox="0 0 1056 864" aria-hidden="true">
-              <g data-label-group="assembly"><g data-part="faceplate"><path/><circle r="4"/><text x="34" y="202" text-anchor="start">Faceplate</text></g>
-              <g data-part="carrier"><path/><circle r="4"/><text x="310" y="106" text-anchor="start">Carrier</text></g>
-              <g data-part="battery"><path/><circle r="4"/><text x="436" y="742" text-anchor="end">AA cell</text></g>
-              <g data-part="pcb"><path/><circle r="4"/><text x="805" y="130" text-anchor="end">Circuit board</text></g>
-              <g data-part="shell"><path/><circle r="4"/><text x="1020" y="708" text-anchor="end">Rear shell</text></g>
-              </g><g data-label-group="board"><g data-part="antenna"><path/><circle r="4"/><text x="1020" y="147" text-anchor="end">Printed antenna</text></g>
-              <g data-part="mcu"><path/><circle r="4"/><text x="35" y="370" text-anchor="start">Bluetooth MCU</text></g>
-              <g data-part="testpoint"><path/><circle r="4"/><text x="975" y="697" text-anchor="end">J3 test point</text></g></g>
-            </svg>
-          </div>
-        </figure>
-      </div>
-      <div class="timeline wrap interaction">
-        <div class="chapter-tabs" role="group" aria-label="Hardware views">
-          <button type="button" data-chapter-at="0" aria-pressed="true"><span></span>Rotate</button>
-          <button type="button" data-chapter-at=".638888889" aria-pressed="false"><span></span>Explode</button>
-          <button type="button" data-chapter-at="1" aria-pressed="false"><span></span>Circuit</button>
-        </div>
-        <div class="scrub-line"><label for="sequence-scrub">View</label><input id="sequence-scrub" type="range" min="0" max="100" step="1" value="0" aria-label="Hardware sequence position" aria-valuetext="Assembled"><output id="sequence-percent" for="sequence-scrub" aria-live="off">0%</output></div>
-      </div>
-    </div>
-  </section>
-
-  <section id="control" class="control-study" aria-labelledby="control-title">
-    <div class="control-pin">
-      <div class="control-layout wrap">
-        <div class="control-head">
-          <div><p class="kicker"><span class="hairline" aria-hidden="true"></span> iPhone app</p><h2 id="control-title">Control the <em>light.</em></h2></div>
-          <p>Open Nultra and tap DESKLAMP to switch the light over Bluetooth.</p>
-        </div>
-        <div class="control-stage" data-phone-stage data-lamp="on" data-app="open" data-view="detail">
-          <div class="ph-room" aria-hidden="true">
-            <img class="ph-room-off" src="assets/phone/room-off.webp" width="1440" height="960" loading="lazy" decoding="async" alt="">
-            <img class="ph-room-on" src="assets/phone/room-on.webp" width="1440" height="960" loading="lazy" decoding="async" alt="">
-          </div>
-          <div class="ph-position">
-            <div class="ph-device">
-              <div class="ph-display">
-                <div class="ph-launch" data-phone-launch>
-                  <div class="ph-launch-status" aria-hidden="true"><span>4:03</span><b>•••</b><u></u></div>
-                  <button type="button" class="ph-icon" data-open-app aria-label="Open Nultra in the demo"><img src="assets/phone/app-icon.webp" width="150" height="150" loading="lazy" alt=""><span>Nultra</span></button>
-                </div>
-                <div class="ph-app" data-phone-app>
-                  <img class="ph-shot" src="assets/phone/dashboard.webp" width="562" height="1218" loading="lazy" decoding="async" alt="Nultra iPhone dashboard in demo mode with six named switches">
-                  <img class="ph-off-tile" src="assets/phone/switch-off.webp" width="257" height="128" loading="lazy" decoding="async" alt="">
-                  <button class="ph-hit ph-desk-hit" type="button" data-toggle-desk aria-label="Turn desk lamp on"><i class="ph-tap" aria-hidden="true"></i></button>
-                  <div class="ph-details" data-phone-detail>
-                    <img class="ph-shot" src="assets/phone/switch-controls.webp" width="562" height="1218" loading="lazy" decoding="async" alt="Nultra DESKLAMP switch details showing the power is on">
-                    <button class="ph-hit ph-done-hit" type="button" data-close-detail aria-label="Return to Nultra dashboard"></button>
-                    <button class="ph-hit ph-off-hit" type="button" data-switch-off aria-label="Turn the desk lamp off"></button>
-                  </div>
-                </div>
-                <span class="ph-notch" aria-hidden="true"></span><span class="ph-homebar" aria-hidden="true"></span>
-              </div>
+      <div class="story-field" id="control">
+        <div class="stage-field" aria-hidden="true"><i></i><i></i></div>
+        <div id="room-stage">
+          <canvas id="room-canvas" aria-hidden="true"></canvas>
+          <div class="room-intro wrap">
+            <div class="stage-copy" data-chapter-copy>
+              <h2>Nultra <em>Switch.</em></h2>
+              <p class="lead">Scroll to look inside.</p>
+              <button class="lamp-control" type="button" data-room-lamp aria-pressed="false" hidden><span class="lamp-glyph" aria-hidden="true"></span><span data-room-action-text>Turn lamp on</span></button>
+              <noscript><p class="static-links"><a href="assets/room/lit-wide.webp?v=3">Lamp on</a><a href="assets/product/frames/030.webp">Faceplate</a><a href="assets/product/frames/072.webp?v=3">PCB front</a><a href="assets/product/frames/116.webp">PCB back</a></p></noscript>
             </div>
           </div>
         </div>
-        <div class="control-actions">
-          <p><span class="ph-state-dot" aria-hidden="true"></span><span data-phone-caption>Desk lamp on</span></p>
-          <div data-phone-controls hidden><button type="button" data-phone-action>Open app</button><button type="button" class="ph-replay" data-phone-replay>Replay</button></div>
+        <div class="hardware-stage wrap">
+          <div class="stage-copy">
+            <div data-chapter-copy hidden>
+              <h2>The <em>switch.</em></h2>
+              <p class="lead">Bluetooth LE. No neutral wire required.</p>
+            </div>
+            <div data-chapter-copy hidden>
+              <h2>One <em>AA.</em></h2>
+              <p class="lead">Over a year of battery life.</p>
+              <figure class="battery-chart" aria-label="Illustration of a single AA cell gradually discharging over more than one year.">
+                <div class="cell-indicator" aria-hidden="true"><span></span></div>
+                <svg viewBox="0 0 264 53" preserveAspectRatio="none" aria-hidden="true">
+                  <path class="charge-grid" d="M3 12H261 M3 32H261 M3 52H261"/>
+                  <path class="charge-track" d="M3 4C12 5 13 12 26 15S68 20 95 22S153 27 180 31S219 38 235 42S254 49 261 50"/>
+                  <path class="charge-curve" pathLength="1" d="M3 4C12 5 13 12 26 15S68 20 95 22S153 27 180 31S219 38 235 42S254 49 261 50"/>
+                </svg>
+                <figcaption><span>Fresh cell</span><span>Over one year</span></figcaption>
+              </figure>
+            </div>
+            <div data-chapter-copy hidden>
+              <h2>Circuit <em>board.</em></h2>
+            </div>
+          </div>
+          <figure class="assembly-figure">
+            <div class="model-wrap">
+              <img id="sequence-poster" src="assets/product/frames/000.webp" width="1056" height="864" decoding="async" alt="Assembled single-gang Nultra wall switch seen at a three-quarter angle">
+              <canvas id="sequence-canvas" width="1056" height="864" aria-hidden="true"></canvas>
+              <svg id="sequence-labels" viewBox="0 0 1056 864" aria-hidden="true">
+                <g data-label-group="reveal">
+                  <g data-part="faceplate"><path/><circle r="4"/><text x="43" y="188">Faceplate</text></g>
+                  <g data-part="battery"><path/><circle r="4"/><text x="988" y="692" text-anchor="end">AA cell</text></g>
+                </g>
+                <g data-label-group="assembly">
+                  <g data-part="battery"><path/><circle r="4"/><text x="420" y="735" text-anchor="end">AA cell</text></g>
+                  <g data-part="pcb"><path/><circle r="4"/><text x="845" y="122" text-anchor="end">Circuit board</text></g>
+                </g>
+                <g data-label-group="debug"><g data-part="debug"><path/><circle r="4"/><text x="72" y="548">SWD debug port</text></g></g>
+                <g data-label-group="board">
+                  <g data-part="antenna"><path/><circle r="4"/><text x="1005" y="158" text-anchor="end">Printed antenna</text></g>
+                  <g data-part="mcu"><path/><circle r="4"/><text x="68" y="368">Bluetooth CPU</text></g>
+                </g>
+                <g data-label-group="power"><g data-part="dcdc"><path/><circle r="4"/><text x="64" y="338">Ultra-low-power DC/DC</text></g></g>
+                <g data-label-group="relay"><g data-part="relay"><path/><circle r="4"/><text x="1010" y="378" text-anchor="end">Latching relay</text></g></g>
+              </svg>
+            </div>
+          </figure>
         </div>
+      </div>
+      <div class="timeline wrap interaction">
+        <div class="chapter-tabs" role="group" aria-label="Explore by chapter">
+          <button type="button" data-chapter-at="0" aria-pressed="true"><span></span>Room</button>
+          <button type="button" data-chapter-at=".37" aria-pressed="false"><span></span>Switch</button>
+          <button type="button" data-chapter-at=".665" aria-pressed="false"><span></span>Assembly</button>
+          <button type="button" data-chapter-at=".80" aria-pressed="false"><span></span>Circuit</button>
+        </div>
+        <div class="scrub-line"><label for="sequence-scrub">View</label><input id="sequence-scrub" type="range" min="0" max="100" step="1" value="0" aria-label="Explore from room to circuit" aria-valuetext="Room, 0%"><output id="sequence-percent" for="sequence-scrub" aria-live="off">0%</output></div>
       </div>
     </div>
   </section>
@@ -126,12 +108,12 @@
       <div class="files-list">
         <div class="file-row"><h3>Enclosure</h3><div class="row-links"><a href="https://github.com/AfshinKI/Nultra/blob/main/hardware/mechanical/assemblies/single-switch.step">Single STEP</a><a href="https://github.com/AfshinKI/Nultra/blob/main/hardware/mechanical/assemblies/double-switch.step">Double STEP</a><a href="https://github.com/AfshinKI/Nultra/tree/main/hardware/mechanical/prints">Print meshes</a><a href="https://cad.onshape.com/documents/3cb2e23a19093c4389ce2f07/w/3be343cdcd1e5951d1a37be1">Onshape</a></div></div>
         <div class="file-row"><h3>Electronics</h3><div class="row-links"><a href="https://github.com/AfshinKI/Nultra/tree/main/hardware/electronics/fabrication/v2">Original v2 Gerbers &amp; BOM</a><a href="https://github.com/AfshinKI/Nultra/blob/main/hardware/README.md#electronics">KiCad review notes</a></div></div>
-        <div class="file-row"><h3>Software</h3><div class="row-links"><a href="https://github.com/AfshinKI/Nultra/tree/main/firmware">Firmware</a><a href="https://github.com/AfshinKI/Nultra/tree/main/app">Mobile apps</a><a href="https://github.com/AfshinKI/Nultra/tree/main/web">Local gateway</a></div></div>
-        <div class="file-row"><h3>Renders</h3><div class="row-links"><a href="assets/product/hero.webp">Board &amp; AA cell</a><a href="assets/product/detail.webp">Circuit detail</a><a href="assets/product/frames/046.webp">Exploded assembly</a></div></div>
+        <div class="file-row"><h3>Software</h3><div class="row-links"><a href="https://github.com/AfshinKI/Nultra/tree/main/firmware">Firmware</a><a href="https://github.com/AfshinKI/Nultra/tree/main/app">Mobile apps</a></div></div>
+        <div class="file-row"><h3>Renders</h3><div class="row-links"><a href="assets/product/frames/046.webp">Exploded assembly</a><a href="assets/product/frames/072.webp?v=3">PCB front</a><a href="assets/product/frames/116.webp">PCB back</a></div></div>
       </div>
     </div>
   </section>
 </main>
-<footer><div class="footer-inner wrap"><a class="brand" href="#sequence" aria-label="Nultra home"><span class="brand-mark" aria-hidden="true"></span>nultra</a><span>Designed by AfshinKI</span><a href="https://github.com/AfshinKI/Nultra/blob/main/LICENSE">Licenses</a><a href="#sequence">Back to top</a></div></footer>
+<footer><div class="footer-inner wrap"><a class="brand" href="#sequence" data-story-at="0" aria-label="Nultra home"><span class="brand-mark" aria-hidden="true"></span>nultra</a><span>Designed by AfshinKI</span><a href="https://github.com/AfshinKI/Nultra/blob/main/LICENSE">Licenses</a><a href="#sequence" data-story-at="0">Back to top</a></div></footer>
 </body>
 </html>
