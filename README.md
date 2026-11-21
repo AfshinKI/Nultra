@@ -31,9 +31,11 @@ The battery illustration shows more than a year of use on one AA. Its curve is i
 
 To preview the site locally, run `python -m http.server --bind 127.0.0.1 --directory docs 8000` from the repository root.
 
-## Firmware history
+## Development history
 
 Firmware development began in March 2025. The public archive preserves the original commit dates and merges. Device credentials and compiled firmware images were omitted from those revisions. [Browse the 2025 firmware commits](https://github.com/AfshinKI/Nultra/commits/d4c3cc2b9a1dbfadcdf72ec14c10238a79e72ddd/)
+
+The September 2026 mobile app commits follow the iPhone and Android controllers through Bluetooth pairing, scenes and home-screen widgets. These archived revisions omit shared credentials and private distribution files. [Browse the mobile app commits](https://github.com/AfshinKI/Nultra/commits/8fd76693fbb15d21747a63de8b6250752ec708d2/)
 
 ## Licenses
 
