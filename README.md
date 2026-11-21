@@ -2,7 +2,7 @@
 
 Nultra is a Bluetooth LE wall switch designed for switch boxes without a neutral wire. One AA cell powers the control electronics. A faceplate button or the nearby iPhone and Android apps can operate the latching relay.
 
-[Try the light and explore the switch](https://afshinki.github.io/Nultra/) · [Open the enclosure document in Onshape](https://cad.onshape.com/documents/3cb2e23a19093c4389ce2f07/w/3be343cdcd1e5951d1a37be1)
+[Open the enclosure document in Onshape](https://cad.onshape.com/documents/3cb2e23a19093c4389ce2f07/w/3be343cdcd1e5951d1a37be1)
 
 <img src="docs/assets/product/frames/046.webp" alt="Exploded Nultra switch, from front to back: faceplate, AA cell, carrier, populated circuit board and rear shell" width="460">
 
@@ -29,7 +29,7 @@ J5 carries SWDIO and SWCLK. U1 is the STM32WB05KZ Bluetooth MCU. On the opposite
 
 The battery illustration shows more than a year of use on one AA. Its curve is illustrative. The firmware requests a 2 ms pulse to change the latching relay, then disables the drive. The relay holds its position with its coil unpowered. The controller can sleep between radio events. [Relay drive](firmware/BLE_Peripheral_Lite/Core/Src/main.c#L887) · [Controller sleep](firmware/BLE_Peripheral_Lite/Core/Src/app_entry.c#L310)
 
-To run the site locally, start `python -m http.server --bind 127.0.0.1 --directory docs 8000` from the repository root and open [the local preview](http://127.0.0.1:8000/).
+To preview the site locally, run `python -m http.server --bind 127.0.0.1 --directory docs 8000` from the repository root.
 
 ## Licenses
 

@@ -28,21 +28,22 @@
     [hardwareStart, 0], [.50, 36], [.583, 60], [.62, 78], [.665, 89], [.714, 92],
     [.777, 132], [.80, 140], [.815, 146], [.868, 164], [.933, 204], [.962, 216], [1, lastFrame],
   ];
-  function frameAt(progress) {
-    if (progress <= hardwareStart) return 0;
+  function interpolateBeat(value, from) {
+    const to = 1 - from;
+    if (value <= beats[0][from]) return beats[0][to];
     for (let i = 1; i < beats.length; i++) {
-      const [end, final] = beats[i];
-      if (progress <= end) {
-        const [begin, initial] = beats[i - 1];
-        return initial + (final - initial) * ((progress - begin) / (end - begin));
-      }
+      const before = beats[i - 1], after = beats[i];
+      if (value > after[from]) continue;
+      const part = (value - before[from]) / (after[from] - before[from]);
+      return before[to] + (after[to] - before[to]) * part;
     }
-    return lastFrame;
+    return beats[beats.length - 1][to];
   }
+  const frameAt = progress => Math.round(interpolateBeat(progress, 0) * 1e7) / 1e7;
+  const positionAt = frame => interpolateBeat(frame, 1);
   const sheets = new Map();
   const pending = new Set();
-  const retryAfter = new Map();
-  const retried = new Set();
+  const retries = new Map();
   const labels = document.getElementById("sequence-labels");
   const labelGroups = Array.from(labels?.querySelectorAll("[data-label-group]") || [], element => ({
     element,
@@ -74,9 +75,11 @@
   };
 
   let target = 0, position = 0, drawnFrame = 0;
+  let pendingSeek = false;
   let chapter = -1, lastPercent = -1, lastRoomProgress = -1;
   let lampOverride, lampAt = 0, lastLampState, lastOverride;
-  let anchors, anchorsPending = false, anchorRetry = 0, anchorRetried = false;
+  let anchors, anchorsPending = false, anchorRetry = 0, anchorFailures = 0;
+  let networkTimer = 0, wakeAt = Infinity;
   let wantedSheets = [];
   let start = 0, span = 0, bottom = 0, inView = true;
   let measureNeeded = true, scrollChanged = true, resetPosition = true;
@@ -131,8 +134,24 @@
     }
   }
 
+  function retryTime(failures) {
+    return performance.now() + Math.min(30000, 2000 * 2 ** Math.min(failures - 1, 4));
+  }
+
+  function wakeForNetwork(time) {
+    if (document.hidden || !inView || navigator.onLine === false || time >= wakeAt) return;
+    if (networkTimer) window.clearTimeout(networkTimer);
+    wakeAt = time;
+    networkTimer = window.setTimeout(() => {
+      networkTimer = 0;
+      wakeAt = Infinity;
+      schedule();
+    }, Math.max(1, time - performance.now()));
+  }
+
   async function loadAnchors() {
-    if (!labels || anchors || anchorsPending || performance.now() < anchorRetry) return;
+    if (!labels || anchors || anchorsPending || navigator.onLine === false) return;
+    if (performance.now() < anchorRetry) { wakeForNetwork(anchorRetry); return; }
     anchorsPending = true;
     try {
       const response = await fetch("assets/product/motion/anchors.json" + atlasVersion);
@@ -140,11 +159,8 @@
       anchors = await response.json();
       renderLabels(drawnFrame);
     } catch {
-      anchorRetry = performance.now() + 2000;
-      if (!anchorRetried) {
-        anchorRetried = true;
-        window.setTimeout(schedule, 2050);
-      }
+      anchorRetry = retryTime(++anchorFailures);
+      wakeForNetwork(anchorRetry);
     } finally {
       anchorsPending = false;
     }
@@ -161,23 +177,24 @@
     }
   }
 
-  function requestSheet(index) {
-    const now = performance.now();
-    if (index < 0 || index > sheetOf(lastFrame) || sheets.has(index) || pending.has(index) || retryAfter.get(index) > now) return;
+  function requestSheet(index, required) {
+    if (index < 0 || index > sheetOf(lastFrame) || sheets.has(index) || pending.has(index) || navigator.onLine === false) return;
+    const retry = retries.get(index);
+    if (retry && retry.time > performance.now()) {
+      if (required) wakeForNetwork(retry.time);
+      return;
+    }
     pending.add(index);
     const image = new Image();
     image.decoding = "async";
     image.src = "assets/product/motion/" + String(index).padStart(3, "0") + ".webp" + atlasVersion;
     image.decode().then(() => {
       sheets.set(index, image);
-      retryAfter.delete(index);
+      retries.delete(index);
       trimSheets();
     }).catch(() => {
-      retryAfter.set(index, performance.now() + 2000);
-      if (!retried.has(index)) {
-        retried.add(index);
-        window.setTimeout(schedule, 2050);
-      }
+      const failures = (retry?.failures || 0) + 1;
+      retries.set(index, {failures, time: retryTime(failures)});
     }).finally(() => {
       pending.delete(index);
       schedule();
@@ -188,22 +205,22 @@
     if (!inView || document.hidden || Math.max(position, target) < .28) return;
     const limited = saveData || motion.matches;
     const concurrency = limited ? 1 : 2;
-    const page = sheetOf(Math.round(frame));
-    const candidates = [page];
-    const otherTile = sheetOf(Math.floor(frame)) === page ? sheetOf(Math.ceil(frame)) : sheetOf(Math.floor(frame));
-    if (otherTile !== page) candidates.push(otherTile);
-    if (!limited && position >= handoffStart) {
+    const low = sheetOf(Math.floor(frame)), high = sheetOf(Math.ceil(frame));
+    const candidates = [low, high];
+    const ahead = direction > 0 ? high : low;
+    if (!limited && (frame > 0 || target > hardwareStart)) {
+      candidates.push(ahead + direction, ahead + 2 * direction);
+    } else if (saveData && !motion.matches && !pendingSeek && position !== target) {
+      // One in flight. Fetch an adjacent sheet only if the scroll target already requires it.
       const destination = sheetOf(Math.round(frameAt(target)));
-      const neighbor = page + direction;
-      if (destination !== page) candidates.push(destination);
-      if (frame > 1 || direction < 0) candidates.push(neighbor);
+      if ((destination - ahead) * direction > 0) candidates.push(ahead + direction);
     }
     wantedSheets = [...new Set(candidates)].slice(0, limited ? 2 : 3);
     for (const index of wantedSheets) {
       if (pending.size >= concurrency) break;
-      requestSheet(index);
+      requestSheet(index, frame > 0 && (index === low || index === high));
     }
-    if (Math.max(frame, frameAt(target)) >= 40) loadAnchors();
+    if (frame >= 40) loadAnchors();
   }
 
   function tile(frame) {
@@ -225,6 +242,7 @@
 
   function paint(frame) {
     if (frame === 0) {
+      pendingSeek = false;
       sizeCanvas();
       if (drawnFrame !== 0) {
         canvas.style.opacity = "0";
@@ -234,11 +252,10 @@
       }
       return;
     }
-    let lo = Math.floor(frame), hi = Math.ceil(frame);
-    let imageA = tile(lo), imageB = tile(hi);
-    if (!imageA && !imageB) return;
-    if (!imageA) { lo = hi; imageA = imageB; }
-    if (!imageB) { hi = lo; imageB = imageA; }
+    const lo = Math.floor(frame), hi = Math.ceil(frame);
+    const imageA = tile(lo), imageB = tile(hi);
+    if (!imageA || !imageB) return;
+    pendingSeek = false;
     const fraction = hi === lo ? 0 : frame - lo;
     const actual = lo + fraction;
     if (!sizeCanvas() && Math.abs(actual - drawnFrame) < .002) return;
@@ -278,7 +295,7 @@
     }
   }
 
-  function render() {
+  function render(requestedFrame = frameAt(position)) {
     const mix = smooth((position - handoffStart) / (hardwareStart - handoffStart));
     sequence.style.setProperty("--room-opacity", String(1 - mix));
     // The room sits above the matched hardware pose. An opaque base avoids a dark dip in the dissolve.
@@ -287,7 +304,7 @@
     hardware.inert = mix < .5;
     renderRoom(clamp(position / hardwareStart));
     const frame = frameAt(position);
-    buffer(frame);
+    buffer(requestedFrame);
     paint(frame);
     const batteryProgress = smooth((position - .598) / (.709 - .598));
     sequence.style.setProperty("--battery-life-progress", String(batteryProgress));
@@ -305,14 +322,14 @@
     if (sequence.dataset.inspection !== inspection) sequence.dataset.inspection = inspection;
     const description = inspection ? inspectionDescriptions[inspection] : descriptions[active];
     if (poster.alt !== description) poster.alt = description;
-    const number = Math.round(target * 100);
+    const number = Math.round(position * 100);
     if (number !== lastPercent || slider.dataset.chapter !== String(active)) {
       lastPercent = number;
       slider.dataset.chapter = String(active);
       slider.value = String(number);
       slider.setAttribute("aria-valuetext", (tabs[active]?.textContent.trim() || "") + ", " + number + "%");
       if (percent) percent.value = number + "%";
-      sequence.style.setProperty("--sequence-progress", String(target));
+      sequence.style.setProperty("--sequence-progress", String(position));
     }
   }
 
@@ -330,11 +347,43 @@
 
   function updateTarget(value, instant) {
     const next = clamp(value);
-    if (next !== target) direction = Math.sign(next - target);
+    if (pendingSeek && !instant && !motion.matches) {
+      // Ignore the subpixel rounding of our own scrollTo while a direct seek decodes.
+      if (Math.abs(next - position) < Math.max(.0001, 1 / Math.max(span, 1))) return;
+      pendingSeek = false;
+      position = drawnFrame > 0 ? positionAt(drawnFrame) : Math.min(position, hardwareStart);
+    }
+    if (next !== position) direction = Math.sign(next - position);
     target = next;
     if (lampOverride !== undefined && Math.abs(target - lampAt) > .055) lampOverride = undefined;
-    // Direct section links and fast page jumps request the destination sheet immediately.
-    if (instant || motion.matches || Math.abs(target - position) > .19) position = target;
+    if (instant || motion.matches) {
+      position = target;
+      pendingSeek = true;
+    }
+  }
+
+  function advance(dt) {
+    if (position === target) return frameAt(position);
+    const remaining = target - position;
+    direction = Math.sign(remaining);
+    const eased = Math.abs(remaining) * (1 - Math.exp(-dt / 60));
+    const step = Math.min(eased, dt * .00065, .012);
+    let next = Math.abs(remaining) < .00012 ? target : position + direction * step;
+    let frame = frameAt(next);
+    // Keep the visual step bounded even after a long task or an abruptly reversed fling.
+    const maxFrames = Math.min(1.75, dt * .09);
+    if (Math.abs(frame - drawnFrame) > maxFrames) {
+      frame = drawnFrame + direction * maxFrames;
+      next = positionAt(frame);
+    }
+    if (frame > 0 && (!tile(Math.floor(frame)) || !tile(Math.ceil(frame)))) {
+      // Finish the available edge pose, then let the missing sheet's decode wake the player.
+      const edge = direction > 0 ? Math.ceil(drawnFrame + .00001) : Math.floor(drawnFrame - .00001);
+      if ((frame - edge) * direction >= 0 && edge >= 0 && tile(edge)) position = positionAt(edge);
+      return frame;
+    }
+    position = next;
+    return frame;
   }
 
   function introOwnsTimeline() {
@@ -431,10 +480,10 @@
     }
     const dt = previousTime ? Math.min(60, Math.max(1, time - previousTime)) : 16;
     previousTime = time;
-    const remaining = target - position;
-    position = Math.abs(remaining) < .00012 ? target : position + remaining * (1 - Math.exp(-dt / 60));
-    render();
-    if (position !== target) schedule();
+    const previous = position;
+    const requestedFrame = advance(dt);
+    render(requestedFrame);
+    if (position !== target && position !== previous) schedule();
     else previousTime = 0;
   }
 
@@ -511,14 +560,30 @@
     schedule();
   }, {passive:true});
   window.addEventListener("resize", remeasure);
-  window.addEventListener("pageshow", remeasure);
+  window.addEventListener("online", () => {
+    if (networkTimer) window.clearTimeout(networkTimer);
+    networkTimer = 0;
+    wakeAt = Infinity;
+    retries.clear();
+    anchorFailures = 0;
+    anchorRetry = 0;
+    schedule();
+  });
+  window.addEventListener("pageshow", event => {
+    if (event.persisted) { stopIntro(false); resetPosition = true; }
+    remeasure();
+  });
+  window.addEventListener("popstate", () => { stopIntro(false); resetPosition = true; remeasure(); });
   document.addEventListener("visibilitychange", () => {
     if (document.hidden) pauseHold();
     introTime = 0;
     previousTime = 0;
     remeasure();
   });
-  motion.addEventListener("change", () => { if (motion.matches) stopIntro(false); remeasure(); });
+  motion.addEventListener("change", () => {
+    if (motion.matches) { stopIntro(false); target = position; }
+    remeasure();
+  });
   if ("ResizeObserver" in window) {
     const observer = new ResizeObserver(remeasure);
     observer.observe(sequence);
