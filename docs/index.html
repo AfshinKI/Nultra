@@ -4,114 +4,134 @@
   <meta charset="utf-8">
   <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self'; font-src 'self'; connect-src 'self'; base-uri 'none'; form-action 'none'">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="theme-color" content="#141918">
-  <meta name="description" content="Explore Nultra, a battery-powered Bluetooth wall switch. Take apart the enclosure in 3D and get the CAD, electronics and software.">
-  <title>Nultra — The open wall switch</title>
+  <meta name="theme-color" content="#101a17">
+  <meta name="description" content="Rotate and take apart the Nultra Bluetooth switch, explore its circuit board and try the iPhone light-control demo.">
+  <title>Nultra Switch — Open hardware</title>
   <link rel="icon" href="assets/mark.svg" type="image/svg+xml">
-  <link rel="preload" href="assets/dm-sans.ttf" as="font" type="font/ttf" crossorigin>
-  <link rel="preload" href="assets/assembly/00.webp" as="image">
+  <link rel="preload" href="assets/dm-sans.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="preload" href="assets/instrument-serif-italic.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="preload" href="assets/product/frames/000.webp" as="image" fetchpriority="high">
   <link rel="stylesheet" href="site.css">
-  <script src="viewer.js" defer></script>
+  <link rel="stylesheet" href="phone.css">
+  <script defer src="viewer.js"></script>
+  <script defer src="phone.js"></script>
 </head>
 <body>
-<a href="#files" class="skip">Skip to project files</a>
-<header class="topbar">
-  <div class="wrap bar-inner">
-    <a class="brand" href="#overview" aria-label="Nultra home"><span class="logo" aria-hidden="true"></span>nultra<span class="brand-stop">.</span></a>
-    <nav aria-label="Main navigation">
-      <a href="#overview" class="nav-overview">Overview</a>
-      <a href="#enclosure" data-explore>Assembly</a>
-      <a href="#files">Build files</a>
-    </nav>
-    <a class="repo-link" href="https://github.com/AfshinKI/Nultra"><span class="git-symbol" aria-hidden="true">⑂</span> GitHub</a>
+<a class="skip" href="#files">Skip to build files</a>
+<header class="mast">
+  <div class="mast-inner wrap">
+    <a class="brand" href="#sequence" aria-label="Nultra home"><span class="brand-mark" aria-hidden="true"></span>nultra</a>
+    <nav aria-label="Main navigation"><a class="nav-product" href="#sequence">Switch</a><a href="#control">App demo</a><a href="#files">Build files</a></nav>
+    <a class="github" href="https://github.com/AfshinKI/Nultra"><svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M8 .6a7.45 7.45 0 0 0-2.35 14.52c.37.07.5-.16.5-.36v-1.39c-2.07.45-2.51-.88-2.51-.88-.34-.86-.83-1.09-.83-1.09-.68-.46.05-.45.05-.45.75.06 1.14.77 1.14.77.67 1.14 1.75.81 2.18.62.07-.48.27-.8.48-.99-1.65-.19-3.39-.83-3.39-3.69 0-.81.29-1.48.77-2-.08-.19-.33-.95.08-1.98 0 0 .63-.2 2.05.77a7.15 7.15 0 0 1 3.73 0c1.42-.97 2.05-.77 2.05-.77.41 1.03.16 1.79.08 1.98.48.52.76 1.19.76 2 0 2.87-1.74 3.5-3.4 3.69.27.23.51.68.51 1.38v2.03c0 .2.13.43.51.36A7.45 7.45 0 0 0 8 .6Z"/></svg> GitHub</a>
   </div>
 </header>
 <main>
-  <section id="overview" class="scroll-track" aria-label="Nultra switch and exploded view">
-    <div class="hero-pin">
-      <div class="wrap hero">
-        <div class="hero-copy">
-          <p class="eyebrow"><span class="signal" aria-hidden="true"></span> Open hardware</p>
-          <h1>The open <br>wall switch<span>.</span></h1>
-          <p class="intro">A battery-powered Bluetooth switch in a printable enclosure. Tap the faceplate to toggle the relay, or set a schedule through the local gateway.</p>
-          <div class="hero-actions">
-            <a href="#enclosure" class="primary" data-explore><span class="layers-icon" aria-hidden="true">▱</span> Explore assembly</a>
-            <a href="#files" class="subtle">Build files</a>
+  <section id="sequence" class="sequence" aria-label="Nultra switch, assembly and circuit board" data-chapter="0">
+    <div class="sequence-pin">
+      <div class="stage-field" aria-hidden="true"><i></i><i></i></div>
+      <div class="hardware-stage wrap">
+        <div class="stage-copy">
+          <div data-chapter-copy>
+            <p class="kicker"><span class="hairline" aria-hidden="true"></span> Open hardware</p>
+            <h1>Nultra <em>Switch.</em></h1>
+            <p class="lead">Bluetooth control for switch boxes without a neutral wire. Powered by one AA cell.</p>
           </div>
-          <dl class="facts">
-            <div><dt>Wireless</dt><dd>Bluetooth LE</dd></div>
-            <div><dt>Processor</dt><dd>STM32WB05KZ</dd></div>
-          </dl>
+          <div data-chapter-copy hidden>
+            <p class="kicker"><span class="hairline" aria-hidden="true"></span> Assembly</p>
+            <h2>Layer by <em>layer.</em></h2>
+            <p class="lead">The faceplate lifts off first. The AA cell then moves forward from the carrier.</p>
+          </div>
+          <div data-chapter-copy hidden>
+            <p class="kicker"><span class="hairline" aria-hidden="true"></span> Electronics</p>
+            <h2>On the <em>board.</em></h2>
+            <p class="lead">Follow the printed antenna to the Bluetooth controller.</p>
+          </div>
+          <div class="scroll-cue"><span aria-hidden="true"></span><span>Scroll to explore</span></div>
+          <div class="static-links"><a href="assets/product/frames/046.webp">Exploded assembly</a><a href="assets/product/frames/072.webp">Circuit close-up</a></div>
         </div>
-        <figure class="viewer" id="assembly" aria-labelledby="viewer-title">
-          <div class="viewer-head"><span><i class="live-dot" aria-hidden="true"></i> Assembly viewer</span><span>Single-gang</span></div>
-          <div class="stage">
-            <div class="registration reg-tl" aria-hidden="true"></div><div class="registration reg-br" aria-hidden="true"></div>
-            <div class="model" role="img" aria-label="Assembled single-gang Nultra switch with its circular push button on the faceplate.">
-              <img id="render" width="920" height="820" src="assets/assembly/00.webp" fetchpriority="high" alt="">
-              <canvas id="animation" width="920" height="820" aria-hidden="true"></canvas>
-              <svg class="leaders" viewBox="0 0 920 820" aria-hidden="true"></svg>
-            </div>
-          </div>
-          <figcaption>
-            <div class="model-state"><span id="viewer-title">Assembled</span><output id="amount" for="scrub" aria-live="off">0%</output></div>
-            <label class="sr-only" for="scrub">Assembly separation</label>
-            <input id="scrub" type="range" min="0" max="48" value="0" step="1" aria-valuetext="Assembled">
-            <div class="viewer-foot"><span>Assembled</span><span>Exploded</span></div>
-          </figcaption>
-        </figure>
-      </div>
-      <div class="wrap hero-bottom"><span class="scroll-cue"><b aria-hidden="true">↓</b> <span id="scroll-instruction">Scroll to disassemble</span></span><span class="dimensions"><span>Faceplate &nbsp;/&nbsp; </span>70 × 115 mm</span></div>
-    </div>
-  </section>
-  <section id="files" class="files">
-    <div class="wrap">
-      <div class="files-intro"><div><p class="eyebrow light-eye"><span class="signal" aria-hidden="true"></span> Build files</p><h2>Inside Nultra<span>.</span></h2></div>
-        <p>From the faceplate to the firmware, the design lives in one repository. Start with the layer you want to change.</p></div>
-      <div class="library">
-        <article class="mechanical" id="enclosure">
-          <div class="mechanical-image">
-            <img src="assets/assembly/48.webp" width="920" height="820" loading="lazy" alt="Exploded enclosure with the faceplate at the front and rear shell at the back.">
-            <svg id="parts-guide" class="leaders" viewBox="0 0 920 820" aria-hidden="true">
-              <g data-part="faceplate">
-                <path d="M 28 208 H 53 L 256.22 359.23"></path>
-                <circle cx="256.22" cy="359.23" r="5"></circle>
-                <text x="28" y="198" text-anchor="start">Faceplate</text>
-              </g>
-              <g data-part="carrier">
-                <path d="M 260 127 H 285 L 411.47 320.73"></path>
-                <circle cx="411.47" cy="320.73" r="5"></circle>
-                <text x="260" y="117" text-anchor="start">Switch carrier</text>
-              </g>
-              <g data-part="pcb">
-                <path d="M 733 87 H 708 L 617.94 307.43"></path>
-                <circle cx="617.94" cy="307.43" r="5"></circle>
-                <text x="733" y="77" text-anchor="end">Circuit board</text>
-              </g>
-              <g data-part="shell">
-                <path d="M 885 680 H 860 L 774.04 415.01"></path>
-                <circle cx="774.04" cy="415.01" r="5"></circle>
-                <text x="885" y="670" text-anchor="end">Rear shell</text>
-              </g>
+        <figure class="assembly-figure">
+          <div class="model-wrap">
+            <img id="sequence-poster" src="assets/product/frames/000.webp" width="1056" height="864" fetchpriority="high" alt="Assembled single-gang Nultra wall switch seen at a three-quarter angle">
+            <canvas id="sequence-canvas" width="1056" height="864" aria-hidden="true"></canvas>
+            <svg id="sequence-labels" viewBox="0 0 1056 864" aria-hidden="true">
+              <g data-label-group="assembly"><g data-part="faceplate"><path/><circle r="4"/><text x="34" y="202" text-anchor="start">Faceplate</text></g>
+              <g data-part="carrier"><path/><circle r="4"/><text x="310" y="106" text-anchor="start">Carrier</text></g>
+              <g data-part="battery"><path/><circle r="4"/><text x="436" y="742" text-anchor="end">AA cell</text></g>
+              <g data-part="pcb"><path/><circle r="4"/><text x="805" y="130" text-anchor="end">Circuit board</text></g>
+              <g data-part="shell"><path/><circle r="4"/><text x="1020" y="708" text-anchor="end">Rear shell</text></g>
+              </g><g data-label-group="board"><g data-part="antenna"><path/><circle r="4"/><text x="1020" y="147" text-anchor="end">Printed antenna</text></g>
+              <g data-part="mcu"><path/><circle r="4"/><text x="35" y="370" text-anchor="start">Bluetooth MCU</text></g>
+              <g data-part="testpoint"><path/><circle r="4"/><text x="975" y="697" text-anchor="end">J3 test point</text></g></g>
             </svg>
           </div>
-          <div><p class="type">Mechanical design</p><h3>The enclosure</h3>
-            <p>From front to back, the faceplate covers the switch carrier, the circuit board sits behind it, and the rear shell closes the assembly.</p>
-            <div class="file-links"><a href="https://github.com/AfshinKI/Nultra/blob/main/hardware/mechanical/assemblies/single-switch.step" class="ink-link">Single-gang STEP</a>
-            <a href="https://github.com/AfshinKI/Nultra/blob/main/hardware/mechanical/assemblies/double-switch.step" class="ink-link">Double-gang STEP</a>
-            <a href="https://github.com/AfshinKI/Nultra/tree/main/hardware/mechanical/prints" class="ink-link">Printable parts</a>
-            <a href="https://cad.onshape.com/documents/3cb2e23a19093c4389ce2f07/w/3be343cdcd1e5951d1a37be1" class="ink-link">Onshape imports</a></div>
-          </div>
-        </article>
-        <div class="source-list">
-          <article><div class="file-tag" aria-hidden="true">PCB</div><div><h3><a href="https://github.com/AfshinKI/Nultra/tree/main/hardware/electronics">Electronics</a></h3><p>Original v2 fabrication files and bill of materials, plus a KiCad conversion for design review.</p></div></article>
-          <article><div class="file-tag" aria-hidden="true">MCU</div><div><h3><a href="https://github.com/AfshinKI/Nultra/tree/main/firmware">Firmware</a></h3><p>Relay control, battery monitoring and Bluetooth pairing.</p></div></article>
-          <article><div class="file-tag" aria-hidden="true">APP</div><div><h3><a href="https://github.com/AfshinKI/Nultra/tree/main/app">Mobile apps</a></h3><p>Native iOS and Android switch controls.</p></div></article>
-          <article><div class="file-tag" aria-hidden="true">WEB</div><div><h3><a href="https://github.com/AfshinKI/Nultra/tree/main/web">Local gateway</a></h3><p>A Python service for Bluetooth control and scheduling.</p></div></article>
+        </figure>
+      </div>
+      <div class="timeline wrap interaction">
+        <div class="chapter-tabs" role="group" aria-label="Hardware views">
+          <button type="button" data-chapter-at="0" aria-pressed="true"><span></span>Rotate</button>
+          <button type="button" data-chapter-at=".638888889" aria-pressed="false"><span></span>Explode</button>
+          <button type="button" data-chapter-at="1" aria-pressed="false"><span></span>Circuit</button>
         </div>
+        <div class="scrub-line"><label for="sequence-scrub">View</label><input id="sequence-scrub" type="range" min="0" max="100" step="1" value="0" aria-label="Hardware sequence position" aria-valuetext="Assembled"><output id="sequence-percent" for="sequence-scrub" aria-live="off">0%</output></div>
+      </div>
+    </div>
+  </section>
+
+  <section id="control" class="control-study" aria-labelledby="control-title">
+    <div class="control-pin">
+      <div class="control-layout wrap">
+        <div class="control-head">
+          <div><p class="kicker"><span class="hairline" aria-hidden="true"></span> iPhone app</p><h2 id="control-title">Control the <em>light.</em></h2></div>
+          <p>Open Nultra and tap DESKLAMP to switch the light over Bluetooth.</p>
+        </div>
+        <div class="control-stage" data-phone-stage data-lamp="on" data-app="open" data-view="detail">
+          <div class="ph-room" aria-hidden="true">
+            <img class="ph-room-off" src="assets/phone/room-off.webp" width="1440" height="960" loading="lazy" decoding="async" alt="">
+            <img class="ph-room-on" src="assets/phone/room-on.webp" width="1440" height="960" loading="lazy" decoding="async" alt="">
+          </div>
+          <div class="ph-position">
+            <div class="ph-device">
+              <div class="ph-display">
+                <div class="ph-launch" data-phone-launch>
+                  <div class="ph-launch-status" aria-hidden="true"><span>4:03</span><b>•••</b><u></u></div>
+                  <button type="button" class="ph-icon" data-open-app aria-label="Open Nultra in the demo"><img src="assets/phone/app-icon.webp" width="150" height="150" loading="lazy" alt=""><span>Nultra</span></button>
+                </div>
+                <div class="ph-app" data-phone-app>
+                  <img class="ph-shot" src="assets/phone/dashboard.webp" width="562" height="1218" loading="lazy" decoding="async" alt="Nultra iPhone dashboard in demo mode with six named switches">
+                  <img class="ph-off-tile" src="assets/phone/switch-off.webp" width="257" height="128" loading="lazy" decoding="async" alt="">
+                  <button class="ph-hit ph-desk-hit" type="button" data-toggle-desk aria-label="Turn desk lamp on"><i class="ph-tap" aria-hidden="true"></i></button>
+                  <div class="ph-details" data-phone-detail>
+                    <img class="ph-shot" src="assets/phone/switch-controls.webp" width="562" height="1218" loading="lazy" decoding="async" alt="Nultra DESKLAMP switch details showing the power is on">
+                    <button class="ph-hit ph-done-hit" type="button" data-close-detail aria-label="Return to Nultra dashboard"></button>
+                    <button class="ph-hit ph-off-hit" type="button" data-switch-off aria-label="Turn the desk lamp off"></button>
+                  </div>
+                </div>
+                <span class="ph-notch" aria-hidden="true"></span><span class="ph-homebar" aria-hidden="true"></span>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="control-actions">
+          <p><span class="ph-state-dot" aria-hidden="true"></span><span data-phone-caption>Desk lamp on</span></p>
+          <div data-phone-controls hidden><button type="button" data-phone-action>Open app</button><button type="button" class="ph-replay" data-phone-replay>Replay</button></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="files" class="files" aria-labelledby="files-title">
+    <div class="files-layout wrap">
+      <div class="files-intro"><p class="kicker"><span class="hairline" aria-hidden="true"></span> Open source</p><h2 id="files-title">Build <em>files.</em></h2><a class="type-link" href="https://github.com/AfshinKI/Nultra">Browse the repository</a>
+      </div>
+      <div class="files-list">
+        <div class="file-row"><h3>Enclosure</h3><div class="row-links"><a href="https://github.com/AfshinKI/Nultra/blob/main/hardware/mechanical/assemblies/single-switch.step">Single STEP</a><a href="https://github.com/AfshinKI/Nultra/blob/main/hardware/mechanical/assemblies/double-switch.step">Double STEP</a><a href="https://github.com/AfshinKI/Nultra/tree/main/hardware/mechanical/prints">Print meshes</a><a href="https://cad.onshape.com/documents/3cb2e23a19093c4389ce2f07/w/3be343cdcd1e5951d1a37be1">Onshape</a></div></div>
+        <div class="file-row"><h3>Electronics</h3><div class="row-links"><a href="https://github.com/AfshinKI/Nultra/tree/main/hardware/electronics/fabrication/v2">Original v2 Gerbers &amp; BOM</a><a href="https://github.com/AfshinKI/Nultra/blob/main/hardware/README.md#electronics">KiCad review notes</a></div></div>
+        <div class="file-row"><h3>Software</h3><div class="row-links"><a href="https://github.com/AfshinKI/Nultra/tree/main/firmware">Firmware</a><a href="https://github.com/AfshinKI/Nultra/tree/main/app">Mobile apps</a><a href="https://github.com/AfshinKI/Nultra/tree/main/web">Local gateway</a></div></div>
+        <div class="file-row"><h3>Renders</h3><div class="row-links"><a href="assets/product/hero.webp">Board &amp; AA cell</a><a href="assets/product/detail.webp">Circuit detail</a><a href="assets/product/frames/046.webp">Exploded assembly</a></div></div>
       </div>
     </div>
   </section>
 </main>
-<footer><div class="wrap footer-inner"><a class="brand" href="#overview"><span class="logo" aria-hidden="true"></span>nultra<span class="brand-stop">.</span></a><span>Open hardware by AfshinKI</span><a href="https://github.com/AfshinKI/Nultra/blob/main/LICENSE">Licenses</a><a href="https://github.com/AfshinKI/Nultra">GitHub</a></div></footer>
-</body></html>
+<footer><div class="footer-inner wrap"><a class="brand" href="#sequence" aria-label="Nultra home"><span class="brand-mark" aria-hidden="true"></span>nultra</a><span>Designed by AfshinKI</span><a href="https://github.com/AfshinKI/Nultra/blob/main/LICENSE">Licenses</a><a href="#sequence">Back to top</a></div></footer>
+</body>
+</html>

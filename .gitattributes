@@ -5,4 +5,5 @@ gradlew text eol=lf
 *.stl binary
 *.webp binary
 *.ttf binary
+*.woff2 binary
 *.pdf binary

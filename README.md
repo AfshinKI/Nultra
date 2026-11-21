@@ -4,7 +4,7 @@ Nultra is a Bluetooth LE wall switch designed for switch boxes without a neutral
 
 [Explore the switch in an exploded view](https://afshinki.github.io/Nultra/) · [Open the enclosure document in Onshape](https://cad.onshape.com/documents/3cb2e23a19093c4389ce2f07/w/3be343cdcd1e5951d1a37be1)
 
-<img src="docs/assets/assembly/48.webp" alt="Exploded Nultra enclosure with the faceplate, carrier, circuit board and rear shell separated" width="460">
+<img src="docs/assets/product/frames/046.webp" alt="Exploded Nultra switch, from front to back: faceplate, AA cell, carrier, populated circuit board and rear shell" width="460">
 
 ## Build and use a switch
 
@@ -22,7 +22,11 @@ The KiCad project is an editable conversion with outstanding connectivity findin
 
 ## Project site
 
-The assembly viewer uses a sequence rendered from the enclosure and board geometry. Scroll through the assembly or use its slider to inspect a particular stage. To run the site locally, start `python -m http.server --bind 127.0.0.1 --directory docs 8000` from the repository root and open [the local preview](http://127.0.0.1:8000/).
+Scroll to rotate the assembled switch, lift off the faceplate and separate the AA cell, carrier, board and rear shell. The camera then moves in on the printed antenna, Bluetooth controller and J3 test point. The populated Altium PCB and project AA model are path-traced offline. The browser loads compressed frames as needed. Chapter buttons and a keyboard-accessible slider offer direct control. [Render script](tools/render_product.py) · [AA model preparation](tools/prepare_render_battery.py)
+
+The phone demo uses Nultra’s iOS demo screens. Opening the app and tapping DESKLAMP changes the simulated room light locally in the browser.
+
+To run the site locally, start `python -m http.server --bind 127.0.0.1 --directory docs 8000` from the repository root and open [the local preview](http://127.0.0.1:8000/).
 
 ## Licenses
 

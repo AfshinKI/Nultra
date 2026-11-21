@@ -1,166 +1,270 @@
 (() => {
   "use strict";
-  const track = document.querySelector(".scroll-track");
-  const pin = document.querySelector(".hero-pin");
-  const poster = document.getElementById("render");
-  const canvas = document.getElementById("animation");
-  const ctx = canvas.getContext("2d");
-  const model = document.querySelector(".model");
-  const leaders = model.querySelector(".leaders");
-  const scrub = document.getElementById("scrub");
-  const amount = document.getElementById("amount");
-  const instruction = document.getElementById("scroll-instruction");
-  const title = document.getElementById("viewer-title");
-  const reduced = window.matchMedia("(prefers-reduced-motion: reduce)");
-  const max = Number(scrub.max);
-  const cache = new Map();
-  const layout = Array.from(document.querySelectorAll("#parts-guide g"), source => {
-    const group = source.cloneNode(true);
-    leaders.append(group);
-    const path = group.querySelector("path");
-    const circle = group.querySelector("circle");
-    return {
-      id: group.dataset.part, path, circle,
-      start: path.getAttribute("d").split(" L ")[0],
-      finalX: Number(circle.getAttribute("cx")),
-      finalY: Number(circle.getAttribute("cy"))
-    };
+
+  const sequence = document.getElementById("sequence");
+  const pin = sequence?.querySelector(".sequence-pin");
+  const canvas = document.getElementById("sequence-canvas");
+  const poster = document.getElementById("sequence-poster");
+  const slider = document.getElementById("sequence-scrub");
+  const percent = document.getElementById("sequence-percent");
+  const context = canvas?.getContext("2d");
+  if (!pin || !poster || !slider || !context || !window.Image.prototype.decode) return;
+
+  const labelLayer = document.getElementById("sequence-labels");
+  const labelGroups = Array.from(labelLayer?.querySelectorAll("[data-label-group]") || [], layer => {
+    const labels = Array.from(layer.querySelectorAll("[data-part]"), group => {
+      const text = group.querySelector("text");
+      return {
+        part: group.dataset.part, group, path: group.querySelector("path"), dot: group.querySelector("circle"),
+        x: Number(text.getAttribute("x")), y: Number(text.getAttribute("y")) + 8,
+        elbow: text.getAttribute("text-anchor") === "end" ? -26 : 26,
+      };
+    });
+    return {layer, labels};
   });
-  let anchorFrames;
-  let desired = -1;
-  let visible = 0;
-  let request = 0;
-  let lastScroll = window.scrollY;
-  let manual = false;
+  const chapters = Array.from(sequence.querySelectorAll("[data-chapter-at]"), button => ({
+    button, at: Number(button.dataset.chapterAt), title: button.textContent.trim(),
+  }));
+  const copies = sequence.querySelectorAll("[data-chapter-copy]");
+  const reduced = window.matchMedia("(prefers-reduced-motion: reduce)");
+  const saveData = navigator.connection?.saveData === true;
+  const endFrame = 72;
+  const cacheLimit = saveData ? 3 : 7;
+  const decoded = new Map();
+  const loading = new Set();
+  const failed = new Map();
+  const clamp = value => Math.min(1, Math.max(0, value));
+  const descriptions = [
+    "Rotating view of the assembled Nultra wall switch.",
+    "The faceplate lifts away first. The AA cell, carrier, populated circuit board and rear shell then separate.",
+    "Close-up of the circuit board showing the printed antenna, Bluetooth microcontroller and test point.",
+  ];
 
-  function label(frame) {
-    const anchors = anchorFrames?.[frame];
-    const show = frame > 14 && (anchors || frame === max);
-    leaders.style.opacity = show ? String(Math.min(1,(frame-14)/9)) : "0";
-    if (!show) return;
-    for (const part of layout) {
-      const anchor = anchors?.[part.id];
-      const x = anchor ? anchor[0] * canvas.width : part.finalX;
-      const y = anchor ? anchor[1] * canvas.height : part.finalY;
-      part.path.setAttribute("d", `${part.start} L ${x} ${y}`);
-      part.circle.setAttribute("cx", x);
-      part.circle.setAttribute("cy", y);
+  let anchors;
+  let fetchingAnchors = false;
+  let retryAnchorsAfter = 0;
+  let target = 0;
+  let displayed = 0;
+  let direction = 1;
+  let activeChapter = -1;
+  let nearScene = false;
+  let lookAheadUntil = 0;
+  let queued = false;
+  let needsMeasurement = true;
+  let scrollStart = 0;
+  let scrollSpan = 0;
+  let sceneTop = 0;
+  let sceneBottom = 0;
+  let lastPercent = -1;
+
+  function chapterAt(frame) {
+    if (frame >= 56) return 2;
+    return frame >= 18 ? 1 : 0;
+  }
+
+  function showChapter(frame) {
+    const index = chapterAt(frame);
+    if (index === activeChapter) return;
+    activeChapter = index;
+    sequence.dataset.chapter = String(index);
+    chapters.forEach(({button}, i) => button.setAttribute("aria-pressed", String(i === index)));
+    copies.forEach((copy, i) => { copy.hidden = i !== index; });
+    poster.alt = descriptions[Math.min(index, descriptions.length - 1)];
+  }
+
+  function placeLabels(frame) {
+    if (!labelLayer) return;
+    const positions = anchors?.[frame];
+    labelLayer.style.opacity = positions ? "1" : "0";
+    if (!positions) return;
+    const bounds = labelLayer.viewBox.baseVal;
+    for (const {layer, labels} of labelGroups) {
+      // Separate the assembly callouts before the camera pushes into the PCB.
+      const opacity = layer.dataset.labelGroup === "board"
+        ? clamp((frame - 58) / 6)
+        : Math.min(clamp((frame - 33) / 5), clamp((53 - frame) / 5));
+      layer.style.opacity = String(opacity);
+      if (!opacity) continue;
+      for (const {part, group, path, dot, x, y, elbow} of labels) {
+        const anchor = positions[part];
+        const visible = Array.isArray(anchor) && anchor.length === 2 &&
+          anchor.every(coordinate => Number.isFinite(coordinate) && coordinate >= 0 && coordinate <= 1);
+        group.style.visibility = visible ? "visible" : "hidden";
+        if (!visible) continue;
+        const ax = anchor[0] * bounds.width;
+        const ay = anchor[1] * bounds.height;
+        path.setAttribute("d", `M ${x} ${y} h ${elbow} L ${ax} ${ay}`);
+        dot.setAttribute("cx", ax);
+        dot.setAttribute("cy", ay);
+      }
     }
   }
 
-  function frameUrl(frame) {
-    return "assets/assembly/" + String(frame).padStart(2,"0") + ".webp";
-  }
-
-  function present(frame, image) {
-    if (frame !== desired) return;
-    if (ctx) {
-      ctx.clearRect(0,0,canvas.width,canvas.height);
-      ctx.drawImage(image,0,0,canvas.width,canvas.height);
-      poster.style.visibility = "hidden";
-    } else {
-      poster.src = frameUrl(frame);
-    }
-    visible = frame;
-    model.style.setProperty("--zoom", String(1 + 0.12 * (1 - frame / max)));
-    label(frame);
-    model.setAttribute("aria-label", frame > 14
-      ? "Separated enclosure showing the faceplate, switch carrier, circuit board and rear shell in order from front to back."
-      : "Single-gang switch enclosure with its circular push button on the faceplate.");
-  }
-
-  function load(frame) {
-    if (cache.has(frame)) return cache.get(frame);
-    const image = new Image();
-    image.decoding = "async";
-    const item = {image, ready:false};
-    cache.set(frame,item);
-    image.onload = () => {
-      item.ready = true;
-      present(frame,image);
-    };
-    image.onerror = () => {
-      if (cache.get(frame) === item) cache.delete(frame);
-    };
-    image.src = frameUrl(frame);
-    return item;
-  }
-
-  function select(raw) {
-    const frame = Math.max(0,Math.min(max,Math.round(raw)));
-    if (frame === desired) return;
-    const forward = frame >= desired ? 1 : -1;
-    desired = frame;
-    const percent = Math.round(100*frame/max) + "%";
-    const name = frame === 0 ? "Assembled" : frame === max ? "Exploded view" : "Partly separated";
-    instruction.textContent = frame === max ? "Scroll to build files" : "Scroll to disassemble";
-    title.textContent = name;
-    amount.value = percent;
-    scrub.value = String(frame);
-    scrub.setAttribute("aria-valuetext",name + ", " + percent + " separation");
-    scrub.style.setProperty("--fill",percent);
-    const item = load(frame);
-    if (item.ready) present(frame,item.image);
-    for (const step of [1,2,-1,3]) {
-      const next = frame + step*forward;
-      if (next >= 0 && next <= max) load(next);
-    }
-    for (const key of cache.keys()) {
-      if (Math.abs(key-frame) > 6) cache.delete(key);
+  async function loadAnchors() {
+    if (!labelLayer || anchors || fetchingAnchors || performance.now() < retryAnchorsAfter) return;
+    fetchingAnchors = true;
+    try {
+      const response = await fetch("assets/product/anchors.json");
+      if (!response.ok) throw new Error();
+      anchors = await response.json();
+      placeLabels(displayed);
+    } catch {
+      retryAnchorsAfter = performance.now() + 5000;
+    } finally {
+      fetchingAnchors = false;
     }
   }
 
-  function scrollPosition() {
-    const header = document.querySelector(".topbar").offsetHeight;
-    const start = track.getBoundingClientRect().top + window.scrollY - header;
-    return {start, distance: Math.max(0, track.offsetHeight - pin.offsetHeight)};
+  function draw(frame) {
+    if (frame === displayed) return;
+    if (frame > 0) {
+      const image = decoded.get(frame);
+      context.clearRect(0, 0, canvas.width, canvas.height);
+      context.drawImage(image, 0, 0, canvas.width, canvas.height);
+    }
+    // Keep the HTML poster in place until a complete frame has been painted.
+    canvas.style.opacity = frame > 0 ? "1" : "0";
+    poster.style.opacity = frame > 0 ? "0" : "1";
+    displayed = frame;
+    showChapter(frame);
+    placeLabels(frame);
+  }
+
+  function drawClosest() {
+    if (target === 0 || decoded.has(target)) {
+      draw(target);
+      return;
+    }
+    let nearest = displayed;
+    const low = Math.min(displayed, target);
+    const high = Math.max(displayed, target);
+    for (const frame of decoded.keys()) {
+      if (frame < low || frame > high) continue;
+      if (Math.abs(frame - target) < Math.abs(nearest - target)) nearest = frame;
+    }
+    draw(nearest);
+  }
+
+  function trimCache() {
+    if (decoded.size <= cacheLimit) return;
+    let farthest;
+    for (const frame of decoded.keys()) {
+      if (frame === displayed) continue;
+      if (farthest === undefined || Math.abs(frame - target) > Math.abs(farthest - target)) farthest = frame;
+    }
+    decoded.delete(farthest);
+  }
+
+  async function loadFrame(frame) {
+    loading.add(frame);
+    try {
+      const image = new Image();
+      image.decoding = "async";
+      image.src = "assets/product/frames/" + String(frame).padStart(3, "0") + ".webp";
+      await image.decode();
+      decoded.set(frame, image);
+      if (nearScene) drawClosest();
+      trimCache();
+    } catch {
+      // Keep the last complete image if a connection drops while scrolling.
+      failed.set(frame, performance.now() + 5000);
+    } finally {
+      loading.delete(frame);
+      pump();
+    }
+  }
+
+  function pump() {
+    if (!nearScene || document.hidden || target === 0) return;
+    const now = performance.now();
+    const limit = reduced.matches || saveData ? 1 : 2;
+    const candidates = [target];
+    if (limit > 1 && now < lookAheadUntil) candidates.push(target + direction);
+    for (const frame of candidates) {
+      if (loading.size >= limit) break;
+      if (frame < 1 || frame > endFrame || decoded.has(frame) || loading.has(frame) || failed.get(frame) > now) continue;
+      loadFrame(frame);
+    }
+  }
+
+  function select(value, predict) {
+    const progress = clamp(value);
+    const frame = Math.round(progress * endFrame);
+    if (frame !== target) {
+      direction = Math.sign(frame - target);
+      target = frame;
+      lookAheadUntil = predict ? performance.now() + 100 : 0;
+    }
+    const number = Math.round(progress * 100);
+    if (lastPercent !== number) {
+      lastPercent = number;
+      slider.value = String(number);
+      const chapter = chapters[chapterAt(frame)];
+      slider.setAttribute("aria-valuetext", (chapter ? chapter.title + ", " : "") + number + "%");
+      if (percent) percent.value = number + "%";
+      sequence.style.setProperty("--sequence-progress", String(progress));
+    }
+    drawClosest();
+    if (target >= 28) loadAnchors();
+    pump();
+  }
+
+  function measure() {
+    needsMeasurement = false;
+    const top = window.scrollY;
+    const rect = sequence.getBoundingClientRect();
+    sceneTop = top + rect.top;
+    sceneBottom = top + rect.bottom;
+    const style = getComputedStyle(pin);
+    scrollStart = sceneTop - (parseFloat(style.top) || 0);
+    scrollSpan = style.position === "sticky" ? Math.max(0, rect.height - pin.offsetHeight) : 0;
   }
 
   function syncScroll() {
-    request = 0;
-    if (!manual && !reduced.matches) {
-      const {start,distance} = scrollPosition();
-      if (distance > 0) select((window.scrollY - start) / distance * max);
+    queued = false;
+    if (needsMeasurement) measure();
+    const y = window.scrollY;
+    nearScene = y + window.innerHeight >= sceneTop && y <= sceneBottom;
+    if (nearScene && scrollSpan > 0 && !reduced.matches) select((y - scrollStart) / scrollSpan, true);
+    else if (nearScene) pump();
+  }
+
+  function schedule() {
+    if (!queued) {
+      queued = true;
+      requestAnimationFrame(syncScroll);
     }
   }
 
-  window.addEventListener("scroll",() => {
-    if (window.scrollY !== lastScroll) manual = false;
-    lastScroll = window.scrollY;
-    if (!request) request = requestAnimationFrame(syncScroll);
-  },{passive:true});
-  window.addEventListener("resize",syncScroll);
-  reduced.addEventListener("change",syncScroll);
-  scrub.addEventListener("input",() => {
-    manual = true;
-    select(Number(scrub.value));
-    const {start,distance} = scrollPosition();
-    if (!reduced.matches && distance > 0) {
-      window.scrollTo({top:start + distance * desired/max, behavior:"instant"});
+  function remeasure() {
+    needsMeasurement = true;
+    schedule();
+  }
+
+  function seek(progress) {
+    if (needsMeasurement) measure();
+    nearScene = true;
+    if (!reduced.matches && scrollSpan > 0) {
+      window.scrollTo({top: scrollStart + scrollSpan * progress, behavior: "instant"});
     }
-  });
-  document.querySelectorAll("[data-explore]").forEach(link => link.addEventListener("click",event => {
-    event.preventDefault();
-    const {start,distance} = scrollPosition();
-    if (reduced.matches || distance === 0) {
-      manual = true;
-      select(max);
-      document.getElementById("assembly").scrollIntoView({block:"center",behavior:"instant"});
-    } else {
-      manual = false;
-      window.scrollTo({top:start+distance,behavior:"smooth"});
-    }
-    scrub.focus({preventScroll:true});
-  }));
-  document.documentElement.classList.add("interactive");
-  label(0);
-  fetch("assets/assembly/anchors.json").then(response => {
-    if (!response.ok) throw new Error("Missing label coordinates");
-    return response.json();
-  }).then(data => {anchorFrames = data; label(visible);}).catch(() => {
-    // The static guide supplies the fully separated coordinates when opened offline.
-  });
-  select(0);
-  if (location.hash === "#assembly") document.querySelector("[data-explore]").click();
-  else syncScroll();
+    select(progress, false);
+  }
+
+  slider.addEventListener("input", () => seek(Number(slider.value) / 100));
+  chapters.forEach(({button, at}) => button.addEventListener("click", () => seek(at)));
+  window.addEventListener("scroll", schedule, {passive: true});
+  window.addEventListener("resize", remeasure);
+  window.addEventListener("pageshow", remeasure);
+  document.addEventListener("visibilitychange", schedule);
+  reduced.addEventListener("change", remeasure);
+  if ("ResizeObserver" in window) {
+    const observer = new ResizeObserver(remeasure);
+    for (const element of [document.body, sequence, pin]) observer.observe(element);
+  }
+
+  sequence.classList.add("motion-ready");
+  showChapter(0);
+  placeLabels(0);
+  select(0, false);
+  syncScroll();
 })();

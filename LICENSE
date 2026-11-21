@@ -12,7 +12,11 @@ Third-party material retains its own license. In particular, STMicroelectronics
 application sources in firmware/BLE_Peripheral_Lite/ retain the vendor terms
 identified in firmware/README.md and the accompanying license notices. The
 vendor SDK fetched at build time has its own component-specific terms.
-DM Sans is distributed under the SIL Open Font License in
-docs/assets/dm-sans-LICENSE.txt. Other notices included with files also apply.
+The product renders in docs/assets/product/ depict the Nultra enclosure and
+populated board. The original Nultra hardware contributions use CERN-OHL-P-2.0.
+Third-party component geometry and marks remain subject to their owners' terms.
+DM Sans and Instrument Serif are distributed under the SIL Open Font License.
+See docs/assets/dm-sans-LICENSE.txt and docs/assets/instrument-serif-LICENSE.txt.
+Other notices included with files also apply.
 
 These licenses include warranty disclaimers and limitations of liability.
