@@ -21,13 +21,15 @@ The KiCad project is an editable conversion with outstanding connectivity findin
 
 ## Project site
 
-The 3D demo opens Nultra on the phone and turns on the room lamp. Scrolling takes over the camera and brings the wall switch into view. The room uses baked light for its lamp-on and lamp-off states. Use the chapter buttons or keyboard-accessible slider to jump directly to the teardown. [Room lighting](tools/render_room.py)
+The 3D demo opens the app on a titanium-finish phone and turns on the room lamp. The phone uses the Nultra app artwork, and the wall switch uses its CAD geometry. Matched, AI-generated interior views supply the lamp-off and lamp-on lighting for landscape and portrait screens. Scrolling carries the camera from the room into the teardown. Chapter buttons and a keyboard-accessible slider let you go straight to a part. [Interactive room renderer](docs/room.js) · [Room artwork and prompts](tools/room_artwork.md)
 
 The faceplate lifts first. The AA cell moves forward, exposing the SWD debug pads beneath it. Both sides of the PCB stay in frame as the camera identifies the printed antenna, CPU, DC/DC converter and latching relay. The teardown uses the populated Altium PCB and the project's AA model. Its path-traced images load in small groups. [Render script](tools/render_product.py) · [AA model preparation](tools/prepare_render_battery.py)
 
 J5 carries SWDIO and SWCLK. U1 is the STM32WB05KZ Bluetooth MCU. On the opposite side, U4 is the TPS613221A boost converter and R5 is the Panasonic AGQ21TA2H latching relay. [V2 pad connections](hardware/electronics/fabrication/v2/Nultra-v2-pad-connections.csv) · [V2 bill of materials](hardware/electronics/fabrication/v2/Nultra-v2-BOM.csv)
 
 The battery illustration shows more than a year of use on one AA. Its curve is illustrative. The firmware requests a 2 ms pulse to change the latching relay, then disables the drive. The relay holds its position with its coil unpowered. The controller can sleep between radio events. [Relay drive](firmware/BLE_Peripheral_Lite/Core/Src/main.c#L887) · [Controller sleep](firmware/BLE_Peripheral_Lite/Core/Src/app_entry.c#L310)
+
+The close-up in the build-files section was path traced from the Altium board and the positioned AA cell using a thin-lens camera focused on the microcontroller. [Board photograph renderer](tools/render_board_detail.py)
 
 To preview the site locally, run `python -m http.server --bind 127.0.0.1 --directory docs 8000` from the repository root.
 

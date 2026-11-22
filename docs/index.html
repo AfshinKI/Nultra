@@ -4,16 +4,22 @@
   <meta charset="utf-8">
   <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self'; font-src 'self'; connect-src 'self'; base-uri 'none'; form-action 'none'">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="theme-color" content="#101a17">
+  <meta name="theme-color" content="#f7f6f2">
   <meta name="description" content="Turn on a lamp in a 3D room, then follow the Nultra wall switch from its faceplate to its low-power Bluetooth circuit.">
   <title>Nultra Switch — Open hardware</title>
-  <link rel="icon" href="assets/mark.svg" type="image/svg+xml">
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="Nultra Switch — Open hardware">
+  <meta property="og:description" content="Explore an open-source Bluetooth wall switch, from the light in the room to the circuit inside.">
+  <meta property="og:url" content="https://afshinki.github.io/Nultra/">
+  <meta property="og:image" content="https://afshinki.github.io/Nultra/assets/room/lit-wide.webp?v=4">
+  <meta property="og:image:alt" content="The Nultra wall switch and mobile app controlling a desk lamp.">
+  <meta name="twitter:card" content="summary_large_image">
+  <link rel="icon" href="assets/mark.svg?v=4" type="image/svg+xml">
   <link rel="preload" href="assets/dm-sans.woff2" as="font" type="font/woff2" crossorigin>
-  <link rel="preload" href="assets/instrument-serif-italic.woff2" as="font" type="font/woff2" crossorigin>
-  <link rel="stylesheet" href="site.css?v=3">
-  <link rel="stylesheet" href="room.css?v=3">
-  <script defer src="room.js?v=3"></script>
-  <script defer src="viewer.js?v=4"></script>
+  <link rel="stylesheet" href="site.css?v=4">
+  <link rel="stylesheet" href="room.css?v=4">
+  <script defer src="room.js?v=4"></script>
+  <script defer src="viewer.js?v=5"></script>
 </head>
 <body>
 <a class="skip" href="#files">Skip to build files</a>
@@ -34,21 +40,21 @@
           <canvas id="room-canvas" aria-hidden="true"></canvas>
           <div class="room-intro wrap">
             <div class="stage-copy" data-chapter-copy>
-              <h2>Nultra <em>Switch.</em></h2>
-              <p class="lead">Scroll to look inside.</p>
+              <h2>Nultra <span>Switch</span></h2>
+              <p class="lead">Open-source Bluetooth wall switch.</p>
               <button class="lamp-control" type="button" data-room-lamp aria-pressed="false" hidden><span class="lamp-glyph" aria-hidden="true"></span><span data-room-action-text>Turn lamp on</span></button>
-              <noscript><p class="static-links"><a href="assets/room/lit-wide.webp?v=3">Lamp on</a><a href="assets/product/frames/030.webp">Faceplate</a><a href="assets/product/frames/072.webp?v=3">PCB front</a><a href="assets/product/frames/116.webp">PCB back</a></p></noscript>
+              <noscript><p class="static-links"><a href="assets/room/lit-wide.webp?v=4">Lamp on</a><a href="assets/product/frames/030.webp">Faceplate</a><a href="assets/product/frames/072.webp?v=3">PCB front</a><a href="assets/product/frames/116.webp">PCB back</a></p></noscript>
             </div>
           </div>
         </div>
         <div class="hardware-stage wrap">
           <div class="stage-copy">
             <div data-chapter-copy hidden>
-              <h2>The <em>switch.</em></h2>
+              <h2>The switch</h2>
               <p class="lead">Bluetooth LE. No neutral wire required.</p>
             </div>
             <div data-chapter-copy hidden>
-              <h2>One <em>AA.</em></h2>
+              <h2>One AA</h2>
               <p class="lead">Over a year of battery life.</p>
               <figure class="battery-chart" aria-label="Illustration of a single AA cell gradually discharging over more than one year.">
                 <div class="cell-indicator" aria-hidden="true"><span></span></div>
@@ -61,7 +67,7 @@
               </figure>
             </div>
             <div data-chapter-copy hidden>
-              <h2>Circuit <em>board.</em></h2>
+              <h2>Circuit board</h2>
             </div>
           </div>
           <figure class="assembly-figure">
@@ -96,15 +102,18 @@
           <button type="button" data-chapter-at=".665" aria-pressed="false"><span></span>Assembly</button>
           <button type="button" data-chapter-at=".80" aria-pressed="false"><span></span>Circuit</button>
         </div>
-        <div class="scrub-line"><label for="sequence-scrub">View</label><input id="sequence-scrub" type="range" min="0" max="100" step="1" value="0" aria-label="Explore from room to circuit" aria-valuetext="Room, 0%"><output id="sequence-percent" for="sequence-scrub" aria-live="off">0%</output></div>
+        <div class="scrub-line"><label for="sequence-scrub">Scroll to explore</label><input id="sequence-scrub" type="range" min="0" max="100" step="1" value="0" aria-label="Explore from room to circuit" aria-valuetext="Room, 0%"><output id="sequence-percent" for="sequence-scrub" aria-live="off">0%</output></div>
       </div>
     </div>
   </section>
 
   <section id="files" class="files" aria-labelledby="files-title">
     <div class="files-layout wrap">
-      <div class="files-intro"><p class="kicker"><span class="hairline" aria-hidden="true"></span> Open source</p><h2 id="files-title">Build <em>files.</em></h2><a class="type-link" href="https://github.com/AfshinKI/Nultra">Browse the repository</a>
+      <div class="files-intro">
+        <div><p class="kicker">Open source</p><h2 id="files-title">Build files</h2></div>
+        <a class="type-link" href="https://github.com/AfshinKI/Nultra">Browse the repository</a>
       </div>
+      <figure class="build-photo"><img src="assets/product/engineering.webp" alt="Detail of the populated Nultra circuit board" width="1440" height="960" loading="lazy" decoding="async"></figure>
       <div class="files-list">
         <div class="file-row"><h3>Enclosure</h3><div class="row-links"><a href="https://github.com/AfshinKI/Nultra/blob/main/hardware/mechanical/assemblies/single-switch.step">Single STEP</a><a href="https://github.com/AfshinKI/Nultra/blob/main/hardware/mechanical/assemblies/double-switch.step">Double STEP</a><a href="https://github.com/AfshinKI/Nultra/tree/main/hardware/mechanical/prints">Print meshes</a><a href="https://cad.onshape.com/documents/3cb2e23a19093c4389ce2f07/w/3be343cdcd1e5951d1a37be1">Onshape</a></div></div>
         <div class="file-row"><h3>Electronics</h3><div class="row-links"><a href="https://github.com/AfshinKI/Nultra/tree/main/hardware/electronics/fabrication/v2">Original v2 Gerbers &amp; BOM</a><a href="https://github.com/AfshinKI/Nultra/blob/main/hardware/README.md#electronics">KiCad review notes</a></div></div>

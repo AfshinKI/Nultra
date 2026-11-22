@@ -283,7 +283,7 @@
     if (progress !== lastRoomProgress || lit !== lastLampState || lampOverride !== lastOverride) {
       window.NultraRoom?.setState(progress, lampOverride);
       sequence.style.setProperty("--room-progress", String(progress));
-      if (roomIntro) roomIntro.inert = progress >= .8;
+      if (roomIntro) roomIntro.inert = progress >= .59;
       lastRoomProgress = progress;
       lastLampState = lit;
       lastOverride = lampOverride;
