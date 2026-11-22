@@ -28,28 +28,32 @@
   }
   const straight = basis(0,0,0);
   const opening = basis(0,9,0);
-  const closing = basis(-43,13,-15);
+  const inspectionAxes = basis(15,7,-8);
+  const seats = [[-12.5,27.5,20],[12.5,27.5,20],[12.5,-21.5,20]];
+  const openingTime = () => progress / .37;
   let progress=0, override=null, frame=0, draw=null, renderer="poster", hitAreas=[];
-  const lit = () => override === null ? ramp(progress,.28,.36) : Number(override);
-  const appReveal = () => override === null ? ramp(progress,.085,.20) : 1;
+  let mountPoints=null,batteryPoint=null;
+  const lit = () => override === null ? ramp(openingTime(),.28,.36) : Number(override);
+  const appReveal = () => override === null ? ramp(openingTime(),.085,.20) : 1;
   const phoneCue = stage.querySelector(".phone-cue");
   function updatePhoneCue(icon, lamp) {
     if (!phoneCue) return;
-    const openingApp = progress < .18;
+    const t = openingTime();
+    const openingApp = t < .18;
     const contact = openingApp ? .085 : .28;
-    phoneCue.hidden = override !== null || progress <= contact-.075 || progress >= contact+.055;
+    phoneCue.hidden = override !== null || t <= contact-.075 || t >= contact+.055;
     if (phoneCue.hidden) return;
     const [x,y] = openingApp ? icon : lamp;
-    const approach = ramp(progress,contact-.065,contact);
-    const release = ramp(progress,contact,contact+.055);
+    const approach = ramp(t,contact-.065,contact);
+    const release = ramp(t,contact,contact+.055);
     const style = phoneCue.style;
     style.left = x*100+"%";
     style.top = y*100+"%";
-    style.setProperty("--touch-alpha", ramp(progress,contact-.075,contact-.048)*(1-release));
+    style.setProperty("--touch-alpha", ramp(t,contact-.075,contact-.048)*(1-release));
     style.setProperty("--travel", (1-approach)*14+release*4+"px");
     style.setProperty("--press", 1-.24*approach*(1-release));
     style.setProperty("--ring", .35+1.05*release);
-    style.setProperty("--ring-alpha", ramp(progress,contact-.005,contact+.007)*(1-release));
+    style.setProperty("--ring-alpha", ramp(t,contact-.005,contact+.007)*(1-release));
   }
   function posterPhoneCue(tall) {
     // Normalized icon and desk-lamp bulb centers in the two opening captures.
@@ -69,7 +73,7 @@
     if (changed) schedule();
   }
   const switchCallout = stage.querySelector(".switch-callout");
-  const switchLabelOpacity = t => ramp(t, .43, .50) * (1 - ramp(t, .69, .74));
+  const switchLabelOpacity = t => ramp(t, .155, .177) * (1 - ramp(t, .21, .23));
   function markSwitch(x, y) {
     if (!switchCallout) return;
     const alpha = switchLabelOpacity(progress);
@@ -79,8 +83,39 @@
     switchCallout.style.top = (y * 100) + "%";
     switchCallout.style.opacity = String(alpha);
   }
+  const wallDetail = stage.querySelector(".wall-detail");
+  const wallCopies = Array.from(stage.querySelectorAll("[data-wall-copy]"));
+  const batteryPin = stage.querySelector(".wall-battery-pin");
+  function detailWeights(t) {
+    return {
+      magnet: ramp(t,.237,.258) * (1-ramp(t,.325,.348)),
+      battery: ramp(t,.342,.363) * (1-ramp(t,.427,.449)),
+      assembly: ramp(t,.505,.545) * (1-ramp(t,.687,.707)),
+    };
+  }
+  function wallLabels(battery) {
+    const weights = detailWeights(progress);
+    if(wallDetail){
+      const opacity=Math.max(...Object.values(weights));
+      wallDetail.hidden=!opacity;
+      if(opacity)wallDetail.style.opacity=String(opacity);
+    }
+    for (const el of wallCopies) {
+      const opacity = weights[el.dataset.wallCopy] || 0;
+      el.hidden = !opacity;
+      if (opacity) el.style.opacity = String(opacity);
+    }
+    if (batteryPin) {
+      batteryPin.hidden = !weights.battery;
+      if (weights.battery) {
+        batteryPin.style.opacity = String(weights.battery);
+        batteryPin.style.left = battery[0]*100+"%";
+        batteryPin.style.top = battery[1]*100+"%";
+      }
+    }
+  }
   function hit(event) {
-    if (progress>.62) return false;
+    if (progress>.21) return false;
     const b=canvas.getBoundingClientRect(), x=(event.clientX-b.left)/b.width, y=(event.clientY-b.top)/b.height;
     return hitAreas.some(p => x>p.x && x<p.x+p.w && y>p.y && y<p.y+p.h);
   }
@@ -88,7 +123,7 @@
     if (hit(e)) window.dispatchEvent(new CustomEvent("nultra-lamp-toggle"));
   });
   canvas.addEventListener("pointermove", e => {canvas.style.cursor=hit(e) ? "pointer" : "";}, {passive:true});
-  window.NultraRoom={setState,switchLabelOpacity,getState:() => ({progress,lit:lit(),renderer,hitAreas:hitAreas.map(a=>({...a}))})};
+  window.NultraRoom={setState,switchLabelOpacity,detailWeights,getState:() => ({progress,lit:lit(),renderer,mountPoints,batteryPoint,hitAreas:hitAreas.map(a=>({...a}))})};
   window.dispatchEvent(new CustomEvent("nultra-room-ready"));
 
   const vertex = `
@@ -99,9 +134,10 @@
     uniform vec2 uHalf,uOffset;
     uniform float uScale,uPerspective;
     varying vec3 w,n;
+    varying vec3 modelPoint;
     varying vec2 uv;
     void main(){
-      w=uOrigin+uModel*(aPos*uScale); n=uModel*aNorm; uv=aUV;
+      w=uOrigin+uModel*(aPos*uScale); n=uModel*aNorm; uv=aUV; modelPoint=aPos;
       vec3 view=uView*(w-uFocus);
       float projection=max(.25,1.-view.z*uPerspective/9.);
       gl_Position=vec4(view.xy/uHalf+uOffset*projection,-view.z*.12,projection);
@@ -109,12 +145,14 @@
   const fragment = `
     precision highp float;
     varying vec3 w,n;
+    varying vec3 modelPoint;
     varying vec2 uv;
     uniform vec3 uColor,uLamp,uEye,uPlate,uSocket;
     uniform vec2 uPixels;
     uniform vec2 uRing;
-    uniform float uType,uLit,uFade,uOpen,uDetail,uStudio,uMount,uCadScale,uFacePixel;
-    uniform sampler2D sHome,sOff,sOn,sDetail,sDarkRoom,sLightRoom;
+    uniform float uType,uLit,uFade,uOpen,uDetail,uStudio,uMount,uCadScale,uFacePixel,uCutout;
+    uniform sampler2D sHome,sOff,sOn,sDetail,sDarkRoom,sLightRoom,sBoard;
+    uniform mat3 uBoardView;
     float hash(vec2 p){return fract(sin(dot(p,vec2(41.3,289.1)))*4317.23);}
     void main(){
       vec3 N=normalize(n), V=normalize(uEye-w), color=uColor;
@@ -128,7 +166,7 @@
       if(kind<.5){
         vec2 mountXY=(w.xy-uSocket.xy)/uCadScale;
         vec2 cut=abs(mountXY)-vec2(22.5,45.5);
-        if(abs(w.z-uSocket.z)<3.*uCadScale && length(max(cut,0.))+min(max(cut.x,cut.y),0.)<3.)discard;
+        if(uCutout>.5&&abs(w.z-uSocket.z)<3.*uCadScale && length(max(cut,0.))+min(max(cut.x,cut.y),0.)<3.)discard;
         vec3 dark=texture2D(sDarkRoom,uv).rgb, light=texture2D(sLightRoom,uv).rgb;
         // Mix luminous energy; a half-lit lamp casts half its final illumination.
         vec3 radiance=sqrt(mix(dark*dark,light*light,uLit));
@@ -141,6 +179,22 @@
       }
       vec3 R=reflect(-V,N);
       float lampEdge=exp(-19.*(1.-max(0.,dot(R,normalize(uLamp-w)))))*uLit;
+      if(kind>9.5){
+        // Project the finished board photograph from its original inspection
+        // camera. Component depth still comes from the populated Altium mesh.
+        vec2 xy=(uBoardView*modelPoint).xy-vec2(.0067,-.1066);
+        vec2 uvBoard=.5+xy/vec2(98.396,80.506);
+        vec4 detail=texture2D(sBoard,uvBoard);
+        vec3 pcb=mix(color*(.62+.42*key),detail.rgb,detail.a);
+        gl_FragColor=vec4(pcb,uFade);return;
+      }
+      if(kind>8.5){
+        float strip=exp(-pow((R.x+.35)*3.8,2.));
+        float rim=pow(1.-abs(dot(N,V)),3.);
+        vec3 metal=color*(.57+.31*key+.23*max(0.,N.y))+
+          vec3(.75,.73,.69)*(.23*strip+.14*rim+.22*pow(max(0.,dot(N,H)),34.));
+        gl_FragColor=vec4(metal,uFade);return;
+      }
       if(kind>7.5){
         vec3 local=(w-uSocket)/uCadScale;
         float depth=clamp(-local.z/41.,0.,1.);
@@ -194,12 +248,12 @@
       illum+=vec3(.98,.55,.24)*lampI*(.10+.75*lampN);
       vec3 result=color*illum+vec3(.98,.86,.70)*spec*pow(max(0.,dot(N,H)),sheen+1.);
       if(kind>5.5 && kind<6.5){
-        vec3 studio=color*(.81+.23*key)+.10*pow(max(0.,dot(N,H)),22.);
+        vec3 studio=color*(.65+.43*key+.14*max(0.,N.y))+.095*pow(max(0.,dot(N,H)),22.);
         result=mix(result,studio,uStudio);
         if(kind>6.1){
           // Integrate the measured CAD annulus over a pixel. At room scale
           // the physical groove is narrower than one framebuffer sample.
-          vec2 local=(w.xy-uPlate.xy)/uCadScale;
+          vec2 local=modelPoint.xy;
           float radius=length(local), h=max(.10,uFacePixel*.64);
           float groove=smoothstep(-h,h,radius-uRing.x)-smoothstep(-h,h,radius-uRing.y);
           float lightEdge=.5+.5*dot(local/max(radius,.01),normalize(L.xy));
@@ -285,25 +339,71 @@
     }
     return {vertices,indices};
   }
-  function decodeCAD(bytes) {
+  function decodeCAD(bytes,board=false) {
     const view=new DataView(bytes), decoded=[];
-    if(view.getUint32(0)!==0x4e435231)throw new Error("Invalid enclosure geometry");
+    if(view.getUint32(0)!==(board?0x4e434231:0x4e435231))throw new Error("Invalid switch geometry");
     let cursor=4;
-    for(let part=0;part<4;part++){
+    while(cursor<bytes.byteLength){
+      const color=board?Array.from(new Uint8Array(bytes,cursor,3),v=>v/255):null;
+      if(board)cursor+=4;
       const n=view.getUint32(cursor,true), nf=view.getUint32(cursor+4,true);cursor+=8;
-      const positions=Array.from(new Int16Array(bytes,cursor,n*3),v=>v/100);cursor+=n*6;
+      const positions=new Int16Array(bytes,cursor,n*3);cursor+=n*6;
       const source=new Uint16Array(bytes,cursor,nf);cursor+=nf*2;
       const vertices=[],indices=[];
-      // CAD faces have intentional sharp junctions. Keep their geometric normals
-      // as in the offline renderer; do not average across the molded rim.
       for(let i=0;i<nf;i+=3){
-        const points=[0,1,2].map(j=>positions.slice(source[i+j]*3,source[i+j]*3+3));
+        const points=[0,1,2].map(j=>{
+          const k=source[i+j]*3;
+          return [positions[k]/100,positions[k+1]/100,positions[k+2]/100];
+        });
         const N=normal(cross(sub(points[1],points[0]),sub(points[2],points[0])));
         for(const p of points){indices.push(vertices.length/8);vertices.push(...vertexAt(p,N));}
       }
-      decoded.push({vertices,indices});
+      decoded.push({vertices,indices,color});
     }
     return decoded;
+  }
+
+  // A revolved section in CAD millimetres. Smooth barrel normals retain the
+  // moving highlight on the AA sleeve and the rounded rim of each screw.
+  function turned(profile,segments=42) {
+    const vertices=[],indices=[];
+    for(let j=0;j<profile.length-1;j++){
+      const [r0,z0]=profile[j],[r1,z1]=profile[j+1];
+      for(let i=0;i<=segments;i++){
+        const a=i*tau/segments,x=Math.cos(a),y=Math.sin(a);
+        const N=normal([x*(z1-z0),y*(z1-z0),r0-r1]);
+        const k=vertices.length/8;
+        vertices.push(...vertexAt([r0*x,r0*y,z0],N),...vertexAt([r1*x,r1*y,z1],N));
+        if(i<segments)indices.push(k,k+2,k+1,k+1,k+2,k+3);
+      }
+    }
+    return {vertices,indices};
+  }
+  function screwThread() {
+    // +Z faces the viewer. The thread lies on the shank behind the head.
+    const vertices=[],indices=[],segments=220;
+    for(let i=0;i<=segments;i++){
+      const t=i/segments, a=tau*(8.2/(25.4/32))*t,x=Math.cos(a),y=Math.sin(a),z=-9.1+8.2*t;
+      for(const [r,dz,nz] of [[1.53,-.22,-.72],[1.86,0,0],[1.53,.23,.72]]){
+        vertices.push(...vertexAt([r*x,r*y,z+dz],normal([x,y,nz])));
+      }
+      if(i<segments)for(let j=0;j<2;j++){
+        const n=i*3+j;
+        indices.push(n,n+3,n+1,n+1,n+3,n+4);
+      }
+    }
+    return {vertices,indices};
+  }
+  function screwRecess() {
+    const vertices=[],indices=[];
+    const outline=[[-.52,-2.35],[.52,-2.35],[.52,-.52],[2.35,-.52],[2.35,.52],[.52,.52],
+      [.52,2.35],[-.52,2.35],[-.52,.52],[-2.35,.52],[-2.35,-.52],[-.52,-.52]];
+    vertices.push(...vertexAt([0,0,1.72],[0,0,1]));
+    outline.forEach(([x,y],i)=>{
+      vertices.push(...vertexAt([x,y,1.72],[0,0,1]));
+      indices.push(0,i+1,1+(i+1)%outline.length);
+    });
+    return {vertices,indices};
   }
   function finishFace(mesh) {
     // The CAD top is planar except for the recessed circular button. Some
@@ -450,13 +550,32 @@
     return pic;
   }
   // Multisampling resolves thin metal edges and the subpixel CAD button relief.
+  const photographs=window.NultraTeardown?.(stage,schedule);
   const gl=canvas.getContext("webgl",{alpha:true,antialias:true,depth:true,premultipliedAlpha:false,powerPreference:"low-power",preserveDrawingBuffer:false});
-  let posterCanvas, posterContext;
+  let posterCanvas, posterContext, posterFormat="", lastCompletePoster=null;
   const posters=new Map();
+  let fallbackDatums=null,datumsPending=false,datumsRetry=0;
+  function loadFallbackDatums(){
+    if(fallbackDatums||datumsPending||Date.now()<datumsRetry)return;
+    datumsPending=true;
+    fetch("assets/room/registration.json").then(r=>{
+      if(!r.ok)throw new Error("Room registration unavailable");
+      return r.json();
+    }).then(data=>{fallbackDatums=data;}).catch(()=>{datumsRetry=Date.now()+15000;})
+      .finally(()=>{datumsPending=false;schedule();});
+  }
   function requestPoster(key,src) {
     if(!posters.has(key)){
       posters.set(key,null);
-      imageAt(src).then(im=>{posters.set(key,im);schedule();}).catch(()=>{});
+      imageAt(src).then(im=>{
+        posters.set(key,im);
+        while(posters.size>10){
+          const oldest=[...posters.keys()].find(k=>k!==key&&!k.startsWith("open")&&posters.get(k));
+          if(!oldest)break;
+          posters.delete(oldest);
+        }
+        schedule();
+      }).catch(()=>{posters.delete(key);});
     }
     return posters.get(key);
   }
@@ -464,7 +583,7 @@
     renderer="poster"; stage.dataset.renderer=renderer;
     const rect=stage.getBoundingClientRect(), w=rect.width,h=rect.height;
     if(!w||!h)return;
-    const m=w<h, format=m?"tall":"wide";
+    const m=w<h, format=w<=360&&h<590?"compact":m?"tall":"wide";
     posterPhoneCue(m);
     hitAreas=m?[{x:.055,y:.337,w:.55,h:.55},{x:.55,y:.54,w:.35,h:.18},{x:.55,y:.245,w:.175,h:.145}]
       :[{x:.393,y:.20,w:.23,h:.738},{x:.65,y:.44,w:.24,h:.35},{x:.628,y:.27,w:.07,h:.168}];
@@ -474,96 +593,87 @@
       stage.insertBefore(posterCanvas,canvas);posterContext=posterCanvas.getContext("2d");
     }
     const context=posterContext;if(!context)return;
+    loadFallbackDatums();
+    let photo=photographs?.frame(progress);
+    const roomImage=name=>requestPoster(name+format,"assets/room/"+name+"-"+format+".webp?v=6");
+    const open=roomImage("open");
+    if(!open){
+      if(posterFormat&&posterFormat!==format){
+        // Keep a complete previous composition in the backing store. CSS can
+        // stretch it during a rotation before the new format finishes decoding.
+        if(lastCompletePoster){
+          context.setTransform(1,0,0,1,0,0);
+          context.globalAlpha=1;context.globalCompositeOperation="copy";
+          context.drawImage(lastCompletePoster,0,0,posterCanvas.width,posterCanvas.height);
+          context.globalCompositeOperation="source-over";
+        }
+        photographs?.paint(progress,null,null,null);
+      }
+      return;
+    }
+    posterFormat=format;
     const ratio=Math.min(1.4,window.devicePixelRatio||1,1440/w);
     if(posterCanvas.width!==Math.round(w*ratio)||posterCanvas.height!==Math.round(h*ratio)){
       posterCanvas.width=Math.round(w*ratio);posterCanvas.height=Math.round(h*ratio);
     }
     context.setTransform(ratio,0,0,ratio,0,0);context.clearRect(0,0,w,h);
-    const roomImage=name=>requestPoster(name+format,"assets/room/"+name+"-"+format+".webp?v=5");
-    const open=roomImage("open");
-    if(!open)return;
     const app=appReveal(),light=lit();
-    const off=app>0 ? roomImage("off") : null;
-    const on=light>0 ? roomImage("lit") : null;
-    const detail=light>0&&progress>.375 ? roomImage("detail") : null;
-    const release=progress>.425&&light>.01?roomImage("release"):null;
-    const detached=progress>.53?roomImage(light>.5?"detached":"detached-dark"):null;
-    if(progress>.47&&progress<=.74){
-      // These normalized rectangles come from the CAD projection at each
-      // captured camera pose. Follow the visible control in the 2D dissolve.
-      const releaseHit=m?{x:.528,y:.314,w:.264,h:.248}:{x:.657,y:.256,w:.119,h:.359};
-      const detachedHit=m?{x:.612,y:.400,w:.300,h:.312}:{x:.662,y:.329,w:.146,h:.498};
-      const atRelease=release?ramp(progress,.47,.614):0;
-      const atDetach=detached?ramp(progress,release ? .610 : .47,.705):0;
-      const mounted=hitAreas[2];
-      hitAreas[2]=Object.fromEntries(Object.keys(mounted).map(k=>
-        [k,mix(mix(mounted[k],releaseHit[k],atRelease),detachedHit[k],atDetach)]));
-    }
-    const faceBounds = hitAreas[2];
-    markSwitch(faceBounds.x + faceBounds.w / 2, faceBounds.y + faceBounds.h / 2);
-    const surface=progress>.70?requestPoster("surface","assets/product/frames/000.webp"):null;
+    const shots=[
+      [.137,light>.5?"lit":"off"], [.178,light>.5?"detail":"off"], [.238,light>.5?"approach":"approach-dark"],
+      [.303,"release"], [.366,"mounted"], [.428,"mounted"], [.478,"screws"],
+      [.53,light>.5?"detached":"detached-dark"], [.561,"focus"], [.622,"cell"],
+      [.684,"exploded"], [.718,"board"], [.751,"inspection"]
+    ];
+    const extent=hitAreas[2];
+    const zoom=ramp(progress,.178,.238);
+    const control=lerp([extent.x+extent.w/2,extent.y+extent.h/2],m?[.53,.58]:[.68,.48],zoom);
+    markSwitch(...control);
+    let battery=fallbackDatums?.[format]?.mounted?.battery || (m?[.35125,.64119]:[.60259,.53668]);
+    let datums=null;
+    const inspection=()=>requestPoster("inspection","assets/product/frames/066.webp");
     const target=document.querySelector(".model-wrap")?.getBoundingClientRect();
-    const targetW=target?.width||w*.74;
-    const targetX=target?.width?target.left-rect.left+target.width/2:w*.65;
-    const targetY=target?.height?target.top-rect.top+target.height/2:h*.5;
-    // The release photographs come from exactly the same camera and 3D
-    // geometry as the live scene. Keep the aperture in view through its hold.
-    const shotAspect=m?.5:16/9,unit=m?.0048:.00565;
-    const half=Math.max(127,103/shotAspect),axes=basis(-28,9,-2);
-    const travel=ramp(progress,.81,.95),toSurface=surface?ramp(progress,.856,.902):0;
-    // Register three physical faceplate points in both photographs.
-    // The incoming model and departing installed-room capture follow exactly
-    // the same face plane throughout the dissolve, including its rotation.
-    const face=[[-29,-51.5,24],[29,-51.5,24],[-29,51.5,24]];
-    const captured=face.map(([x,y,z])=>{
-      const p=[x,y,z+92],f=1-dot(p,axes[2])*unit*.34/9;
-      return [w*(.5+.5*((m?0:.23)+dot(p,axes[0])/(half*shotAspect*f))),
-        h*(.5-.5*(-.045+dot(p,axes[1])/(half*f)))];
-    });
-    const closingScale=targetW/(2*91.36181);
-    const final=face.map(p=>[targetX+(dot(p,closing[0])-10.05063)*closingScale,
-      targetY-(dot(p,closing[1])-.32020)*closingScale]);
-    const current=captured.map((v,i)=>lerp(v,final[i],travel));
-    function register(from) {
-      const x=sub(from[1],from[0]),y=sub(from[2],from[0]);
-      const X=sub(current[1],current[0]),Y=sub(current[2],current[0]);
-      const det=x[0]*y[1]-x[1]*y[0];
-      const a=(X[0]*y[1]-Y[0]*x[1])/det, c=(Y[0]*x[0]-X[0]*y[0])/det;
-      const b=(X[1]*y[1]-Y[1]*x[1])/det, d=(Y[1]*x[0]-X[1]*y[0])/det;
-      context.transform(a,b,c,d,current[0][0]-a*from[0][0]-c*from[0][1],current[0][1]-b*from[0][0]-d*from[0][1]);
+    function layer(im,alpha,inspectionShot=false){
+      if(!im||alpha<=0)return;
+      context.globalAlpha=alpha;
+      if(inspectionShot&&target?.width)context.drawImage(im,target.left-rect.left,target.top-rect.top,target.width,target.height);
+      else context.drawImage(im,0,0,w,h);
     }
-    context.save();
-    if(travel>0)register(captured);
-    if(travel>0&&toSurface<1){
-      // Extend the marginal texels as the camera turns. The image always
-      // covers the viewport, including portrait corners outside its crop.
-      const backdrop=detached||release||on||off||open;
-      const iw=backdrop.naturalWidth,ih=backdrop.naturalHeight,pad=Math.max(w,h);
-      const columns=[[0,1,-pad,pad+1],[0,iw,0,w],[iw-1,1,w-1,pad+1]];
-      const rows=[[0,1,-pad,pad+1],[0,ih,0,h],[ih-1,1,h-1,pad+1]];
-      for(let j=0;j<3;j++)for(let i=0;i<3;i++){
-        if(i===1&&j===1)continue;
-        const [sx,sw,dx,dw]=columns[i],[sy,sh,dy,dh]=rows[j];
-        context.drawImage(backdrop,sx,sy,sw,sh,dx,dy,dw,dh);
+    if(progress<=.137){
+      const off=app>0?roomImage("off"):null, on=light>0?roomImage("lit"):null;
+      layer(open,1);layer(off,app);layer(on,light);
+      lastCompletePoster=light>=.5&&on?on:app>=.5&&off?off:open;
+    }else{
+      let i=0;
+      while(i<shots.length-2 && shots[i+1][0]<progress)i++;
+      const [from,a]=shots[i],[to,b]=shots[i+1];
+      const first=roomImage(a),second=b==="inspection"?inspection():roomImage(b);
+      const amount=ramp(progress,from,to);
+      const points=fallbackDatums?.[format],p=points?.[a]?.mount,q=points?.[b]?.mount||p;
+      if(p&&q)datums=p.map((v,i)=>lerp(v,q[i],amount));
+      function needsWall(key){return ["detail","off","approach","approach-dark","release","mounted","screws","detached","detached-dark","focus"].includes(key);}
+      const before=photo&&needsWall(a)?roomImage("wall-"+a):null;
+      const after=photo&&needsWall(b)?roomImage("wall-"+b):null;
+      if(!datums||(needsWall(a)&&!before)||(needsWall(b)&&!after))photo=null;
+      const sum=photo?.alpha||0;
+      const useSecond=second&&(amount>.5||!first);
+      const selected=useSecond?second:first;
+      const selectedKey=useSecond?b:a;
+      context.globalCompositeOperation="lighter";
+      if(progress<.238&&first&&second){
+        layer(first,(1-amount)*(1-sum));layer(second,amount*(1-sum));
+      }else{
+        // With stills, a peel or a loose screw must have just one silhouette.
+        // Photographic atlas frames handle the continuous movement after decode.
+        layer(selected||lastCompletePoster||open,1-sum,selectedKey==="inspection");
+        if(!sum&&points?.[selectedKey]?.battery)battery=points[selectedKey].battery;
       }
+      if(selected&&selectedKey!=="inspection")lastCompletePoster=selected;
+      if(sum){layer(before,(1-amount)*sum);layer(after,amount*sum);}
+      context.globalCompositeOperation="source-over";
     }
-    function plate(im,opacity){
-      if(im&&opacity>0){context.globalAlpha=opacity;context.drawImage(im,0,0,w,h);}
-    }
-    if(toSurface<1){
-      plate(open,1);plate(off,app);plate(on,light);plate(detail,ramp(progress,.385,.47)*light);
-      plate(release,ramp(progress,.47,.614));
-      plate(detached,ramp(progress,release ? .610 : .47,.705));
-    }
-    context.restore();
-    if(surface&&toSurface){
-      context.save();context.globalCompositeOperation="destination-out";context.globalAlpha=toSurface;
-      context.fillRect(0,0,w,h);context.restore();
-      context.save();if(travel<1)register(final);
-      context.globalAlpha=toSurface;
-      context.drawImage(surface,targetX-targetW/2,targetY-targetW*864/2112,targetW,targetW*864/1056);
-      context.restore();context.globalAlpha=1;
-    }
+    context.globalAlpha=1;
+    battery=photographs?.paint(progress,photo,datums,target)||battery;
+    wallLabels(battery);
     stage.dataset.posterReady="";
   }
   window.addEventListener("resize",schedule,{passive:true});
@@ -578,7 +688,7 @@
     for(const [kind,source] of [[gl.VERTEX_SHADER,vertex],[gl.FRAGMENT_SHADER,fragment]])gl.attachShader(program,compile(kind,source));
     gl.linkProgram(program);if(!gl.getProgramParameter(program,gl.LINK_STATUS))throw new Error(gl.getProgramInfoLog(program));
     gl.useProgram(program);gl.enable(gl.DEPTH_TEST);gl.enable(gl.BLEND);gl.blendFuncSeparate(gl.SRC_ALPHA,gl.ONE_MINUS_SRC_ALPHA,gl.ONE,gl.ONE_MINUS_SRC_ALPHA);
-    const names=["uModel","uView","uOrigin","uFocus","uHalf","uOffset","uScale","uPerspective","uColor","uLamp","uEye","uPlate","uSocket","uType","uLit","uFade","uOpen","uDetail","uStudio","uPixels","uMount","uCadScale","uFacePixel","uRing"];
+    const names=["uModel","uView","uBoardView","uOrigin","uFocus","uHalf","uOffset","uScale","uPerspective","uColor","uLamp","uEye","uPlate","uSocket","uType","uLit","uFade","uOpen","uDetail","uStudio","uPixels","uMount","uCutout","uCadScale","uFacePixel","uRing"];
     const uniforms=Object.fromEntries(names.map(key=>[key,gl.getUniformLocation(program,key)]));
     const attrs=["aPos","aNorm","aUV"].map(name=>gl.getAttribLocation(program,name));
     attrs.forEach(i=>gl.enableVertexAttribArray(i));
@@ -606,6 +716,7 @@
       gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_T,gl.CLAMP_TO_EDGE);
       gl.uniform1i(gl.getUniformLocation(program,name),unit);
     }
+    mat("uBoardView",[0,1,2].flatMap(i=>inspectionAxes.map(axis=>axis[i])));
     const PW=.835,PH=1.75;
     mesh("body",phoneLayer(PW,PH,.126,[[-.079,.015,0],[-.077,.006,0],[-.070,0,0],[.024,0,0],[.032,.001,.19],[.042,.007,.52],[.047,.017,.92]],true));
     mesh("bezel",phoneLayer(PW-.022,PH-.022,.118,[[.045,.001,.40],[.049,.003,.79],[.052,.008,1]],true));
@@ -619,8 +730,20 @@
     const colors={
       metal:[.55,.535,.515], button:[.46,.45,.43], joint:[.07,.069,.068],
       bezel:[.020,.020,.024], notch:[.008,.009,.012], lens:[.025,.032,.055], glint:[.12,.15,.20],
+      copper:[.71,.38,.19], graphite:[.075,.074,.067], nickel:[.72,.73,.71], slot:[.095,.091,.084], field:[.95,.71,.37],
       face:[.818,.809,.79], ink:[.11,.108,.106], carrier:[.34,.335,.33], shell:[.256,.252,.25]
     };
+    mesh("screw",turned([[0,-9.525],[1.6,-9.525],[1.6,-.6],[3.7,.3],[3.7,.8],[3.3,1.42],[2.6,1.7],[0,1.7]]));
+    mesh("thread",screwThread());
+    mesh("recess",screwRecess());
+    mesh("magnet",turned([[2.24,-.4],[2.24,0],[2.13,.14],[0,.14]]));
+    mesh("flux",turned([[.23,-.5],[.23,.5]],8));
+    mesh("cellBody",turned([[0,0],[6.67,0],[7,.45],[7,39]]));
+    mesh("cellBand",turned([[7,39],[7,48.2],[6.6,48.8],[0,48.8]]));
+    mesh("cellSeal",turned([[4.9,48.8],[4.9,49],[0,49]]));
+    mesh("cellPole",turned([[2.45,49],[2.35,50],[0,50]]));
+    const cellAxes=[[1,0,0],[0,0,-1],[0,1,0]];
+    const boardParts=[];
     const boxParts=Object.entries(deviceBox()).map(([name,data])=>{mesh(name,data);return name;});
     Object.assign(colors,{plasterEdge:[.40,.34,.28],boxRim:[.65,.63,.59],boxSides:[.42,.43,.43],
       boxBack:[.43,.425,.41],boxEars:[.60,.595,.57],boxBore:[.25,.24,.22],
@@ -669,35 +792,61 @@
       const phone=at(mix(.502,.32,narrow),mix(.567,.612,narrow),2.45,aspect);
       const sizePhone=mix(1.24,.92,narrow);
       const sizeCAD=mix(.00565,.0048,narrow);
-      const approach=ramp(t,.47,.69), lift=ramp(t,.535,.705), leave=ramp(t,.81,.95);
-      const depart=ramp(t,.47,.663);
-      const plate=add(mount,[0,0,184*sizeCAD*lift]);
-      const retreat=leave*1.12, socket=add(mount,[0,0,20.005*sizeCAD-retreat]);
-      const basisNow=basis(-28*approach-15*leave,9+4*leave,-2*approach-13*leave);
+      const approach=ramp(t,.17,.254);
+      const peel=ramp(t,.25,.323), clearFace=ramp(t,.32,.36);
+      const batteryView=ramp(t,.319,.352);
+      const threadedTravel=7.55*ramp(t,.434,.468), freeTravel=ramp(t,.468,.483);
+      const clearScrews=ramp(t,.477,.51);
+      const lift=ramp(t,.49,.562), studio=ramp(t,.508,.574);
+      const removeCell=ramp(t,.566,.626), separate=ramp(t,.626,.693);
+      const inspect=ramp(t,.695,.756);
+      const depart=ramp(t,.174,.248);
+      const bareWall=canvas.hasAttribute("data-capture-wall");
+      const photograph=bareWall?null:photographs?.frame(t);
+      const body=add(mount,[0,0,92*sizeCAD*lift]);
+      const retreat=studio*.78, socket=add(mount,[0,0,20.005*sizeCAD-retreat]);
+      const yaw=approach*mix(12,47,studio)+separate*9;
+      const basisNow=basis(mix(yaw,15,inspect),mix(9+studio*4,7,inspect),mix(-5*studio,-8,inspect));
       const [right,up,look]=basisNow;
-      const cadCenter=add(scale(closing[0],10.05063),scale(closing[1],.32020));
-      const dest=add(plate,scale(cadCenter,sizeCAD));
-      const displayCenter=add(mount,[0,0,92*sizeCAD*lift]);
-      const focus=lerp(scale(displayCenter,approach),dest,leave);
-      const slice=91.36181*sizeCAD*height/endWidth;
-      const holdHalf=sizeCAD*Math.max(127,103/aspect);
-      const halfH=Math.exp(mix(mix(Math.log(half),Math.log(holdHalf),approach),Math.log(slice),leave));
-      const offset=[mix(mix(.23,0,narrow)*approach,ox,leave),mix(-.045*approach,oy,leave)];
-      const perspective=(1-.66*approach)*(1-leave);
+      const rel=(origin,offset)=>add(origin,scale(offset,sizeCAD));
+      const board=rel(body,[0,0,-28*separate]);
+      const carrier=rel(body,[-124*inspect,0,15*separate]);
+      const shell=rel(body,[135*inspect,0,-88*separate]);
+      const cell=rel(body,[-9.822-24*separate-85*inspect,-28.704+9*removeCell,10.902+44*removeCell-12*separate]);
+      const faceBasis=basis(151*peel,0,-5*peel);
+      const facePivot=rel(mount,[mix(67,54,narrow)*peel+76*clearFace,4*peel,20+34*peel]);
+      const faceOrigin=sub(facePivot,scale(faceBasis[2],20*sizeCAD));
+      const boardCenter=add(board,scale(add(scale(inspectionAxes[0],.0067),scale(inspectionAxes[1],-.1066)),sizeCAD));
+      const center=add(rel(body,[mix(20,26,narrow)*peel*(1-batteryView),0,11-14*separate]),
+        scale(right,12.5*separate*sizeCAD));
+      const focus=lerp(scale(center,approach),boardCenter,inspect);
+      const slice=49.198*sizeCAD*height/endWidth;
+      const magnetHalf=Math.max(80,71/aspect), mountedHalf=Math.max(73,37/aspect);
+      const benchHalf=Math.max(74,(73+11*separate)/aspect);
+      const compactZoom=size.width<=360&&height<590?1+.12*batteryView*(1-studio):1;
+      const holdHalf=sizeCAD*compactZoom*mix(mix(magnetHalf,mountedHalf,batteryView),benchHalf,removeCell);
+      const halfH=Math.exp(mix(mix(Math.log(half),Math.log(holdHalf),approach),Math.log(slice),inspect));
+      const compact=size.width<=360&&height<590?batteryView*(1-studio):0;
+      const offset=[mix(mix(.29+.13*studio,0,narrow)*approach,ox,inspect),
+        mix((mix(0,-.21,narrow)-.13*compact)*approach,oy,inspect)];
+      const perspective=(1-.70*approach)*(1-studio);
       const phoneBasis=basis(mix(-25,-44,depart),mix(3,8,depart),mix(-5,-27,depart));
       const currentPhone=add(phone,[-depart*(4.25+1.5*aspect),-.85*depart,.65*depart]);
-      const roomAlpha=1-ramp(t,.815,.94);
-      const phoneAlpha=1-ramp(t,.56,.65);
+      const roomAlpha=1-studio;
+      const phoneAlpha=1-ramp(t,.194,.231);
       const viewMatrix=[right[0],up[0],look[0],right[1],up[1],look[1],right[2],up[2],look[2]];
-      scalar("uOpen",appReveal());scalar("uDetail",ramp(t,.385,.48));scalar("uLit",lit());
-      scalar("uMount",1-lift);scalar("uCadScale",sizeCAD);
+      scalar("uOpen",appReveal());scalar("uDetail",ramp(openingTime(),.385,.48));scalar("uLit",lit());
+      scalar("uMount",1-peel);scalar("uCadScale",sizeCAD);
       scalar("uFacePixel",2*halfH/(canvas.height*sizeCAD));
-      scalar("uStudio",ramp(t,.82,.96));scalar("uPerspective",perspective);
+      scalar("uStudio",studio);scalar("uPerspective",perspective);
       mat("uView",viewMatrix);vec2("uPixels",[canvas.width,canvas.height]);
       vec2("uHalf",[halfH*aspect,halfH]);vec2("uOffset",offset);
-      vec("uFocus",focus);vec("uEye",add(focus,scale(look,9)));vec("uPlate",plate);vec("uSocket",socket);vec("uLamp",lamp);
+      vec("uFocus",focus);vec("uEye",add(focus,scale(look,9)));vec("uPlate",facePivot);vec("uSocket",socket);vec("uLamp",lamp);
       gl.clearColor(0,0,0,0);gl.clear(gl.COLOR_BUFFER_BIT|gl.DEPTH_BUFFER_BIT);
+      let fadeFactor=1;
+      const opacity=value=>scalar("uFade",value*fadeFactor);
       function drawMesh(name,pos,type,color,scaleFactor=1,axes=straight) {
+        if(fadeFactor<=0)return;
         const item=library[name];if(!item)return;
         gl.bindBuffer(gl.ARRAY_BUFFER,item.verts);gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER,item.faces);
         attrs.forEach((attrib,i)=>gl.vertexAttribPointer(attrib,i===2?2:3,gl.FLOAT,false,32,[0,12,24][i]));
@@ -721,21 +870,66 @@
       const screenPoint=(u,v)=>project(place(currentPhone,phoneBasis,
         [(u-.5)*(PW-.056),(.5-v)*(PH-.056),.0525],sizePhone));
       updatePhoneCue(screenPoint(.5,640.5/1218),screenPoint(228/562,502/1218));
+      const photoAlpha=photograph?.alpha||0;
+      scalar("uCutout",bareWall||photoAlpha>=.99?0:1);
       if(roomAlpha>.001){
-        scalar("uFade",roomAlpha);
+        opacity(roomAlpha);
         drawMesh("interior",[0,0,-retreat],0,"face");
+        fadeFactor=bareWall?0:1-photoAlpha;
+        opacity(roomAlpha);
         for(const name of boxParts)drawMesh(name,socket,8,name,sizeCAD);
       }
-      scalar("uFade",1);
-      gl.enable(gl.CULL_FACE);
-      for(const [name,color] of [["cad2","carrier"],["cad3","shell"],["cad0","face"],["cad1","ink"]])
-        drawMesh(name,plate,6,color,sizeCAD);
-      // The closing camera stays in front of this convex, outermost plane.
-      // Fill all of its samples before drawing the nearer handset.
-      gl.depthFunc(gl.ALWAYS);
-      drawMesh("frontFinish",plate,6.25,"face",sizeCAD);
-      gl.depthFunc(gl.LESS);
-      gl.disable(gl.CULL_FACE);
+      fadeFactor=bareWall?0:1-photoAlpha;
+      opacity(1);
+      if(peel>0){
+        // The AA positive pole points toward BT1 on the PCB's local Y axis.
+        for(const [name,color] of [["cellBody","graphite"],["cellBand","copper"],["cellSeal","slot"],["cellPole","nickel"]])
+          drawMesh(name,cell,name==="cellSeal"?6:9,color,sizeCAD,cellAxes);
+      }
+      if(peel>0)for(const name of boardParts)drawMesh(name,board,10,name,sizeCAD);
+      drawMesh("cad3",shell,6,"shell",sizeCAD);
+      drawMesh("cad2",carrier,6,"carrier",sizeCAD);
+      if(peel>0){
+        for(const seat of seats)drawMesh("magnet",rel(carrier,seat),9,"nickel",sizeCAD);
+        if(clearScrews<1){
+          for(const side of [-1,1]){
+            const screwPos=rel(mount,[12*clearScrews,side*(41.65+68*clearScrews),20+threadedTravel+22*freeTravel]);
+            // Counterclockwise from the driver side. Tip clears the ear before yaw begins.
+            const turns=threadedTravel/(25.4/32);
+            const screwAxes=basis(-22*freeTravel,0,side*19+turns*360);
+            opacity(1-clearScrews);
+            drawMesh("screw",screwPos,9,"nickel",sizeCAD,screwAxes);
+            drawMesh("recess",screwPos,6,"slot",sizeCAD,screwAxes);
+            if(threadedTravel>0)drawMesh("thread",screwPos,9,"nickel",sizeCAD,screwAxes);
+          }
+        }
+      }
+      if(clearFace<1){
+        opacity(1-clearFace);
+        drawMesh("cad0",faceOrigin,6,"face",sizeCAD,faceBasis);
+        drawMesh("cad1",faceOrigin,6,"ink",sizeCAD,faceBasis);
+        drawMesh("frontFinish",faceOrigin,6.25,"face",sizeCAD,faceBasis);
+        if(peel>0){
+          const underside=[faceBasis[0],scale(faceBasis[1],-1),scale(faceBasis[2],-1)];
+          const field=ramp(t,.256,.28)*(1-ramp(t,.32,.342));
+          for(const seat of seats){
+            const end=place(faceOrigin,faceBasis,seat,sizeCAD);
+            drawMesh("magnet",end,9,"nickel",sizeCAD,underside);
+            if(!field)continue;
+            const start=rel(carrier,seat);
+            const delta=sub(end,start),axis=normal(delta);
+            const bx=normal(cross([0,1,0],axis)),by=cross(axis,bx);
+            const length=Math.hypot(...delta);
+            opacity(field*.86);
+            for(let d=.10;d<.99;d+=.13){
+              const axes=[scale(bx,1.7),scale(by,1.7),scale(axis,length*.052/sizeCAD)];
+              drawMesh("flux",lerp(start,end,d),6,"field",sizeCAD,axes);
+            }
+            opacity(1-clearFace);
+          }
+        }
+      }
+      fadeFactor=1;opacity(1);
       if(phoneAlpha>.001){
         scalar("uFade",phoneAlpha);
         for(const [part,kind,color] of [["body",3,"metal"],["bezel",7,"bezel"],["screen",5,"bezel"]]){
@@ -758,8 +952,13 @@
       const lampCorners=[[x0,y0],[x1,y0],[x0,y1],[x1,y1]].map(([x,y])=>at(...layout.screen(x,y),.63,aspect));
       hitAreas=[region([[-PW/2,-PH/2,0],[-PW/2,PH/2,0],[PW/2,-PH/2,0],[PW/2,PH/2,0]].map(p=>place(currentPhone,phoneBasis,p,sizePhone))),
         region(lampCorners),
-        region([[-35,-57,20],[35,57,20]].map(p=>add(plate,scale(p,sizeCAD))))];
-      markSwitch(...project(add(plate, [0, 0, 24 * sizeCAD])));
+        region([[-35,-57,20],[35,57,20]].map(p=>add(body,scale(p,sizeCAD))))];
+      markSwitch(...project(rel(body,[0,0,24])));
+      mountPoints=[[0,0,20],[0,41.65,20],[25.5,0,20]].map(p=>project(rel(mount,p)));
+      batteryPoint=project(rel(cell,[0,24,6.8]));
+      const photoPin=photographs?.paint(t,photograph,mountPoints,document.querySelector(".model-wrap")?.getBoundingClientRect());
+      wallLabels(photoPin||batteryPoint);
+
       if(stage.dataset.renderer!=="webgl"){renderer="webgl";stage.dataset.renderer=renderer;}
     }
     const run=()=>{
@@ -773,13 +972,19 @@
     const imagePath=file=>new URL("assets/phone/"+file,document.baseURI).href;
     measure();
     const resources=[...["app-icon.webp","dashboard.webp","switch-off.webp","switch-controls.webp"].map(file=>imageAt(imagePath(file))),
-      fetch(new URL("assets/room/switch.bin",document.baseURI)).then(r=>{if(!r.ok)throw new Error("Enclosure unavailable");return r.arrayBuffer();})];
-    Promise.all(resources).then(([icon,dash,patch,detail,cad])=>{
+      fetch(new URL("assets/room/switch.bin",document.baseURI)).then(r=>{if(!r.ok)throw new Error("Enclosure unavailable");return r.arrayBuffer();}),
+      fetch("assets/room/board.bin").then(r=>{if(!r.ok)throw new Error("Board unavailable");return r.arrayBuffer();}),imageAt("assets/product/frames/066.webp")];
+    Promise.all(resources).then(([icon,dash,patch,detail,cad,board,boardPhoto])=>{
       const off=document.createElement("canvas");off.width=dash.width;off.height=dash.height;
       const ctx=off.getContext("2d");ctx.drawImage(dash,0,0);ctx.drawImage(patch,20,430,257,128);
       [homeArtwork(icon),off,dash,detail].forEach((im,i)=>tex(i,im,["sHome","sOff","sOn","sDetail"][i]));
+      tex(6,boardPhoto,"sBoard");
       const parts=decodeCAD(cad);
       parts.forEach((m,i)=>mesh("cad"+i,m));
+      decodeCAD(board,true).forEach((data,i)=>{
+        const name="board"+i;
+        mesh(name,data);colors[name]=data.color;boardParts.push(name);
+      });
       const finish=finishFace(parts[0]);
       mesh("frontFinish",finish);vec2("uRing",finish.ring);
       geometryReady=true;draw=paint;run();

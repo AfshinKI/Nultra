@@ -11,23 +11,26 @@
   <meta property="og:title" content="Nultra Switch — Open hardware">
   <meta property="og:description" content="Explore an open-source Bluetooth wall switch, from the light in the room to the circuit inside.">
   <meta property="og:url" content="https://afshinki.github.io/Nultra/">
-  <meta property="og:image" content="https://afshinki.github.io/Nultra/assets/room/lit-wide.webp?v=5">
+  <meta property="og:image" content="https://afshinki.github.io/Nultra/assets/room/lit-wide.webp?v=6">
   <meta property="og:image:alt" content="The Nultra wall switch and mobile app controlling a desk lamp.">
   <meta name="twitter:card" content="summary_large_image">
   <link rel="icon" href="assets/app-icon.png" type="image/png" sizes="180x180">
   <link rel="preload" href="assets/dm-sans.woff2" as="font" type="font/woff2" crossorigin>
-  <link rel="stylesheet" href="site.css?v=7">
-  <link rel="stylesheet" href="room.css?v=6">
-  <script defer src="room.js?v=7"></script>
-  <script defer src="viewer.js?v=9"></script>
+  <link rel="stylesheet" href="site.css?v=8">
+  <link rel="stylesheet" href="features.css?v=2">
+  <script defer src="features.js?v=2"></script>
+  <link rel="stylesheet" href="room.css?v=7">
+  <script defer src="teardown.js?v=1"></script>
+  <script defer src="room.js?v=8"></script>
+  <script defer src="viewer.js?v=10"></script>
 </head>
 <body>
 <a class="skip" href="#files">Skip to build files</a>
 <header class="mast">
   <div class="mast-inner wrap">
     <a class="brand" href="#sequence" data-story-at="0" aria-label="Nultra home"><img class="brand-mark" src="assets/app-icon.png" width="28" height="28" alt="">nultra</a>
-    <nav aria-label="Main navigation"><a href="#control" data-story-at="0">Room</a><a href="#sequence" data-story-at=".37">Teardown</a><a href="#files">Build files</a></nav>
-    <a class="github" href="https://github.com/AfshinKI/Nultra"><svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M8 .6a7.45 7.45 0 0 0-2.35 14.52c.37.07.5-.16.5-.36v-1.39c-2.07.45-2.51-.88-2.51-.88-.34-.86-.83-1.09-.83-1.09-.68-.46.05-.45.05-.45.75.06 1.14.77 1.14.77.67 1.14 1.75.81 2.18.62.07-.48.27-.8.48-.99-1.65-.19-3.39-.83-3.39-3.69 0-.81.29-1.48.77-2-.08-.19-.33-.95.08-1.98 0 0 .63-.2 2.05.77a7.15 7.15 0 0 1 3.73 0c1.42-.97 2.05-.77 2.05-.77.41 1.03.16 1.79.08 1.98.48.52.76 1.19.76 2 0 2.87-1.74 3.5-3.4 3.69.27.23.51.68.51 1.38v2.03c0 .2.13.43.51.36A7.45 7.45 0 0 0 8 .6Z"/></svg> GitHub</a>
+    <nav aria-label="Main navigation"><a href="#control" data-story-at="0">Room</a><a href="#sequence" data-story-at=".39">Teardown</a><a href="#in-use">In use</a><a href="#files">Build files</a></nav>
+    <a class="github" href="https://github.com/AfshinKI/Nultra" aria-label="Nultra on GitHub"><svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M8 .6a7.45 7.45 0 0 0-2.35 14.52c.37.07.5-.16.5-.36v-1.39c-2.07.45-2.51-.88-2.51-.88-.34-.86-.83-1.09-.83-1.09-.68-.46.05-.45.05-.45.75.06 1.14.77 1.14.77.67 1.14 1.75.81 2.18.62.07-.48.27-.8.48-.99-1.65-.19-3.39-.83-3.39-3.69 0-.81.29-1.48.77-2-.08-.19-.33-.95.08-1.98 0 0 .63-.2 2.05.77a7.15 7.15 0 0 1 3.73 0c1.42-.97 2.05-.77 2.05-.77.41 1.03.16 1.79.08 1.98.48.52.76 1.19.76 2 0 2.87-1.74 3.5-3.4 3.69.27.23.51.68.51 1.38v2.03c0 .2.13.43.51.36A7.45 7.45 0 0 0 8 .6Z"/></svg><span>GitHub</span></a>
   </div>
 </header>
 <main>
@@ -52,56 +55,54 @@
               </span>
             </div>
           </div>
+          <div class="wall-detail" hidden>
+            <div data-wall-copy="magnet" hidden>
+              <h2>Magnetic faceplate</h2>
+              <p>Three pairs of magnets hold the faceplate against the carrier.</p>
+            </div>
+            <div data-wall-copy="battery" hidden>
+              <h2>One AA cell</h2>
+              <p>Over a year of use on one AA. <span class="mount-detail">Two screws secure the switch in the wall box.</span></p>
+              <figure class="battery-chart" aria-label="AA discharge profile used by the switch. It estimates 100% at 1.65 volts, 55% at 1.30 volts, and 0% at 0.65 volts.">
+                <figcaption>AA discharge profile</figcaption>
+                <div class="chart-plot" aria-hidden="true">
+                  <div class="chart-voltage"><span>1.65 V</span><span>0.65 V</span></div>
+                  <svg viewBox="0 0 200 64" preserveAspectRatio="none">
+                    <path class="charge-grid" d="M0 2H200 M0 32H200 M0 62H200"/>
+                    <path class="charge-track" d="M0 2L2 5 20 11 50 17 90 23 140 29 180 35 200 62"/>
+                    <path class="charge-curve" pathLength="1" d="M0 2L2 5 20 11 50 17 90 23 140 29 180 35 200 62"/>
+                  </svg>
+                </div>
+                <div class="chart-axis" aria-hidden="true"><span>100%</span><span>Estimated charge</span><span>0%</span></div>
+              </figure>
+            </div>
+            <div data-wall-copy="assembly" hidden>
+              <h2>Inside the switch</h2>
+              <p>The AA cell lifts out to reveal the carrier, circuit board and rear shell.</p>
+            </div>
+          </div>
+          <div class="wall-battery-pin" aria-hidden="true" hidden><span class="pin-label">AA battery</span></div>
           <div class="room-intro wrap">
-            <div class="stage-copy" data-chapter-copy>
+            <div class="stage-copy" data-chapter-copy="0">
               <h2>Nultra <span>Switch</span></h2>
               <p class="lead">Open-source Bluetooth wall switch.</p>
               <p class="visually-hidden">The Nultra iPhone app opens. A tap on Desk Lamp lights the room.</p>
               <button class="lamp-control" type="button" data-room-lamp aria-pressed="false" hidden><span class="lamp-glyph" aria-hidden="true"></span><span data-room-action-text>Turn lamp on</span></button>
-              <noscript><p class="static-links"><a href="assets/room/lit-wide.webp?v=5">Lamp on</a><a href="assets/room/detached-wide.webp">Wall box</a><a href="assets/product/frames/030.webp">Faceplate</a><a href="assets/product/frames/072.webp?v=3">PCB front</a><a href="assets/product/frames/116.webp">PCB back</a></p></noscript>
+              <noscript><p class="static-links"><a href="assets/room/lit-wide.webp?v=6">Lamp on</a><a href="assets/teardown/magnetic.webp">Magnetic faceplate</a><a href="assets/teardown/mounted.webp">Mounted AA cell</a><a href="assets/teardown/exploded.webp">Uncovered assembly</a><a href="assets/product/frames/072.webp?v=3">PCB front</a><a href="assets/product/frames/116.webp">PCB back</a></p></noscript>
             </div>
           </div>
         </div>
         <div class="hardware-stage wrap">
           <div class="stage-copy">
-            <div data-chapter-copy hidden>
-              <h2>The switch</h2>
-              <p class="lead">Bluetooth LE. No neutral wire required.</p>
-            </div>
-            <div data-chapter-copy hidden>
-              <h2>One AA</h2>
-              <p class="lead">Over a year of battery life.</p>
-              <figure class="battery-chart" aria-label="Illustration of a single AA cell gradually discharging over more than one year.">
-                <div class="cell-indicator" aria-hidden="true"><span></span></div>
-                <svg viewBox="0 0 264 53" preserveAspectRatio="none" aria-hidden="true">
-                  <path class="charge-grid" d="M3 12H261 M3 32H261 M3 52H261"/>
-                  <path class="charge-track" d="M3 4C12 5 13 12 26 15S68 20 95 22S153 27 180 31S219 38 235 42S254 49 261 50"/>
-                  <path class="charge-curve" pathLength="1" d="M3 4C12 5 13 12 26 15S68 20 95 22S153 27 180 31S219 38 235 42S254 49 261 50"/>
-                </svg>
-                <figcaption><span>Fresh cell</span><span>Over one year</span></figcaption>
-              </figure>
-            </div>
-            <div data-chapter-copy hidden>
+            <div data-chapter-copy="3" hidden>
               <h2>Circuit board</h2>
             </div>
           </div>
           <figure class="assembly-figure">
             <div class="model-wrap">
-              <img id="sequence-poster" src="assets/product/frames/000.webp" width="1056" height="864" decoding="async" alt="Assembled single-gang Nultra wall switch seen at a three-quarter angle">
+              <img id="sequence-poster" src="assets/product/frames/066.webp" width="1056" height="864" decoding="async" alt="Front of the populated Nultra circuit board with the AA cell removed">
               <canvas id="sequence-canvas" width="1056" height="864" aria-hidden="true"></canvas>
               <svg id="sequence-labels" viewBox="0 0 1056 864" aria-hidden="true">
-                <defs>
-                  <marker id="magnet-seat" markerUnits="userSpaceOnUse" markerWidth="16" markerHeight="16" refX="8" refY="8"><circle cx="8" cy="8" r="5.5"/></marker>
-                </defs>
-                <g data-label-group="magnets">
-                  <g class="magnet-pairs" marker-start="url(#magnet-seat)" marker-end="url(#magnet-seat)">
-                    <line data-magnet="magnet1"/><line data-magnet="magnet2"/><line data-magnet="magnet3"/>
-                  </g>
-                  <g data-part="faceplate"><path/><circle r="4"/><text x="34" y="92">Magnetic faceplate<tspan class="label-detail" x="34" dy="1.18em">Three magnets per side</tspan></text></g>
-                </g>
-                <g data-label-group="battery-life">
-                  <g data-part="pcb"><path/><circle r="4"/><text x="990" y="98" text-anchor="end">Ultra-low power draw</text></g>
-                </g>
                 <g data-label-group="board">
                   <g data-part="antenna"><path/><circle r="4"/><text x="1005" y="158" text-anchor="end">Printed antenna</text></g>
                   <g data-part="mcu"><path/><circle r="4"/><text x="68" y="368">Bluetooth CPU</text></g>
@@ -120,14 +121,128 @@
       <div class="timeline wrap interaction">
         <div class="chapter-tabs" role="group" aria-label="Explore by chapter">
           <button type="button" data-chapter-at="0" aria-pressed="true"><span></span>Room</button>
-          <button type="button" data-chapter-at=".37" aria-pressed="false"><span></span>Switch</button>
-          <button type="button" data-chapter-at=".665" aria-pressed="false"><span></span>Assembly</button>
+          <button type="button" data-chapter-at=".39" aria-pressed="false"><span></span>Switch</button>
+          <button type="button" data-chapter-at=".68" aria-pressed="false"><span></span>Assembly</button>
           <button type="button" data-chapter-at=".80" aria-pressed="false"><span></span>Circuit</button>
         </div>
-        <div class="scrub-line"><label for="sequence-scrub">Scroll to explore</label><input id="sequence-scrub" type="range" min="0" max="100" step="1" value="0" aria-label="Explore from room to circuit" aria-valuetext="Room, 0%"><output id="sequence-percent" for="sequence-scrub" aria-live="off">0%</output></div>
+        <div class="scrub-line">
+          <button class="tour-replay" type="button" data-tour-replay><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M3.4 8.2a6.7 6.7 0 1 1 .7 5.3M3.3 3.8v4.6h4.6"/></svg>Replay tour</button>
+          <label for="sequence-scrub">Scroll to explore</label><input id="sequence-scrub" type="range" min="0" max="100" step="1" value="0" aria-label="Explore from room to circuit" aria-valuetext="Room, 0%"><output id="sequence-percent" for="sequence-scrub" aria-live="off">0%</output>
+        </div>
       </div>
     </div>
   </section>
+
+  <div class="in-use" id="in-use">
+    <div class="wrap">
+      <section class="use-row visual-left press-feature" aria-labelledby="press-title">
+        <div class="use-copy press-copy">
+          <h2 id="press-title"><span class="press-count">6,000+</span><span class="press-unit">switch operations on one AA battery.</span></h2>
+          <p>Tap the center of the faceplate to turn the light on or off.</p>
+        </div>
+        <div class="feature-visual press-scene" data-feature-demo="press">
+          <div class="gesture-scene" role="img" aria-label="A fingertip presses and releases the circular button in the center of the Nultra faceplate.">
+            <div class="gesture-plate">
+              <img src="assets/features/press-plate.webp" width="438" height="677" alt="" loading="lazy" decoding="async">
+              <span class="button-surface"></span>
+            </div>
+            <span class="finger-contact"></span>
+            <svg class="gesture-hand" viewBox="0 0 1020 680" aria-hidden="true">
+              <defs>
+                <filter id="press-finger-flex" x="-3%" y="-3%" width="106%" height="106%" color-interpolation-filters="sRGB">
+                  <feImage href="assets/features/fingertip-flex.png" x="0" y="0" width="1020" height="680" preserveAspectRatio="none" result="bend"/>
+                  <feDisplacementMap in="SourceGraphic" in2="bend" scale="0" xChannelSelector="R" yChannelSelector="G">
+                    <animate attributeName="scale" values="72;72;2;0;24;72" keyTimes="0;.18;.44;.55;.68;1" dur="1.55s" begin="indefinite" fill="freeze"/>
+                  </feDisplacementMap>
+                </filter>
+              </defs>
+              <image href="assets/features/press-hand.webp" width="1020" height="680" filter="url(#press-finger-flex)"/>
+            </svg>
+          </div>
+          <button class="feature-replay" type="button" aria-label="Replay the button press" hidden><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M3.4 8.2a6.7 6.7 0 1 1 .7 5.3M3.3 3.8v4.6h4.6"/></svg>Replay</button>
+        </div>
+      </section>
+
+      <section class="use-row visual-right" aria-labelledby="hold-title">
+        <div class="use-copy">
+          <h2 id="hold-title">Check the battery.</h2>
+          <p>Hold the button for three seconds, then release. The LED blinks through the faceplate to show the battery level.</p>
+        </div>
+        <div class="feature-visual hold-scene" data-feature-demo="hold">
+          <div class="gesture-scene" role="img" aria-label="A hand holds the button for three seconds. On release, a green light blinks through the faceplate.">
+            <div class="gesture-plate">
+              <img src="assets/features/press-plate.webp" width="438" height="677" alt="" loading="lazy" decoding="async">
+              <span class="button-surface"></span>
+              <span class="status-glow"></span>
+            </div>
+            <span class="finger-contact"></span>
+            <svg class="gesture-hand" viewBox="0 0 1020 680" aria-hidden="true">
+              <defs>
+                <filter id="hold-finger-flex" x="-3%" y="-3%" width="106%" height="106%" color-interpolation-filters="sRGB">
+                  <feImage href="assets/features/fingertip-flex.png" x="0" y="0" width="1020" height="680" preserveAspectRatio="none" result="bend"/>
+                  <feDisplacementMap in="SourceGraphic" in2="bend" scale="0" xChannelSelector="R" yChannelSelector="G">
+                    <animate attributeName="scale" values="72;0;0;2;72;72" keyTimes="0;.08;.56;.58;.67;1" dur="6s" begin="indefinite" fill="freeze"/>
+                  </feDisplacementMap>
+                </filter>
+              </defs>
+              <image href="assets/features/press-hand.webp" width="1020" height="680" filter="url(#hold-finger-flex)"/>
+            </svg>
+          </div>
+          <button class="feature-replay" type="button" aria-label="Replay the three-second hold" hidden><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M3.4 8.2a6.7 6.7 0 1 1 .7 5.3M3.3 3.8v4.6h4.6"/></svg>Replay</button>
+        </div>
+      </section>
+
+      <section class="use-row visual-left" aria-labelledby="replace-title">
+        <div class="use-copy">
+          <h2 id="replace-title">Replace the AA.</h2>
+          <p>Lift off the magnetic faceplate, swap the battery and press the plate back into place. The switch stays in the wall.</p>
+        </div>
+        <div class="feature-visual service-scene" data-feature-demo="service">
+          <div class="service-parts" role="img" aria-label="The magnetic faceplate lifts away, the spent AA comes out, and a fresh cell slides into the same holder.">
+            <img class="service-carrier" src="assets/features/service-carrier.webp?v=2" alt="" loading="lazy" decoding="async">
+            <img class="service-old" src="assets/features/service-cell.webp?v=2" alt="" loading="lazy" decoding="async">
+            <img class="service-new" src="assets/features/service-cell.webp?v=2" alt="" loading="lazy" decoding="async">
+            <img class="service-seated" src="assets/features/service-seated.webp?v=2" alt="" loading="lazy" decoding="async">
+            <img class="service-face" src="assets/features/service-plate.webp?v=2" alt="" loading="lazy" decoding="async">
+          </div>
+          <button class="feature-replay" type="button" aria-label="Replay the battery change" hidden><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M3.4 8.2a6.7 6.7 0 1 1 .7 5.3M3.3 3.8v4.6h4.6"/></svg>Replay</button>
+        </div>
+      </section>
+    </div>
+
+    <section class="app-feature" aria-labelledby="app-feature-title">
+      <div class="app-layout wrap">
+        <div class="app-copy">
+          <h2 id="app-feature-title">Nultra app</h2>
+          <p>Name each switch, read its battery level and choose when to receive a low-battery notification.</p>
+          <div class="app-scenes" role="group" aria-label="App demonstration" hidden>
+            <button type="button" data-app-select="rename" aria-pressed="true">Rename</button>
+            <button type="button" data-app-select="battery" aria-pressed="false">Battery level</button>
+            <button type="button" data-app-select="alert" aria-pressed="false">Notifications</button>
+          </div>
+        </div>
+        <div class="app-visual" data-app-scene="preview">
+          <div class="demo-phone" role="img" aria-label="Example Nultra app switch details with a rename button and battery reading.">
+            <div class="demo-screen" aria-hidden="true">
+              <img src="assets/phone/switch-controls.webp" width="562" height="1218" alt="" loading="lazy" decoding="async">
+              <span class="demo-saved-name">READLAMP</span>
+              <div class="demo-editor">
+                <div class="demo-input"><span>READLAMP</span></div>
+                <span class="demo-save">Save name</span>
+              </div>
+              <span class="demo-charge">5%</span>
+              <div class="demo-notification">
+                <div class="notification-source"><img src="assets/phone/app-icon.webp" width="20" height="20" alt="" loading="lazy"> Nultra <small>now</small></div>
+                <strong>READLAMP battery is low</strong>
+                <span>Battery is at 5%. Replace or recharge the switch battery.</span>
+              </div>
+            </div>
+          </div>
+          <button class="feature-replay" type="button" data-app-replay aria-label="Replay the app demonstration" hidden><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M3.4 8.2a6.7 6.7 0 1 1 .7 5.3M3.3 3.8v4.6h4.6"/></svg>Replay</button>
+        </div>
+      </div>
+    </section>
+  </div>
 
   <section id="files" class="files" aria-labelledby="files-title">
     <div class="files-layout wrap">
@@ -140,7 +255,7 @@
         <div class="file-row"><h3>Enclosure</h3><div class="row-links"><a href="https://github.com/AfshinKI/Nultra/blob/main/hardware/mechanical/assemblies/single-switch.step">Single STEP</a><a href="https://github.com/AfshinKI/Nultra/blob/main/hardware/mechanical/assemblies/double-switch.step">Double STEP</a><a href="https://github.com/AfshinKI/Nultra/tree/main/hardware/mechanical/prints">Print meshes</a><a href="https://cad.onshape.com/documents/3cb2e23a19093c4389ce2f07/w/3be343cdcd1e5951d1a37be1">Onshape</a></div></div>
         <div class="file-row"><h3>Electronics</h3><div class="row-links"><a href="https://github.com/AfshinKI/Nultra/tree/main/hardware/electronics/fabrication/v2">Original v2 Gerbers &amp; BOM</a><a href="https://github.com/AfshinKI/Nultra/blob/main/hardware/README.md#electronics">KiCad review notes</a></div></div>
         <div class="file-row"><h3>Software</h3><div class="row-links"><a href="https://github.com/AfshinKI/Nultra/tree/main/firmware">Firmware</a><a href="https://github.com/AfshinKI/Nultra/tree/main/app">Mobile apps</a></div></div>
-        <div class="file-row"><h3>Renders</h3><div class="row-links"><a href="assets/room/detached-wide.webp">Wall box</a><a href="assets/product/frames/046.webp">Exploded assembly</a><a href="assets/product/frames/072.webp?v=3">PCB front</a><a href="assets/product/frames/116.webp">PCB back</a></div></div>
+        <div class="file-row"><h3>Renders</h3><div class="row-links"><a href="assets/room/detached-wide.webp?v=6">Wall box</a><a href="assets/product/frames/046.webp">Exploded assembly</a><a href="assets/product/frames/072.webp?v=3">PCB front</a><a href="assets/product/frames/116.webp">PCB back</a></div></div>
       </div>
     </div>
   </section>
