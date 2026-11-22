@@ -17,6 +17,19 @@
   const saveData = navigator.connection?.saveData === true;
   const hardwareStart = .37;
   const handoffStart = .346;
+  const lampDemoEnd = .14;
+  // Each leg ends at a change in the subject being shown. Durations leave time to read the callouts.
+  const tourLegs = [
+    {end: .28, duration: 5700},       // Approach the tactile switch and reveal the wall box.
+    {end: hardwareStart, duration: 2400},
+    {end: .57, duration: 3700},      // Turn the switch and release the faceplate.
+    {end: .742, duration: 6000},     // Magnetic mounting and AA discharge.
+    {end: .815, duration: 3450},     // Expose the board and its debug pads.
+    {end: .868, duration: 2700},     // Antenna and Bluetooth CPU.
+    {end: .933, duration: 1600},     // Turn to the reverse side.
+    {end: .962, duration: 1650},     // Bring the rear components into view together.
+    {end: 1, duration: 3400},        // Finish the rear camera move slowly while the labels are readable.
+  ];
   const boxRevealStart = .70 * hardwareStart, boxRevealEnd = .81 * hardwareStart;
   const lastFrame = 232;
   const atlasVersion = "?v=233b";
@@ -29,31 +42,30 @@
     [hardwareStart, 0], [.50, 36], [.583, 60], [.62, 78], [.665, 89], [.714, 92],
     [.777, 132], [.80, 140], [.815, 146], [.868, 164], [.933, 204], [.962, 216], [1, lastFrame],
   ];
-  function interpolateBeat(value, from) {
+  function interpolate(stops, value, from) {
     const to = 1 - from;
-    if (value <= beats[0][from]) return beats[0][to];
-    for (let i = 1; i < beats.length; i++) {
-      const before = beats[i - 1], after = beats[i];
+    if (value <= stops[0][from]) return stops[0][to];
+    for (let i = 1; i < stops.length; i++) {
+      const before = stops[i - 1], after = stops[i];
       if (value > after[from]) continue;
       const part = (value - before[from]) / (after[from] - before[from]);
       return before[to] + (after[to] - before[to]) * part;
     }
-    return beats[beats.length - 1][to];
+    return stops[stops.length - 1][to];
   }
-  const frameAt = progress => Math.round(interpolateBeat(progress, 0) * 1e7) / 1e7;
-  const positionAt = frame => interpolateBeat(frame, 1);
+  const frameAt = progress => Math.round(interpolate(beats, progress, 0) * 1e7) / 1e7;
+  const positionAt = frame => interpolate(beats, frame, 1);
   const sheets = new Map();
   const pending = new Set();
   const retries = new Map();
   const labels = document.getElementById("sequence-labels");
   const labelGroups = Array.from(labels?.querySelectorAll("[data-label-group]") || [], element => ({
     element,
-    parts: Array.from(element.querySelectorAll("[data-part]"), part => {
-      const text = part.querySelector("text");
-      return {part, key: part.dataset.part, line: part.querySelector("path"), dot: part.querySelector("circle"),
-        x: Number(text.getAttribute("x")), y: Number(text.getAttribute("y")) + 8,
-        elbow: text.getAttribute("text-anchor") === "end" ? -26 : 26};
-    }),
+    parts: Array.from(element.querySelectorAll("[data-part]"), part => ({
+      part, key: part.dataset.part, line: part.querySelector("path"), dot: part.querySelector("circle"),
+      text: part.querySelector("text"), bounds: null,
+    })),
+    pairs: Array.from(element.querySelectorAll("[data-magnet]")),
   }));
   const tabs = Array.from(sequence.querySelectorAll("[data-chapter-at]"));
   const copies = sequence.querySelectorAll("[data-chapter-copy]");
@@ -64,15 +76,15 @@
   const descriptions = [
     "Assembled Nultra wall switch at a three-quarter angle.",
     "Assembled Nultra wall switch turning to reveal its side profile.",
-    "The faceplate lifts first, then the AA cell, carrier, circuit board and rear shell separate.",
+    "Three magnets in the faceplate release from three matching magnets in the carrier. A single AA cell powers the switch’s ultra-low-power electronics.",
     "Both sides of the populated circuit board.",
   ];
   const inspectionDescriptions = {
-    debug: "The ten exposed debug pads connect the programming and diagnostic interface.",
-    board: "The front of the board carries the printed antenna and Bluetooth microcontroller.",
+    debug: "The circuit board moves forward, exposing the debug pads.",
+    board: "The front of the board carries the printed antenna, Bluetooth microcontroller and SWD debug pads.",
     turn: "The circuit board turns to show its reverse side.",
     power: "The rear-side DC/DC converter raises the AA cell voltage for the electronics.",
-    relay: "The latching relay sits on the reverse of the board.",
+    relay: "The reverse of the board carries the DC/DC converter, latching relay and AC load screw terminal.",
   };
 
   let target = 0, position = 0, drawnFrame = 0;
@@ -88,6 +100,7 @@
   const historyReturn = performance.getEntriesByType?.("navigation")[0]?.type === "back_forward";
   let introState = motion.matches || location.hash || historyReturn ? "done" : "waiting";
   let introElapsed = 0, introTime = 0, introOrigin = 0;
+  let tourLeg = 0, afterHold;
   let holdTimer = 0, holdSince = 0, holdRemaining = 0;
 
   function smooth(value) {
@@ -99,6 +112,57 @@
     return Math.min(smooth((value - from) / (to - from)), 1 - smooth((value - endFrom) / (endTo - endFrom)));
   }
 
+  const batteryVisibility = progress => windowOpacity(progress, .585, .605, .72, .742);
+  const labelOpacity = {
+    magnets: frame => windowOpacity(frame, 43, 50, 60, 64),
+    "battery-life": frame => windowOpacity(frame, 70, 76, 94, 100),
+    board: frame => windowOpacity(frame, 134, 138, 155, 160),
+    relay: frame => smooth((frame - 208) / 5),
+  };
+  const productLabels = Object.values(labelOpacity);
+  function readingWeight(progress) {
+    if (progress < hardwareStart) return window.NultraRoom?.switchLabelOpacity?.(progress / hardwareStart) ?? 0;
+    const frame = frameAt(progress);
+    // Overlapping labels share one reading interval.
+    return productLabels.reduce((weight, opacity) => Math.max(weight, opacity(frame)), 0);
+  }
+
+  // The last few degrees of the rear orbit ease into a small push-in before the pin releases.
+  const closingMove = frame => smooth((frame - 208) / (lastFrame - 208));
+
+  // Integrate the fades once. The same curve maps native scrolling to a shot and a direct seek back to scrollY.
+  const scrollStops = [[0, 0]];
+  const intervals = 256;
+  let distance = 0;
+  for (let i = 1; i <= intervals; i++) {
+    const progress = (i - .5) / intervals;
+    distance += 1 + .45 * readingWeight(progress) + 3 * closingMove(frameAt(progress));
+    scrollStops.push([i / intervals, distance]);
+  }
+  for (const stop of scrollStops) stop[1] /= distance;
+  const scrollAt = progress => interpolate(scrollStops, progress, 0);
+  const progressAtScroll = fraction => interpolate(scrollStops, fraction, 1);
+
+  function leaderPath(box, px, py) {
+    // Connect from the nearest outside edge, leaving breathing room around every line of text.
+    const left = box.x - 10, right = box.x + box.width + 10;
+    const top = box.y - 8, bottom = box.y + box.height + 8;
+    const x = Math.max(left, Math.min(right, px)), y = Math.max(top, Math.min(bottom, py));
+    const dx = px - x, dy = py - y;
+    if (!dx && !dy) return "";
+    const horizontal = Math.abs(dx) > Math.abs(dy);
+    const elbowX = x + (horizontal ? Math.sign(dx) * Math.min(18, Math.abs(dx)) : 0);
+    const elbowY = y + (horizontal ? 0 : Math.sign(dy) * Math.min(18, Math.abs(dy)));
+    return `M ${x} ${y} L ${elbowX} ${elbowY} L ${px} ${py}`;
+  }
+
+  function measureLabels() {
+    for (const {parts} of labelGroups) {
+      for (const label of parts) label.bounds = label.text.getBBox();
+    }
+    renderLabels(drawnFrame);
+  }
+
   function renderLabels(frame) {
     if (!labels) return;
     const lo = Math.floor(frame), hi = Math.ceil(frame), fraction = frame - lo;
@@ -106,31 +170,33 @@
     labels.style.opacity = current ? "1" : "0";
     if (!current) return;
     const area = labels.viewBox.baseVal;
-    for (const {element, parts} of labelGroups) {
-      let opacity;
-      switch (element.dataset.labelGroup) {
-        case "reveal": opacity = windowOpacity(frame, 59.5, 62, 70, 73); break;
-        case "assembly": opacity = windowOpacity(frame, 73, 77, 98, 109); break;
-        case "debug": opacity = windowOpacity(frame, 132, 135, 143, 146); break;
-        case "board": opacity = windowOpacity(frame, 146, 150, 161, 164); break;
-        case "power": opacity = windowOpacity(frame, 204, 208, 213, 216); break;
-        case "relay": opacity = smooth((frame - 216) / 5); break;
-        default: opacity = 0;
-      }
+    function point(key) {
+      const a = current[key], b = next?.[key] || a;
+      if (!Array.isArray(a) || !Array.isArray(b)) return null;
+      const x = (a[0] + (b[0] - a[0]) * fraction) * area.width;
+      const y = (a[1] + (b[1] - a[1]) * fraction) * area.height;
+      return x >= 0 && y >= 0 && x <= area.width && y <= area.height ? {x, y} : null;
+    }
+    for (const {element, parts, pairs} of labelGroups) {
+      const opacity = labelOpacity[element.dataset.labelGroup]?.(frame) ?? 0;
       element.style.opacity = String(opacity);
       if (!opacity) continue;
-      for (const {part, key, line, dot, x, y, elbow} of parts) {
-        const a = current[key], b = next?.[key] || a;
-        const valid = Array.isArray(a) && Array.isArray(b) && a.length === 2 && b.length === 2;
-        const ax = valid ? a[0] + (b[0] - a[0]) * fraction : NaN;
-        const ay = valid ? a[1] + (b[1] - a[1]) * fraction : NaN;
-        const visible = ax >= 0 && ax <= 1 && ay >= 0 && ay <= 1;
-        part.style.visibility = visible ? "visible" : "hidden";
-        if (!visible) continue;
-        const px = ax * area.width, py = ay * area.height;
-        line.setAttribute("d", `M ${x} ${y} h ${elbow} L ${px} ${py}`);
-        dot.setAttribute("cx", px);
-        dot.setAttribute("cy", py);
+      for (const {part, key, line, dot, text, bounds} of parts) {
+        const target = point(key);
+        part.style.visibility = target ? "visible" : "hidden";
+        if (!target) continue;
+        line.setAttribute("d", leaderPath(bounds || text.getBBox(), target.x, target.y));
+        dot.setAttribute("cx", target.x);
+        dot.setAttribute("cy", target.y);
+      }
+      for (const line of pairs) {
+        const face = point("faceplate." + line.dataset.magnet), seat = point("carrier." + line.dataset.magnet);
+        line.style.visibility = face && seat ? "visible" : "hidden";
+        if (!face || !seat) continue;
+        line.setAttribute("x1", face.x);
+        line.setAttribute("y1", face.y);
+        line.setAttribute("x2", seat.x);
+        line.setAttribute("y2", seat.y);
       }
     }
   }
@@ -155,7 +221,7 @@
     if (performance.now() < anchorRetry) { wakeForNetwork(anchorRetry); return; }
     anchorsPending = true;
     try {
-      const response = await fetch("assets/product/motion/anchors.json" + atlasVersion);
+      const response = await fetch("assets/product/motion/anchors.json" + atlasVersion + "-2");
       if (!response.ok) throw new Error("Missing callouts");
       anchors = await response.json();
       renderLabels(drawnFrame);
@@ -307,9 +373,10 @@
     const frame = frameAt(position);
     buffer(requestedFrame);
     paint(frame);
+    sequence.style.setProperty("--closing-scale", String(1 + .024 * closingMove(drawnFrame)));
     const batteryProgress = smooth((position - .598) / (.709 - .598));
     sequence.style.setProperty("--battery-life-progress", String(batteryProgress));
-    sequence.style.setProperty("--battery-life-visibility", String(windowOpacity(position, .585, .605, .72, .742)));
+    sequence.style.setProperty("--battery-life-visibility", String(batteryVisibility(position)));
     const active = position < hardwareStart - .0006 ? 0 : drawnFrame < 36 ? 1 : drawnFrame < 123 ? 2 : 3;
     if (chapter !== active) {
       chapter = active;
@@ -317,8 +384,8 @@
       tabs.forEach((button, i) => button.setAttribute("aria-pressed", String(i === active)));
       copies.forEach((copy, i) => { copy.hidden = i !== active; });
     }
-    const shot = drawnFrame < 146 ? "debug" : drawnFrame < 164 ? "board" :
-      drawnFrame < 204 ? "turn" : drawnFrame < 216 ? "power" : "relay";
+    const shot = drawnFrame < 134 ? "debug" : drawnFrame < 164 ? "board" :
+      drawnFrame < 204 ? "turn" : drawnFrame < 208 ? "power" : "relay";
     const inspection = active === 3 ? shot : "";
     if (sequence.dataset.inspection !== inspection) sequence.dataset.inspection = inspection;
     const description = inspection ? inspectionDescriptions[inspection] : descriptions[active];
@@ -345,6 +412,7 @@
     const displayWidth = canvas.getBoundingClientRect().width;
     const width = Math.min(tileWidth, Math.round(displayWidth * Math.min(window.devicePixelRatio || 1, 1.5)));
     if (width > 0) backingWidth = width;
+    measureLabels();
     measureNeeded = false;
   }
 
@@ -365,19 +433,19 @@
     }
   }
 
-  function advance(dt) {
+  function advance(dt, speedLimit) {
     if (position === target) return frameAt(position);
     const remaining = target - position;
     direction = Math.sign(remaining);
     const eased = Math.abs(remaining) * (1 - Math.exp(-dt / 60));
-    // Leave the exposed box in view even when a wheel fling requests the whole teardown.
-    const reveal = windowOpacity(position, .54 * hardwareStart, boxRevealStart, boxRevealEnd, .91 * hardwareStart);
-    const speed = .00065 / (1 + 6 * reveal);
-    const step = Math.min(eased, dt * speed, .012);
+    // A quick wheel or touch gesture can outrun the renderer. Catch up to its destination without adding a stop.
+    const catchUp = speedLimit === undefined ? smooth((Math.abs(remaining) - .025) / .16) : 0;
+    const speed = speedLimit ?? (.00075 + .00070 * catchUp);
+    const step = Math.min(eased, dt * speed, .012 + .022 * catchUp);
     let next = Math.abs(remaining) < .00012 ? target : position + direction * step;
     let frame = frameAt(next);
     // Keep the visual step bounded even after a long task or an abruptly reversed fling.
-    const maxFrames = Math.min(1.75, dt * .09);
+    const maxFrames = Math.min(1.75 + 2.25 * catchUp, dt * (.09 + .13 * catchUp));
     if (Math.abs(frame - drawnFrame) > maxFrames) {
       frame = drawnFrame + direction * maxFrames;
       next = positionAt(frame);
@@ -394,6 +462,11 @@
 
   function introOwnsTimeline() {
     return introState !== "done" && introState !== "waiting";
+  }
+
+  function setIntroState(state) {
+    introState = state;
+    sequence.classList.toggle("is-rewinding", state === "tour-rewind" || state === "rewinding");
   }
 
   function pauseHold() {
@@ -414,18 +487,25 @@
         holdRemaining = Math.max(0, holdRemaining - (performance.now() - holdSince));
         return;
       }
-      introState = phase === "lit-hold" ? "rewinding" : "playing";
+      setIntroState(afterHold);
       introElapsed = 0;
       introTime = 0;
       schedule();
     }, holdRemaining);
   }
 
+  function holdIntro(nextState, duration) {
+    setIntroState("holding");
+    afterHold = nextState;
+    holdRemaining = duration;
+    scheduleHold();
+  }
+
   function stopIntro(alignScroll) {
     if (introState === "done") return;
     const wasPlaying = introOwnsTimeline();
     pauseHold();
-    introState = "done";
+    setIntroState("done");
     introTime = 0;
     window.removeEventListener("wheel", takeWheel, true);
     for (const type of takeoverInputs) window.removeEventListener(type, takeControl, true);
@@ -434,9 +514,18 @@
     previousTime = 0;
     if (alignScroll && span > 0 && !motion.matches && inView) {
       // Both coordinates paint the same pinned view. Align before the native wheel/touch/key action.
-      const aligned = start + span * position;
+      const aligned = start + span * scrollAt(position);
       if (Math.abs(window.scrollY - aligned) > .5) window.scrollTo({top: aligned, behavior: "instant"});
     }
+  }
+
+  function advanceIntro(dt, end, speed) {
+    // Reuse the scroll player's decode buffer in both directions. A missing sheet's decode wakes the player.
+    const previous = position;
+    target = end;
+    render(advance(dt, speed));
+    if (position !== previous) schedule();
+    return position === end;
   }
 
   function playIntro(time) {
@@ -446,23 +535,46 @@
         return false;
       }
       introOrigin = window.scrollY;
-      introState = "playing";
+      setIntroState("opening");
     }
-    if (introState === "lit-hold" || introState === "dark-hold") {
+    if (introState === "holding") {
       scheduleHold();
+      render();
       return true;
     }
     if (!introOwnsTimeline()) return false;
-    if (introTime) introElapsed += Math.max(0, time - introTime);
+    const dt = introTime ? Math.min(60, Math.max(1, time - introTime)) : 16;
     introTime = time;
-    const forward = introState === "playing";
-    const elapsed = clamp(forward ? (introElapsed - 200) / 3500 : introElapsed / 2600);
-    position = target = .14 * (forward ? smooth(elapsed) : 1 - smooth(elapsed));
-    if (elapsed === 1) {
-      introState = forward ? "lit-hold" : "dark-hold";
-      holdRemaining = forward ? 5000 : 1200;
-      scheduleHold();
+    if (introState === "tour") {
+      const {end, duration} = tourLegs[tourLeg];
+      const from = tourLeg ? tourLegs[tourLeg - 1].end : lampDemoEnd;
+      // Spend 60% of the usual time between callouts and 113% when a label is fully visible.
+      const timeScale = .60 + .53 * readingWeight(position);
+      if (advanceIntro(dt, end, (end - from) / (duration * timeScale))) {
+        tourLeg++;
+        if (tourLeg === tourLegs.length) setIntroState("tour-rewind");
+      }
+      return true;
     }
+    if (introState === "tour-rewind") {
+      const reveal = windowOpacity(position, .54 * hardwareStart, boxRevealStart, boxRevealEnd, .91 * hardwareStart);
+      if (advanceIntro(dt, 0, Math.min(1 / 3600, .00065 / (1 + 6 * reveal)))) holdIntro("playing", 1000);
+      return true;
+    }
+
+    introElapsed += dt;
+    const opening = introState === "opening";
+    const forward = introState !== "rewinding";
+    const delay = opening ? 350 : forward ? 200 : 0;
+    const duration = opening ? 4750 : forward ? 3200 : 2450;
+    const elapsed = clamp((introElapsed - delay) / duration);
+    position = target = lampDemoEnd * (forward ? smooth(elapsed) : 1 - smooth(elapsed));
+    render();
+    if (elapsed === 1) {
+      if (opening) holdIntro("tour", 1000);
+      else if (forward) holdIntro("rewinding", 5000);
+      else holdIntro("playing", 1200);
+    } else schedule();
     return true;
   }
 
@@ -475,15 +587,10 @@
       const y = window.scrollY;
       inView = y + window.innerHeight >= start && y <= bottom;
       if (introState === "waiting" && (!inView || Math.abs(y - start) > 3)) stopIntro(false);
-      if (introState === "done" && span && !motion.matches) updateTarget((y - start) / span, resetPosition);
+      if (introState === "done" && span && !motion.matches) updateTarget(progressAtScroll((y - start) / span), resetPosition);
       resetPosition = false;
     }
-    if (!inView) return;
-    if (playIntro(time)) {
-      render();
-      if (introState === "playing" || introState === "rewinding") schedule();
-      return;
-    }
+    if (!inView || playIntro(time)) return;
     const dt = previousTime ? Math.min(60, Math.max(1, time - previousTime)) : 16;
     previousTime = time;
     const previous = position;
@@ -504,7 +611,7 @@
     inView = true;
     updateTarget(value, true);
     if (span && !motion.matches || scrollToStory) {
-      window.scrollTo({top: start + (motion.matches ? 0 : span * target), behavior: "instant"});
+      window.scrollTo({top: start + (motion.matches ? 0 : span * scrollAt(target)), behavior: "instant"});
     }
     render();
     schedule();
@@ -541,7 +648,7 @@
     if (introOwnsTimeline() && span && event.cancelable && event.deltaY && !event.ctrlKey) {
       // A compositor can otherwise discard the first upward delta because the physical document is still at zero.
       const unit = event.deltaMode === 2 ? window.innerHeight : event.deltaMode === 1 ? 16 : 1;
-      const nextY = start + span * position + event.deltaY * unit;
+      const nextY = start + span * scrollAt(position) + event.deltaY * unit;
       stopIntro(false);
       event.preventDefault();
       window.scrollTo({top: nextY, behavior: "instant"});
@@ -559,7 +666,7 @@
       const nativeY = window.scrollY;
       stopIntro(false);
       if (span && nativeY < bottom && !motion.matches) {
-        window.scrollTo({top: nativeY + position * span, behavior: "instant"});
+        window.scrollTo({top: nativeY + scrollAt(position) * span, behavior: "instant"});
       }
     }
     scrollChanged = true;
@@ -598,6 +705,7 @@
   }
 
   sequence.classList.add("motion-ready");
+  document.fonts?.ready.then(measureLabels);
   render();
   schedule();
 })();
