@@ -102,7 +102,7 @@ try {
   // A second, bare-wall capture lets the same photographs appear with WebGL disabled.
   const registration={};
   const poses = [["open",0,null],["off",.089,false],["lit",.137,true],["detail",.178,true],
-    ["approach",.238,true],["approach-dark",.238,false],["release",.303,true],["mounted",.39,true],
+    ["zoom",.21,true],["zoom-dark",.21,false],["approach",.238,true],["approach-dark",.238,false],["release",.303,true],["mounted",.39,true],
     ["screws",.478,true],["detached",.53,true],["detached-dark",.53,false],["focus",.561,true],
     ["cell",.622,true],["exploded",.684,true],["board",.718,true]];
   for (const [format,width,height] of [["wide",1536,864],["tall",540,1080],["compact",320,425]]) {
@@ -114,7 +114,7 @@ try {
       registration[format][name]={mount:points.mountPoints,battery:points.batteryPoint};
     }
     await openScene(width,height,true);
-    for(const [name,progress,lamp] of poses.filter(([name])=>!["open","lit","cell","exploded","board"].includes(name))){
+    for(const [name,progress,lamp] of poses.filter(([name])=>!["open","lit","zoom","zoom-dark","cell","exploded","board"].includes(name))){
       await capture(join(output,"wall-"+name+"-"+format+".webp"),progress,lamp);
     }
   }

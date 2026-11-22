@@ -31,16 +31,17 @@
     const context=canvas.getContext("2d");
     if(!context)return null;
     let meta=null, studioStart=null, explosion=null;
-    let lastT=0, lastWanted=[], pendingMeta=false, metaRetry=0;
+    let lastT=0, hold=null, lastWanted=[], pendingMeta=false, metaRetry=0;
     const sheets=new Map(), pending=new Set(), retries=new Map();
     const reduced=window.matchMedia("(prefers-reduced-motion: reduce)");
     const conserve=()=>reduced.matches||navigator.connection?.saveData===true;
     const compact=()=>stage.clientWidth<=650;
+    const validIm=pose=>pose&&sheets.has(pose.sheet);
     window.addEventListener("online",()=>{retries.clear();metaRetry=0;redraw();});
     function loadManifest(){
       if(meta||pendingMeta||Date.now()<metaRetry)return;
       pendingMeta=true;
-      fetch(base+"poses.json").then(r=>{
+      fetch(base+"poses.json?v=3").then(r=>{
         if(!r.ok)throw new Error("Teardown poses unavailable");
         return r.json();
       }).then(data=>{
@@ -54,11 +55,11 @@
     function loadSheet(name){
       if(!name||sheets.has(name)||pending.has(name)||pending.size>=(conserve()?1:2)||Date.now()<(retries.get(name)||0))return;
       pending.add(name);
-      const im=new Image();im.decoding="async";im.src=base+name;
+      const im=new Image();im.decoding="async";im.src=base+name+"?v=3";
       im.decode().then(()=>{
         sheets.set(name,im);retries.delete(name);
         while(sheets.size>(compact()?3:5)){
-          const stale=[...sheets.keys()].find(key=>!lastWanted.includes(key));
+          const stale=[...sheets.keys()].find(key=>!lastWanted.includes(key)&&key!==hold?.a.sheet&&key!==hold?.b.sheet);
           if(!stale)break;
           sheets.delete(stale);
         }
@@ -69,6 +70,7 @@
       if(!meta)return null;
       const frames=meta.frames, first=frames[0], last=frames[frames.length-1];
       if(t<first.t-.1||t>last.t+.025){
+        hold=null;
         // Keep only the adjacent boundary pose once the room or PCB owns the screen.
         const edge=t<first.t?first.sheet:last.sheet;
         for(const key of sheets.keys())if(key!==edge)sheets.delete(key);
@@ -82,21 +84,38 @@
       if(!conserve()&&!compact())ahead.push(frames[index+direction*8]?.sheet);
       lastWanted=[...new Set([a.sheet,b.sheet,...ahead].filter(Boolean))];
       lastWanted.forEach(loadSheet);
-      if(t<first.t)return null;
+      if(t<first.t){hold=null;return null;}
       if(!sheets.has(a.sheet)){
         if(sheets.has(b.sheet))a=b;
-        else return null; // A direct seek uses the matching geometric or poster pose during decode.
+        else {
+          // Keep the last *complete* photograph and its camera clock together
+          // through a decode gap. Relocating a stale plate to the new wall pose
+          // would momentarily show a second plate or a box outside the wall.
+          if(pending.size&&validIm(hold?.a)&&validIm(hold?.b))return hold;
+          return null;
+        }
       }
       if(!sheets.has(b.sheet))b=a;
+      if(t>=.250&&t<=.566){
+        // The peel, fastener rotation and extraction are sampled physical poses.
+        // A dissolve between moving parts creates a second, transparent switch.
+        a=b=Math.abs(t-a.t)<=Math.abs(b.t-t)?a:b;
+      }
       const part=b.t>a.t?Math.max(0,Math.min(1,(t-a.t)/(b.t-a.t))):0;
-      return {a,b,part,alpha:ease(t,first.t,first.t+.012)};
+      hold={t,a,b,part,alpha:ease(t,first.t,first.t+.012)};
+      return hold;
     }
-    function paint(t,shot,mountPoints,modelRect) {
+    function paint(t,shot,mountPoints,modelRect,roomLight=1) {
       if(!shot||!shot.alpha||!mountPoints){
         canvas.hidden=true;
         return null;
       }
       canvas.hidden=false;
+      // Match the closed plate to the opening photograph under the desk lamp.
+      // Use the studio's native white point once the plate has moved away.
+      const roomTone=1-ease(t,.262,.349);
+      canvas.style.filter=roomTone?
+        `sepia(${roomTone*mix(.22,.58,roomLight)}) hue-rotate(${-14*roomTone}deg) brightness(${1+roomTone*mix(-.014,.038,roomLight)})`:"";
       const rect=stage.getBoundingClientRect(), w=rect.width,h=rect.height;
       const dpr=Math.min(window.devicePixelRatio||1,1.5,1800/w);
       if(canvas.width!==Math.round(w*dpr)||canvas.height!==Math.round(h*dpr)){
@@ -118,7 +137,7 @@
       const uv=([x,y])=>[x*width,y*height];
       const viewport=([x,y])=>[x*w,y*h];
       // The final still and the moving board share the measured U1 and SWD locations.
-      const bench=ease(t,.49,.569), finish=ease(t,.693,.751);
+      const bench=ease(t,.528,.569), finish=ease(t,.693,.751);
       function transform(pose){
         const studio=studioFit(pose);
         const mounted=registration([pose.mount,pose.top,pose.right].map(uv),mountPoints.map(viewport))||studio;
@@ -165,6 +184,6 @@
       const [x,y]=anchor(a.battery,b.battery);return [x/w,y/h];
     }
     loadManifest();
-    return {frame,paint};
+    return {frame,paint,registration};
   };
 })();

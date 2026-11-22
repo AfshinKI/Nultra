@@ -32,7 +32,7 @@
   const seats = [[-12.5,27.5,20],[12.5,27.5,20],[12.5,-21.5,20]];
   const openingTime = () => progress / .37;
   let progress=0, override=null, frame=0, draw=null, renderer="poster", hitAreas=[];
-  let mountPoints=null,batteryPoint=null;
+  let mountPoints=null,batteryPoint=null,displayedProgress=0;
   const lit = () => override === null ? ramp(openingTime(),.28,.36) : Number(override);
   const appReveal = () => override === null ? ramp(openingTime(),.085,.20) : 1;
   const phoneCue = stage.querySelector(".phone-cue");
@@ -93,8 +93,8 @@
       assembly: ramp(t,.505,.545) * (1-ramp(t,.687,.707)),
     };
   }
-  function wallLabels(battery) {
-    const weights = detailWeights(progress);
+  function wallLabels(battery,t=progress) {
+    const weights = detailWeights(t);
     if(wallDetail){
       const opacity=Math.max(...Object.values(weights));
       wallDetail.hidden=!opacity;
@@ -123,7 +123,7 @@
     if (hit(e)) window.dispatchEvent(new CustomEvent("nultra-lamp-toggle"));
   });
   canvas.addEventListener("pointermove", e => {canvas.style.cursor=hit(e) ? "pointer" : "";}, {passive:true});
-  window.NultraRoom={setState,switchLabelOpacity,detailWeights,getState:() => ({progress,lit:lit(),renderer,mountPoints,batteryPoint,hitAreas:hitAreas.map(a=>({...a}))})};
+  window.NultraRoom={setState,switchLabelOpacity,detailWeights,getState:() => ({progress,displayedProgress,lit:lit(),renderer,mountPoints,batteryPoint,hitAreas:hitAreas.map(a=>({...a}))})};
   window.dispatchEvent(new CustomEvent("nultra-room-ready"));
 
   const vertex = `
@@ -150,8 +150,8 @@
     uniform vec3 uColor,uLamp,uEye,uPlate,uSocket;
     uniform vec2 uPixels;
     uniform vec2 uRing;
-    uniform float uType,uLit,uFade,uOpen,uDetail,uStudio,uMount,uCadScale,uFacePixel,uCutout;
-    uniform sampler2D sHome,sOff,sOn,sDetail,sDarkRoom,sLightRoom,sBoard;
+    uniform float uType,uLit,uFade,uOpen,uDetail,uStudio,uMount,uCadScale,uFacePixel;
+    uniform sampler2D sHome,sOff,sOn,sDetail,sDarkRoom,sLightRoom,sBoard,sRecess;
     uniform mat3 uBoardView;
     float hash(vec2 p){return fract(sin(dot(p,vec2(41.3,289.1)))*4317.23);}
     void main(){
@@ -165,8 +165,6 @@
       float kind=uType;
       if(kind<.5){
         vec2 mountXY=(w.xy-uSocket.xy)/uCadScale;
-        vec2 cut=abs(mountXY)-vec2(22.5,45.5);
-        if(uCutout>.5&&abs(w.z-uSocket.z)<3.*uCadScale && length(max(cut,0.))+min(max(cut.x,cut.y),0.)<3.)discard;
         vec3 dark=texture2D(sDarkRoom,uv).rgb, light=texture2D(sLightRoom,uv).rgb;
         // Mix luminous energy; a half-lit lamp casts half its final illumination.
         vec3 radiance=sqrt(mix(dark*dark,light*light,uLit));
@@ -174,8 +172,20 @@
         vec2 edge=abs(w.xy-uPlate.xy+vec2(.012,.025))-extent+vec2(.025);
         float d=length(max(edge,0.))+min(max(edge.x,edge.y),0.)-.025;
         float contact=.26*(1.-smoothstep(-.002,.018,d))+.20*(1.-smoothstep(-.018,.073,d));
+        if(abs(w.z-uSocket.z)<3.*uCadScale && abs(mountXY.x)<27. && abs(mountXY.y)<50.){
+          // Sample the recessed hardware on the same physical plaster surface.
+          vec4 socket=texture2D(sRecess,.5+mountXY/vec2(54.,100.));
+          radiance=mix(radiance,socket.rgb*mix(.72,1.,uLit),socket.a);
+        }
         radiance*=1.-contact*uMount;
         gl_FragColor=vec4(radiance,uFade);return;
+      }
+      // Behind the plaster only the real single-gang opening admits a view
+      // of the carrier, cell or shell. It occludes the webGL proxy just as it
+      // does in the photographed assembly.
+      if(kind>5.5 && uStudio<.7 && w.z<uSocket.z){
+        vec2 edge=abs((w.xy-uSocket.xy)/uCadScale)-vec2(22.5,45.5);
+        if(length(max(edge,0.))+min(max(edge.x,edge.y),0.)>=3.)discard;
       }
       vec3 R=reflect(-V,N);
       float lampEdge=exp(-19.*(1.-max(0.,dot(R,normalize(uLamp-w)))))*uLit;
@@ -194,19 +204,6 @@
         vec3 metal=color*(.57+.31*key+.23*max(0.,N.y))+
           vec3(.75,.73,.69)*(.23*strip+.14*rim+.22*pow(max(0.,dot(N,H)),34.));
         gl_FragColor=vec4(metal,uFade);return;
-      }
-      if(kind>7.5){
-        vec3 local=(w-uSocket)/uCadScale;
-        float depth=clamp(-local.z/41.,0.,1.);
-        float sideAO=(1.-smoothstep(0.,8.,24.-abs(local.x)))+(1.-smoothstep(0.,8.,46.-abs(local.y)));
-        float irradiance=(.69+.38*key+.06*max(0.,N.y))*(1.-.28*depth-.105*depth*min(sideAO,1.));
-        vec2 grainPlane=abs(N.z)>.65?local.xy:vec2(local.y,local.z);
-        float spangle=sin(dot(grainPlane,vec2(.63,.93))+.8*sin(grainPlane.y*.61))*sin(dot(grainPlane,vec2(-.93,.36)));
-        float grain=(hash(floor(grainPlane*5.))-.5)*.027+.016*spangle;
-        float softbox=pow(max(0.,dot(reflect(-V,N),normalize(vec3(.55,.38,.74)))),7.);
-        vec3 steel=color*(irradiance+grain)+vec3(.14,.14,.13)*softbox*(1.-.55*depth);
-        steel+=uLit*vec3(.045,.027,.011)*max(0.,dot(N,normalize(uLamp-w)));
-        gl_FragColor=vec4(steel,uFade);return;
       }
       if(kind<3.5){
         // Broad window and narrow strip-card reflections describe the rounded
@@ -439,76 +436,6 @@
     for(let i=1;i<boundary.length-1;i++)indices.push(0,i,i+1);
     return {vertices,indices,ring};
   }
-  // Generic single-gang installation hardware. The Nultra enclosure itself
-  // comes from switch.bin. The independent steel cavity stays in the wall.
-  function deviceBox(){
-    const pieces={};
-    function face(part,points,N){
-      const group=pieces[part]||(pieces[part]={vertices:[],indices:[]});
-      const start=group.vertices.length/8;
-      for(const p of points)group.vertices.push(...vertexAt(p,N));
-      for(let i=1;i<points.length-1;i++)group.indices.push(start,start+i,start+i+1);
-    }
-    function rim(x,y,r,z){
-      const result=[];
-      for(let c=0;c<4;c++)for(let j=0;j<=6;j++){
-        const a=(c+j/6)*Math.PI/2;
-        result.push([[1,-1,-1,1][c]*(x-r)+r*Math.cos(a),
-          [1,1,-1,-1][c]*(y-r)+r*Math.sin(a),z]);
-      }
-      return result;
-    }
-    function connect(part,out,inner,flat=false){
-      for(let i=0;i<out.length;i++){
-        const j=(i+1)%out.length,edge=sub(out[j],out[i]),down=sub(inner[i],out[i]);
-        const N=flat?[0,0,1]:normal(cross(edge,down));
-        face(part,[out[i],out[j],inner[j],inner[i]],N);
-      }
-    }
-    const opening=rim(25.5,48.5,3,0),cutback=rim(25.25,48.25,2.75,-2.4);
-    const flange=rim(23.8,46.65,2.2,-2.45),throat=rim(23.35,46.2,2.05,-3.6);
-    const rear=rim(22.8,44.2,2.8,-41);
-    connect("plasterEdge",opening,cutback);
-    connect("boxRim",cutback,flange,true);
-    connect("boxRim",flange,throat);
-    connect("boxSides",throat,rear);
-    face("boxBack",rear,[0,0,1]);
-    // Rounded mounting ears with actual through holes. The empty center
-    // exposes the dark box behind each folded tab.
-    for(const s of [-1,1]){
-      const cy=s*41.65,top=[],bore=[],under=[];
-      for(let i=0;i<48;i++){
-        const a=i*tau/48,x=Math.cos(a),y=Math.sin(a);
-        const d=Math.min(7.2/Math.max(.001,Math.abs(x)),5.0/Math.max(.001,Math.abs(y)));
-        top.push([x*d,cy+y*d,-2.0]);
-        bore.push([x*1.75,cy+y*1.75,-2.0]);under.push([x*1.54,cy+y*1.54,-3.1]);
-      }
-      connect("boxEars",top,bore,true);connect("boxBore",bore,under);
-    }
-    // Shallow pressings on the rear and both cheeks. Concentric drawn lips
-    // and narrow uncut bridges identify the removable metal knockouts.
-    function knockout(origin,U,W,N,r){
-      const depths=[[r+1,0],[r+.42,.31],[r+.10,.55],[r-.28,.06],[r-.72,.35],[r-1.04,.53]];
-      const ring=(radius,depth)=>Array.from({length:52},(_,i)=>{
-        const a=i*tau/52;
-        const bridge=Math.cos(3*a)>.974?.18:1;
-        return add(add(add(origin,scale(U,radius*Math.cos(a))),scale(W,radius*Math.sin(a))),scale(N,depth*bridge));
-      });
-      for(let j=0;j<depths.length-1;j++){
-        const a=ring(...depths[j]),b=ring(...depths[j+1]);
-        for(let i=0;i<a.length;i++){
-          const n=(i+1)%a.length;
-          const norm=normal(cross(sub(a[n],a[i]),sub(b[i],a[i])));
-          face(j===2?"boxStampDark":"boxStamp",[a[i],a[n],b[n],b[i]],dot(norm,N)<0?scale(norm,-1):norm);
-        }
-      }
-      face("boxStamp",ring(...depths[depths.length-1]),N);
-    }
-    knockout([0,-13,-40.9],[1,0,0],[0,1,0],[0,0,1],11.3);
-    knockout([0,19,-40.9],[1,0,0],[0,1,0],[0,0,1],9.25);
-    for(const s of [-1,1])knockout([s*22.9,3,-22],[0,0,s],[0,1,0],[-s,0,0],9.1);
-    return pieces;
-  }
   function imageAt(url) {
     return new Promise((resolve,reject)=>{
       const im=new Image(); im.onload=()=>resolve(im);im.onerror=reject;im.src=url;
@@ -552,30 +479,31 @@
   // Multisampling resolves thin metal edges and the subpixel CAD button relief.
   const photographs=window.NultraTeardown?.(stage,schedule);
   const gl=canvas.getContext("webgl",{alpha:true,antialias:true,depth:true,premultipliedAlpha:false,powerPreference:"low-power",preserveDrawingBuffer:false});
-  let posterCanvas, posterContext, posterFormat="", lastCompletePoster=null;
-  const posters=new Map();
+  let posterCanvas, posterContext, posterFormat="", lastCompletePoster=null, lastPosterPhoto=false;
+  const posters=new Map(),posterRetries=new Map();
+  window.addEventListener("online",()=>{posterRetries.clear();schedule();});
   let fallbackDatums=null,datumsPending=false,datumsRetry=0;
   function loadFallbackDatums(){
     if(fallbackDatums||datumsPending||Date.now()<datumsRetry)return;
     datumsPending=true;
-    fetch("assets/room/registration.json").then(r=>{
+    fetch("assets/room/registration.json?v=2").then(r=>{
       if(!r.ok)throw new Error("Room registration unavailable");
       return r.json();
     }).then(data=>{fallbackDatums=data;}).catch(()=>{datumsRetry=Date.now()+15000;})
       .finally(()=>{datumsPending=false;schedule();});
   }
   function requestPoster(key,src) {
-    if(!posters.has(key)){
+    if(!posters.has(key)&&Date.now()>=(posterRetries.get(key)||0)){
       posters.set(key,null);
       imageAt(src).then(im=>{
-        posters.set(key,im);
+        posters.set(key,im);posterRetries.delete(key);
         while(posters.size>10){
           const oldest=[...posters.keys()].find(k=>k!==key&&!k.startsWith("open")&&posters.get(k));
           if(!oldest)break;
           posters.delete(oldest);
         }
         schedule();
-      }).catch(()=>{posters.delete(key);});
+      }).catch(()=>{posters.delete(key);posterRetries.set(key,Date.now()+10000);schedule();});
     }
     return posters.get(key);
   }
@@ -595,7 +523,8 @@
     const context=posterContext;if(!context)return;
     loadFallbackDatums();
     let photo=photographs?.frame(progress);
-    const roomImage=name=>requestPoster(name+format,"assets/room/"+name+"-"+format+".webp?v=6");
+    const t=photo?.t??progress;
+    const roomImage=name=>requestPoster(name+format,"assets/room/"+name+"-"+format+".webp?v=7");
     const open=roomImage("open");
     if(!open){
       if(posterFormat&&posterFormat!==format){
@@ -607,73 +536,116 @@
           context.drawImage(lastCompletePoster,0,0,posterCanvas.width,posterCanvas.height);
           context.globalCompositeOperation="source-over";
         }
-        photographs?.paint(progress,null,null,null);
+        photographs?.paint(t,null,null,null);
+        lastPosterPhoto=false;
       }
       return;
     }
-    posterFormat=format;
-    const ratio=Math.min(1.4,window.devicePixelRatio||1,1440/w);
-    if(posterCanvas.width!==Math.round(w*ratio)||posterCanvas.height!==Math.round(h*ratio)){
-      posterCanvas.width=Math.round(w*ratio);posterCanvas.height=Math.round(h*ratio);
-    }
-    context.setTransform(ratio,0,0,ratio,0,0);context.clearRect(0,0,w,h);
     const app=appReveal(),light=lit();
     const shots=[
-      [.137,light>.5?"lit":"off"], [.178,light>.5?"detail":"off"], [.238,light>.5?"approach":"approach-dark"],
+      [.137,light>.5?"lit":"off"], [.178,light>.5?"detail":"off"], [.21,light>.5?"zoom":"zoom-dark"], [.238,light>.5?"approach":"approach-dark"],
       [.303,"release"], [.366,"mounted"], [.428,"mounted"], [.478,"screws"],
       [.53,light>.5?"detached":"detached-dark"], [.561,"focus"], [.622,"cell"],
       [.684,"exploded"], [.718,"board"], [.751,"inspection"]
     ];
     const extent=hitAreas[2];
-    const zoom=ramp(progress,.178,.238);
+    const zoom=ramp(t,.178,.238);
     const control=lerp([extent.x+extent.w/2,extent.y+extent.h/2],m?[.53,.58]:[.68,.48],zoom);
     markSwitch(...control);
     let battery=fallbackDatums?.[format]?.mounted?.battery || (m?[.35125,.64119]:[.60259,.53668]);
     let datums=null;
     const inspection=()=>requestPoster("inspection","assets/product/frames/066.webp");
     const target=document.querySelector(".model-wrap")?.getBoundingClientRect();
+    function clearPoster(){
+      posterFormat=format;
+      const ratio=Math.min(1.4,window.devicePixelRatio||1,1440/w);
+      if(posterCanvas.width!==Math.round(w*ratio)||posterCanvas.height!==Math.round(h*ratio)){
+        posterCanvas.width=Math.round(w*ratio);posterCanvas.height=Math.round(h*ratio);
+      }
+      context.setTransform(ratio,0,0,ratio,0,0);context.clearRect(0,0,w,h);
+    }
     function layer(im,alpha,inspectionShot=false){
       if(!im||alpha<=0)return;
       context.globalAlpha=alpha;
       if(inspectionShot&&target?.width)context.drawImage(im,target.left-rect.left,target.top-rect.top,target.width,target.height);
       else context.drawImage(im,0,0,w,h);
     }
-    if(progress<=.137){
+    const pixels=([x,y])=>[x*w,y*h];
+    function registeredLayer(im,alpha,source){
+      if(!im||alpha<=0)return;
+      if(!source||!datums||!photographs){layer(im,alpha);return;}
+      const matrix=photographs.registration(source.map(pixels),datums.map(pixels));
+      if(!matrix){layer(im,alpha);return;}
+      context.save();
+      context.transform(...matrix);
+      context.globalAlpha=alpha;
+      // Extend the outer texels over the narrow strips exposed by panning.
+      const iw=im.width,ih=im.height;
+      const xs=[[0,1,-w,w],[0,iw,0,w],[iw-1,1,w,w]];
+      const ys=[[0,1,-h,h],[0,ih,0,h],[ih-1,1,h,h]];
+      for(const [sx,sw,x,dw] of xs)for(const [sy,sh,y,dh] of ys)
+        context.drawImage(im,sx,sy,sw,sh,x,y,dw,dh);
+      context.restore();
+      return matrix;
+    }
+    if(t<=.137){
+      clearPoster();
       const off=app>0?roomImage("off"):null, on=light>0?roomImage("lit"):null;
       layer(open,1);layer(off,app);layer(on,light);
       lastCompletePoster=light>=.5&&on?on:app>=.5&&off?off:open;
     }else{
       let i=0;
-      while(i<shots.length-2 && shots[i+1][0]<progress)i++;
+      while(i<shots.length-2 && shots[i+1][0]<t)i++;
       const [from,a]=shots[i],[to,b]=shots[i+1];
       const first=roomImage(a),second=b==="inspection"?inspection():roomImage(b);
-      const amount=ramp(progress,from,to);
+      const amount=ramp(t,from,to);
       const points=fallbackDatums?.[format],p=points?.[a]?.mount,q=points?.[b]?.mount||p;
       if(p&&q)datums=p.map((v,i)=>lerp(v,q[i],amount));
-      function needsWall(key){return ["detail","off","approach","approach-dark","release","mounted","screws","detached","detached-dark","focus"].includes(key);}
+      function needsWall(key){return t<.551 && ["detail","off","approach","approach-dark","release","mounted","screws","detached","detached-dark","focus"].includes(key);}
       const before=photo&&needsWall(a)?roomImage("wall-"+a):null;
       const after=photo&&needsWall(b)?roomImage("wall-"+b):null;
-      if(!datums||(needsWall(a)&&!before)||(needsWall(b)&&!after))photo=null;
+      if(!datums||(needsWall(a)&&!before)||(needsWall(b)&&!after)){
+        // Keep both layers at their last registered pose during a decode gap.
+        const waiting=datumsPending || [a,b].some(key=>posters.get("wall-"+key+format)===null);
+        if(photo&&lastPosterPhoto&&posterFormat===format&&waiting)return;
+        photo=null;
+      }
+      clearPoster();
       const sum=photo?.alpha||0;
       const useSecond=second&&(amount>.5||!first);
       const selected=useSecond?second:first;
       const selectedKey=useSecond?b:a;
       context.globalCompositeOperation="lighter";
-      if(progress<.238&&first&&second){
+      if(t<=.178&&first&&second){
         layer(first,(1-amount)*(1-sum));layer(second,amount*(1-sum));
       }else{
         // With stills, a peel or a loose screw must have just one silhouette.
         // Photographic atlas frames handle the continuous movement after decode.
-        layer(selected||lastCompletePoster||open,1-sum,selectedKey==="inspection");
-        if(!sum&&points?.[selectedKey]?.battery)battery=points[selectedKey].battery;
+        let placement;
+        if(selected && t<.566){
+          placement=registeredLayer(selected,1-sum,points?.[selectedKey]?.mount);
+        }else layer(selected||lastCompletePoster||open,1-sum,selectedKey==="inspection");
+        if(!sum&&points?.[selectedKey]?.battery){
+          battery=points[selectedKey].battery;
+          if(placement){
+            const [a,b,c,d,e,f]=placement,[x,y]=pixels(battery);
+            battery=[(a*x+c*y+e)/w,(b*x+d*y+f)/h];
+          }
+        }
       }
       if(selected&&selectedKey!=="inspection")lastCompletePoster=selected;
-      if(sum){layer(before,(1-amount)*sum);layer(after,amount*sum);}
+      if(sum){
+        // The cavity and plaster leave the frame as one opaque surface.
+        const weight=sum*(1-ramp(t,.522,.551));
+        registeredLayer(before,(1-amount)*weight,p);registeredLayer(after,amount*weight,q);
+      }
       context.globalCompositeOperation="source-over";
     }
     context.globalAlpha=1;
-    battery=photographs?.paint(progress,photo,datums,target)||battery;
-    wallLabels(battery);
+    battery=photographs?.paint(t,photo,datums,target,light)||battery;
+    lastPosterPhoto=!!photo?.alpha;
+    displayedProgress=t;
+    wallLabels(battery,t);
     stage.dataset.posterReady="";
   }
   window.addEventListener("resize",schedule,{passive:true});
@@ -688,7 +660,7 @@
     for(const [kind,source] of [[gl.VERTEX_SHADER,vertex],[gl.FRAGMENT_SHADER,fragment]])gl.attachShader(program,compile(kind,source));
     gl.linkProgram(program);if(!gl.getProgramParameter(program,gl.LINK_STATUS))throw new Error(gl.getProgramInfoLog(program));
     gl.useProgram(program);gl.enable(gl.DEPTH_TEST);gl.enable(gl.BLEND);gl.blendFuncSeparate(gl.SRC_ALPHA,gl.ONE_MINUS_SRC_ALPHA,gl.ONE,gl.ONE_MINUS_SRC_ALPHA);
-    const names=["uModel","uView","uBoardView","uOrigin","uFocus","uHalf","uOffset","uScale","uPerspective","uColor","uLamp","uEye","uPlate","uSocket","uType","uLit","uFade","uOpen","uDetail","uStudio","uPixels","uMount","uCutout","uCadScale","uFacePixel","uRing"];
+    const names=["uModel","uView","uBoardView","uOrigin","uFocus","uHalf","uOffset","uScale","uPerspective","uColor","uLamp","uEye","uPlate","uSocket","uType","uLit","uFade","uOpen","uDetail","uStudio","uPixels","uMount","uCadScale","uFacePixel","uRing"];
     const uniforms=Object.fromEntries(names.map(key=>[key,gl.getUniformLocation(program,key)]));
     const attrs=["aPos","aNorm","aUV"].map(name=>gl.getAttribLocation(program,name));
     attrs.forEach(i=>gl.enableVertexAttribArray(i));
@@ -744,10 +716,6 @@
     mesh("cellPole",turned([[2.45,49],[2.35,50],[0,50]]));
     const cellAxes=[[1,0,0],[0,0,-1],[0,1,0]];
     const boardParts=[];
-    const boxParts=Object.entries(deviceBox()).map(([name,data])=>{mesh(name,data);return name;});
-    Object.assign(colors,{plasterEdge:[.40,.34,.28],boxRim:[.65,.63,.59],boxSides:[.42,.43,.43],
-      boxBack:[.43,.425,.41],boxEars:[.60,.595,.57],boxBore:[.25,.24,.22],
-      boxStamp:[.45,.445,.425],boxStampDark:[.245,.25,.245]});
     let size, geometryReady=false, observer, activePhoto="", requestedPhoto="", photoAspect=16/9;
     const photoCache=new Map();
     function choosePhoto(format) {
@@ -785,7 +753,9 @@
     function paint() {
       if(!size||!geometryReady||!activePhoto)return;
       const {aspect,ox,oy,endWidth,height,layout}=size;
-      const t=progress, narrow=1-ramp(aspect,.72,1.34), half=halfOpening;
+      const bareWall=canvas.hasAttribute("data-capture-wall");
+      const photograph=bareWall?null:photographs?.frame(progress);
+      const t=photograph?.t??progress, narrow=1-ramp(aspect,.72,1.34), half=halfOpening;
       const mount=at(mix(.66,.644,narrow),mix(.35,.314,narrow),0,aspect);
       const lampPos=layout.screen(...layout.lamp);
       const lamp=at(lampPos[0],lampPos[1],.72,aspect);
@@ -793,7 +763,8 @@
       const sizePhone=mix(1.24,.92,narrow);
       const sizeCAD=mix(.00565,.0048,narrow);
       const approach=ramp(t,.17,.254);
-      const peel=ramp(t,.25,.323), clearFace=ramp(t,.32,.36);
+      const peel=ramp(t,.263,.323), clearFace=ramp(t,.32,.36);
+      const normalLift=14*ramp(t,.25,.263)+32*ramp(t,.262,.301);
       const batteryView=ramp(t,.319,.352);
       const threadedTravel=7.55*ramp(t,.434,.468), freeTravel=ramp(t,.468,.483);
       const clearScrews=ramp(t,.477,.51);
@@ -801,10 +772,8 @@
       const removeCell=ramp(t,.566,.626), separate=ramp(t,.626,.693);
       const inspect=ramp(t,.695,.756);
       const depart=ramp(t,.174,.248);
-      const bareWall=canvas.hasAttribute("data-capture-wall");
-      const photograph=bareWall?null:photographs?.frame(t);
       const body=add(mount,[0,0,92*sizeCAD*lift]);
-      const retreat=studio*.78, socket=add(mount,[0,0,20.005*sizeCAD-retreat]);
+      const socket=add(mount,[0,0,20.005*sizeCAD]);
       const yaw=approach*mix(12,47,studio)+separate*9;
       const basisNow=basis(mix(yaw,15,inspect),mix(9+studio*4,7,inspect),mix(-5*studio,-8,inspect));
       const [right,up,look]=basisNow;
@@ -814,7 +783,7 @@
       const shell=rel(body,[135*inspect,0,-88*separate]);
       const cell=rel(body,[-9.822-24*separate-85*inspect,-28.704+9*removeCell,10.902+44*removeCell-12*separate]);
       const faceBasis=basis(151*peel,0,-5*peel);
-      const facePivot=rel(mount,[mix(67,54,narrow)*peel+76*clearFace,4*peel,20+34*peel]);
+      const facePivot=rel(mount,[mix(67,54,narrow)*peel+76*clearFace,4*peel,20+normalLift]);
       const faceOrigin=sub(facePivot,scale(faceBasis[2],20*sizeCAD));
       const boardCenter=add(board,scale(add(scale(inspectionAxes[0],.0067),scale(inspectionAxes[1],-.1066)),sizeCAD));
       const center=add(rel(body,[mix(20,26,narrow)*peel*(1-batteryView),0,11-14*separate]),
@@ -832,7 +801,7 @@
       const perspective=(1-.70*approach)*(1-studio);
       const phoneBasis=basis(mix(-25,-44,depart),mix(3,8,depart),mix(-5,-27,depart));
       const currentPhone=add(phone,[-depart*(4.25+1.5*aspect),-.85*depart,.65*depart]);
-      const roomAlpha=1-studio;
+      const roomAlpha=bareWall?1:1-ramp(t,.522,.551);
       const phoneAlpha=1-ramp(t,.194,.231);
       const viewMatrix=[right[0],up[0],look[0],right[1],up[1],look[1],right[2],up[2],look[2]];
       scalar("uOpen",appReveal());scalar("uDetail",ramp(openingTime(),.385,.48));scalar("uLit",lit());
@@ -871,13 +840,11 @@
         [(u-.5)*(PW-.056),(.5-v)*(PH-.056),.0525],sizePhone));
       updatePhoneCue(screenPoint(.5,640.5/1218),screenPoint(228/562,502/1218));
       const photoAlpha=photograph?.alpha||0;
-      scalar("uCutout",bareWall||photoAlpha>=.99?0:1);
       if(roomAlpha>.001){
         opacity(roomAlpha);
-        drawMesh("interior",[0,0,-retreat],0,"face");
-        fadeFactor=bareWall?0:1-photoAlpha;
-        opacity(roomAlpha);
-        for(const name of boxParts)drawMesh(name,socket,8,name,sizeCAD);
+        gl.depthMask(false);
+        drawMesh("interior",[0,0,0],0,"face");
+        gl.depthMask(true);
       }
       fadeFactor=bareWall?0:1-photoAlpha;
       opacity(1);
@@ -904,8 +871,9 @@
           }
         }
       }
-      if(clearFace<1){
-        opacity(1-clearFace);
+      const faceOpacity=1-ramp(t,.323,.345);
+      if(faceOpacity>0){
+        opacity(faceOpacity);
         drawMesh("cad0",faceOrigin,6,"face",sizeCAD,faceBasis);
         drawMesh("cad1",faceOrigin,6,"ink",sizeCAD,faceBasis);
         drawMesh("frontFinish",faceOrigin,6.25,"face",sizeCAD,faceBasis);
@@ -925,7 +893,7 @@
               const axes=[scale(bx,1.7),scale(by,1.7),scale(axis,length*.052/sizeCAD)];
               drawMesh("flux",lerp(start,end,d),6,"field",sizeCAD,axes);
             }
-            opacity(1-clearFace);
+            opacity(faceOpacity);
           }
         }
       }
@@ -956,8 +924,9 @@
       markSwitch(...project(rel(body,[0,0,24])));
       mountPoints=[[0,0,20],[0,41.65,20],[25.5,0,20]].map(p=>project(rel(mount,p)));
       batteryPoint=project(rel(cell,[0,24,6.8]));
-      const photoPin=photographs?.paint(t,photograph,mountPoints,document.querySelector(".model-wrap")?.getBoundingClientRect());
-      wallLabels(photoPin||batteryPoint);
+      const photoPin=photographs?.paint(t,photograph,mountPoints,document.querySelector(".model-wrap")?.getBoundingClientRect(),lit());
+      displayedProgress=t;
+      wallLabels(photoPin||batteryPoint,t);
 
       if(stage.dataset.renderer!=="webgl"){renderer="webgl";stage.dataset.renderer=renderer;}
     }
@@ -973,12 +942,12 @@
     measure();
     const resources=[...["app-icon.webp","dashboard.webp","switch-off.webp","switch-controls.webp"].map(file=>imageAt(imagePath(file))),
       fetch(new URL("assets/room/switch.bin",document.baseURI)).then(r=>{if(!r.ok)throw new Error("Enclosure unavailable");return r.arrayBuffer();}),
-      fetch("assets/room/board.bin").then(r=>{if(!r.ok)throw new Error("Board unavailable");return r.arrayBuffer();}),imageAt("assets/product/frames/066.webp")];
-    Promise.all(resources).then(([icon,dash,patch,detail,cad,board,boardPhoto])=>{
+      fetch("assets/room/board.bin").then(r=>{if(!r.ok)throw new Error("Board unavailable");return r.arrayBuffer();}),imageAt("assets/product/frames/066.webp"),imageAt("assets/room/recess.webp")];
+    Promise.all(resources).then(([icon,dash,patch,detail,cad,board,boardPhoto,recess])=>{
       const off=document.createElement("canvas");off.width=dash.width;off.height=dash.height;
       const ctx=off.getContext("2d");ctx.drawImage(dash,0,0);ctx.drawImage(patch,20,430,257,128);
       [homeArtwork(icon),off,dash,detail].forEach((im,i)=>tex(i,im,["sHome","sOff","sOn","sDetail"][i]));
-      tex(6,boardPhoto,"sBoard");
+      tex(6,boardPhoto,"sBoard");tex(7,recess,"sRecess");
       const parts=decodeCAD(cad);
       parts.forEach((m,i)=>mesh("cad"+i,m));
       decodeCAD(board,true).forEach((data,i)=>{

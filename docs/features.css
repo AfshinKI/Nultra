@@ -13,8 +13,8 @@
 .press-unit { display: block; max-width: 14ch; margin-top: .6em; font-size: clamp(1.7rem, 3vw, 3.7rem); font-weight: 570; letter-spacing: -.052em; line-height: 1.08; text-wrap: balance; }
 .press-copy p { max-width: 28ch; }
 .feature-visual { grid-area: visual; position: relative; isolation: isolate; overflow: hidden; aspect-ratio: 1.48; }
-.gesture-scene, .service-parts { position: absolute; inset: 0; }
 .gesture-scene {
+  position: absolute; inset: 0;
   --plate-width: 29%; --contact-x: 43%; --contact-y: 46.5%;
   --hand-light: saturate(.92) sepia(.045) brightness(1.014);
   background: #a89e8f url("assets/features/plaster.webp?v=2") center / cover;
@@ -25,9 +25,13 @@
 }
 .gesture-plate img { display: block; width: 100%; height: auto; }
 .button-surface {
-  position: absolute; inset: 0; opacity: 0; transform-origin: 50.4% 51.5%; transform: translateY(.28%) scale(.988);
+  position: absolute; inset: 0; opacity: 0; transform: translate(.12%, .33%);
   background: url("assets/features/press-plate.webp") center / 100% 100%;
-  clip-path: ellipse(20.65% 12.8% at 50.4% 51.5%); filter: brightness(.94);
+  clip-path: ellipse(20.65% 12.8% at 50.4% 51.5%); filter: brightness(.96);
+}
+.button-surface::after {
+  content: ""; position: absolute; top: 38.7%; left: 29.75%; width: 41.3%; height: 25.6%; border-radius: 50%;
+  box-shadow: inset 1px 1.4px 1.6px #2e312b70, inset -.6px -.8px 1px #fffff666;
 }
 .finger-contact {
   position: absolute; top: var(--contact-y); left: var(--contact-x); width: 8%; aspect-ratio: 2 / 1;
@@ -35,12 +39,15 @@
   background: radial-gradient(ellipse closest-side, #57332078, #56352438 52%, transparent);
 }
 .gesture-hand {
-  --rest-hand: translate(1.2%, -2.3%) rotate(1.25deg) scale(1.012);
-  --touch-hand: translate(-1.8%, -5.7%) rotate(0deg) scale(1);
-  --rest-shadow: drop-shadow(9px 13px 7px #362c253f);
+  /* The pad under the nail is 2.3% across and 9.5% down the original photograph. */
+  --touch-hand: translate(-2.3%, -9.5%) rotate(0deg);
+  --hover-hand: translate(-1.55%, -8.35%) rotate(.18deg);
+  --rest-hand: translate(16%, 9%) rotate(2deg);
+  --rest-shadow: drop-shadow(12px 18px 10px #362c253b);
+  --hover-shadow: drop-shadow(5px 8px 4px #3e2d2740);
   --touch-shadow: drop-shadow(3px 5px 2.5px #402d2747);
-  position: absolute; display: block; width: 81%; height: auto; aspect-ratio: 3 / 2; max-width: none; overflow: visible;
-  left: var(--contact-x); top: var(--contact-y); transform-origin: 64% 63%;
+  position: absolute; display: block; width: 81%; height: auto; max-width: none;
+  left: var(--contact-x); top: var(--contact-y); transform-origin: 68% 63%;
   transform: var(--touch-hand); filter: var(--hand-light) var(--touch-shadow);
 }
 .hold-scene .gesture-scene {
@@ -48,6 +55,7 @@
   background-image: linear-gradient(113deg, #23312d6b, #1d2726a3), url("assets/features/plaster.webp?v=2");
 }
 .hold-scene .gesture-plate { filter: brightness(.84) saturate(.8) drop-shadow(2px 3px 2px #161b1780) drop-shadow(6px 8px 7px #11111148); }
+.hold-scene .gesture-hand { transform-origin: 2.3% 9.5%; }
 .status-glow {
   position: absolute; inset: 0;
   background: radial-gradient(ellipse 11.5% 7.2% at 48.8% 44.4%, #c8ffaec4, #80ea81a3 20%, #63d78355 53%, transparent);
@@ -62,20 +70,10 @@
 .feature-replay svg { width: 1.05rem; height: 1.05rem; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
 .feature-replay:hover { background: #f0efe9; }
 .feature-replay:focus-visible { outline: 2px solid #162f22; outline-offset: -5px; }
-.service-scene { background: linear-gradient(113deg, #d8d7ca42, #a6aa9c44), url("assets/features/plaster.webp?v=2") 25% center / cover; }
-.service-parts img {
-  position: absolute; inset: 0; margin: auto; display: block; width: auto; height: 94%; max-width: none;
-  transform-origin: 48% 52%; filter: drop-shadow(1px 2px 1px #292a2285) drop-shadow(3px 5px 4px #2f302638);
-}
-.service-parts :is(.service-old, .service-new) { filter: drop-shadow(7px 9px 6px #292d2538); }
-.service-parts .service-face { filter: drop-shadow(9px 15px 9px #27271d45); }
-.service-face { transform: var(--lifted-cover); }
-.service-old { opacity: 0; }
-.service-new { transform: var(--free-cell); }
-.service-seated { opacity: 0; }
-.service-parts {
-  --lifted-cover: translate(-44%, -4%) rotate(-3deg) scale(1.055);
-  --free-cell: translate(35%, -7%) rotate(6deg) scale(1.07);
+.service-scene { background: #bab2a5 url("assets/features/aa-replacement.webp") center / cover; }
+.service-film { display: block; width: 100%; height: 100%; object-fit: cover; }
+@media (prefers-reduced-motion: reduce) {
+  .service-film { visibility: hidden; }
 }
 
 .app-feature { color: #f6f4ef; background: #282e2c; }
@@ -107,12 +105,16 @@
   inset: 28.8% 8% auto; height: 4.7%; align-items: center; justify-content: center;
   background: #050d18; font-size: 7cqw; font-weight: 690; line-height: 1; letter-spacing: -.035em;
 }
-.demo-editor { left: 5.2%; right: 5.2%; top: 67.2%; padding: 4.5%; border-radius: 6cqw; background: #101c27; }
-.demo-input { padding: 3% 5%; border: 1px solid #719e8e; border-radius: 2.4cqw; background: #050d18; font: 550 5.3cqw/1.4 ui-monospace, monospace; }
-.demo-input span { display: inline-block; vertical-align: middle; max-width: 100%; white-space: nowrap; overflow: hidden; border-right: 1px solid #baffdc; }
-.demo-save { display: block; margin-top: 5%; padding-block: 3.4%; border-radius: 2.7cqw; background: #a3f5cf; color: #091710; font-size: 4.8cqw; font-weight: 650; text-align: center; }
+.demo-editor { left: 5.2%; right: 5.2%; top: 68.3%; padding: 4.7%; border: 1px solid #ffffff10; border-radius: 6cqw; background: #0e1822; }
+.demo-input { display: grid; padding: 4% 5%; border-radius: 3cqw; background: #050d18; font: 500 4.6cqw/1.35 ui-monospace, monospace; }
+.demo-input span { grid-area: 1 / 1; justify-self: start; white-space: nowrap; }
+.demo-input .demo-old-name { visibility: hidden; background: #437968; }
+.demo-new-name { overflow: hidden; border-right: 1px solid #a3f5cf; }
+.demo-editor small { display: block; margin-top: 4%; color: #98abb8; font-size: 3.45cqw; line-height: 1.3; }
+.demo-save { display: block; margin-top: 4%; padding-block: 4%; border-radius: 4cqw; background: #a3f5cf; color: #091710; font-size: 4.5cqw; font-weight: 650; text-align: center; }
+.demo-cancel { display: block; margin-top: 4%; color: #a3f5cf; font-size: 4.3cqw; }
 .demo-charge {
-  left: 9.5%; top: 81.9%; width: 16%; background: #0e1822;
+  display: block; left: 10.1%; top: 81.9%; width: 13%; background: #0e1822;
   font: 580 3.55cqw/1.8 system-ui, sans-serif; color: #fff;
 }
 .demo-screen::after {
@@ -120,90 +122,69 @@
   border: 1.5px solid #a3f5cf; border-radius: 2.6cqw; box-shadow: 0 0 10px #a3f5cf24;
 }
 .demo-notification {
-  left: 3%; right: 3%; top: 7%; padding: 5.25%; border-radius: 5.5cqw; color: #17201c;
-  background: #edf1ed; box-shadow: 0 6px 18px #0006; line-height: 1.25; font-size: 4.75cqw;
+  left: 2.8%; right: 2.8%; top: 6.3%; padding: 4.8%; border-radius: 6.3cqw; color: #fafafb;
+  background: #34373cee; backdrop-filter: blur(12px); box-shadow: 0 2px 9px #0004; line-height: 1.25; font-size: 4.35cqw;
 }
-.notification-source { display: flex; align-items: center; gap: .36em; color: #485450; font-size: .87em; margin-bottom: .47em; }
+.notification-source { display: flex; align-items: center; gap: .45em; color: #d1d2d6; font-size: .9em; margin-bottom: .47em; }
 .notification-source img { border-radius: 26%; width: 1.4em; height: 1.4em; }
 .notification-source small { margin-left: auto; font-size: 1em; }
 .demo-notification strong, .demo-notification > span { display: block; }
 .demo-notification strong { margin-bottom: .17em; font-weight: 700; }
+[data-app-scene="rename"] .demo-charge { display: none; }
 [data-app-scene="rename"] .demo-editor, [data-app-scene="battery"] .demo-screen::after,
-:is([data-app-scene="battery"], [data-app-scene="alert"]) .demo-charge,
 [data-app-scene="alert"] .demo-notification { display: block; }
 :is([data-app-scene="saved"], [data-app-scene="battery"], [data-app-scene="alert"]) .demo-saved-name { display: flex; }
 
 @media (prefers-reduced-motion: no-preference) {
-  .demo-started :is(.gesture-hand, .status-glow, .button-surface, .finger-contact, .service-parts > img) { animation-fill-mode: both; }
-  .demo-started.press-scene :is(.gesture-hand, .button-surface, .finger-contact) { animation-duration: 1.55s; }
-  .demo-started.hold-scene :is(.gesture-hand, .button-surface, .finger-contact, .status-glow) { animation-duration: 6s; }
-  .demo-started.press-scene .gesture-hand { animation-name: hand-tap; }
-  .demo-started.hold-scene .gesture-hand { animation-name: hand-hold; }
-  .demo-started.press-scene :is(.button-surface, .finger-contact) { animation-name: tap-contact; }
-  .demo-started.hold-scene :is(.button-surface, .finger-contact) { animation-name: hold-contact; }
-  .demo-started .status-glow { animation-name: charge-blink; }
+  :is(.press-scene, .hold-scene) :is(.gesture-hand, .button-surface, .finger-contact, .status-glow) {
+    animation-iteration-count: infinite; animation-fill-mode: both; animation-play-state: paused;
+  }
+  :is(.press-scene, .hold-scene).demo-visible :is(.gesture-hand, .button-surface, .finger-contact, .status-glow) { animation-play-state: running; }
+  .press-scene :is(.gesture-hand, .button-surface, .finger-contact) { animation-duration: 2.6s; }
+  .hold-scene :is(.gesture-hand, .button-surface, .finger-contact, .status-glow) { animation-duration: 5s; }
+  .press-scene .gesture-hand { animation-name: hand-tap; }
+  .hold-scene .gesture-hand { animation-name: hand-hold; }
+  .press-scene :is(.button-surface, .finger-contact) { animation-name: tap-contact; }
+  .hold-scene :is(.button-surface, .finger-contact) { animation-name: hold-contact; }
+  .hold-scene .status-glow { animation-name: charge-blink; }
   @keyframes hand-tap {
-    0%, 18%, 100% { transform: var(--rest-hand); filter: var(--hand-light) var(--rest-shadow); }
-    44%, 55% { transform: var(--touch-hand); filter: var(--hand-light) var(--touch-shadow); }
+    0%, 14%, 63%, 100% { transform: var(--rest-hand); filter: var(--hand-light) var(--rest-shadow); }
+    32%, 44% { transform: var(--hover-hand); filter: var(--hand-light) var(--hover-shadow); }
+    35%, 40% { transform: var(--touch-hand); filter: var(--hand-light) var(--touch-shadow); }
   }
   @keyframes hand-hold {
-    0%, 68%, 100% { transform: var(--rest-hand); filter: var(--hand-light) var(--rest-shadow); }
-    8%, 58% { transform: var(--touch-hand); filter: var(--hand-light) var(--touch-shadow); }
+    0%, 6%, 53%, 100% { transform: var(--rest-hand); filter: var(--hand-light) var(--rest-shadow); }
+    16%, 41% { transform: var(--hover-hand); filter: var(--hand-light) var(--hover-shadow); }
+    /* One second of visible contact in the five-second demonstration. */
+    18%, 38% { transform: var(--touch-hand); filter: var(--hand-light) var(--touch-shadow); }
+    28% { transform: translate(-2.3%, -9.5%) rotate(-.35deg); filter: var(--hand-light) var(--touch-shadow); }
   }
-  @keyframes tap-contact { 0%, 32%, 77%, 100% { opacity: 0; } 45%, 55% { opacity: 1; } }
-  @keyframes hold-contact { 0%, 3%, 66%, 100% { opacity: 0; } 8%, 58% { opacity: 1; } }
+  @keyframes tap-contact { 0%, 32%, 44%, 100% { opacity: 0; } 35%, 40% { opacity: 1; } }
+  @keyframes hold-contact { 0%, 16%, 41%, 100% { opacity: 0; } 18%, 38% { opacity: 1; } }
   @keyframes charge-blink {
-    0%, 59%, 68%, 77%, 86%, 100% { opacity: 0; }
-    62%, 65%, 71%, 74%, 80%, 83% { opacity: 1; }
+    0%, 41%, 51%, 61%, 71%, 100% { opacity: 0; }
+    44%, 47%, 54%, 57%, 64%, 67% { opacity: 1; }
   }
-  .demo-started .service-parts img { animation-duration: 7s; }
-  .demo-started .service-face { animation-name: lift-cover; }
-  .demo-started .service-seated { animation-name: seated-cell; }
-  .demo-started .service-old { animation-name: remove-cell; }
-  .demo-started .service-new { animation-name: insert-cell; }
-  @keyframes lift-cover {
-    0%, 8%, 93%, 100% { transform: none; filter: drop-shadow(1px 2px 1px #292a2285) drop-shadow(3px 5px 4px #2f302638); }
-    17%, 84% { transform: translate(-8%, -1%) rotate(-1deg) scale(1.05); }
-    28%, 74% { transform: var(--lifted-cover); filter: drop-shadow(10px 16px 10px #27271d50); }
-  }
-  @keyframes seated-cell {
-    0%, 29%, 70%, 100% { opacity: 1; }
-    31%, 68% { opacity: 0; }
-  }
-  @keyframes remove-cell {
-    0%, 29% { opacity: 0; transform: none; }
-    31% { opacity: 1; transform: none; }
-    35% { transform: translate(4%, -2%) rotate(3deg) scale(1.04); }
-    42% { opacity: 1; transform: var(--free-cell); }
-    50%, 100% { opacity: 0; transform: translate(38%, -37%) rotate(6deg) scale(1.07); }
-  }
-  @keyframes insert-cell {
-    0%, 47% { opacity: 0; transform: translate(37%, 28%) rotate(6deg) scale(1.07); }
-    55% { opacity: 1; transform: var(--free-cell); }
-    64% { opacity: 1; transform: translate(4%, -2%) rotate(3deg) scale(1.04); }
-    68% { opacity: 1; transform: none; }
-    70%, 100% { opacity: 0; transform: none; }
-  }
-  .demo-started:not(.demo-visible) :is(.gesture-hand, .status-glow, .button-surface, .finger-contact, .service-parts > img) { animation-play-state: paused; }
-  [data-app-scene="rename"] .demo-input span { animation: type-switch-name 1.4s steps(8, end) .45s both; }
-  [data-app-scene="alert"] .demo-notification { animation: receive-alert .45s ease-out both; }
+  [data-app-scene="rename"] .demo-editor { animation: show-editor .18s ease-out both; }
+  [data-app-scene="rename"] .demo-old-name { animation: select-switch-name .52s step-end both; }
+  [data-app-scene="rename"] .demo-new-name { animation: type-switch-name 1s steps(8, end) .52s both; }
+  [data-app-scene="rename"] .demo-save { animation: save-switch-name 2.12s linear both; }
+  [data-app-scene="alert"] .demo-notification { animation: receive-alert .48s cubic-bezier(.22,.78,.25,1) both; }
+  .app-visual:not(.app-playing) :is(.demo-editor, .demo-old-name, .demo-new-name, .demo-save, .demo-notification) { animation-play-state: paused; }
+  @keyframes show-editor { from { opacity: 0; } to { opacity: 1; } }
+  @keyframes select-switch-name { from { visibility: visible; } to { visibility: hidden; } }
   @keyframes type-switch-name { from { width: 0; } to { width: 8ch; } }
-  @keyframes receive-alert { from { opacity: 0; transform: translateY(-30%); } to { opacity: 1; transform: none; } }
+  @keyframes save-switch-name { 0%, 71% { opacity: .4; } 78%, 93% { opacity: 1; } 100% { opacity: .7; } }
+  @keyframes receive-alert { from { opacity: 0; transform: translateY(-130%); } 80% { opacity: 1; transform: translateY(1.2%); } to { transform: none; } }
 }
 @media (prefers-reduced-motion: reduce) {
-  .gesture-hand image { filter: none; }
-  [data-pose="ready"] .gesture-hand, [data-pose="released"] .gesture-hand { transform: var(--rest-hand); filter: var(--hand-light) var(--rest-shadow); }
-  [data-pose="contact"] .button-surface { opacity: 1; }
-  :is([data-pose="ready"], [data-pose="released"]) .finger-contact,
-  :is([data-pose="ready"], [data-pose="contact"]) .status-glow { opacity: 0; }
-  :is([data-pose="closed"], [data-pose="open"]) .service-seated { opacity: 1; }
-  [data-pose="closed"] .service-face { transform: none; }
-  :is([data-pose="closed"], [data-pose="open"]) .service-new { opacity: 0; }
+  .press-scene .button-surface { opacity: 1; }
+  .hold-scene .gesture-hand { transform: var(--rest-hand); filter: var(--hand-light) var(--rest-shadow); }
+  .hold-scene .finger-contact { opacity: 0; }
 }
 @media (max-width: 800px) and (min-width: 651px) {
   .use-row { gap: 1.8rem; }
   .feature-visual { aspect-ratio: 1.25; }
-  .service-parts img { height: 86%; }
 }
 @media (max-width: 650px) {
   .use-row.visual-left, .use-row.visual-right, .app-layout { grid-template: "copy" auto "visual" auto / 1fr; }
@@ -213,7 +194,6 @@
   .press-unit { max-width: 19ch; margin-top: .42em; font-size: clamp(1.65rem, 6.2vw, 2.25rem); }
   .use-copy p { max-width: 37ch; margin-top: .75rem; }
   .feature-visual { aspect-ratio: 1.36; }
-  .service-parts img { height: 89%; }
   .feature-replay { bottom: .7rem; right: .7rem; }
   .app-layout { gap: 0; }
   .app-copy { padding-block: 3.5rem 0; }

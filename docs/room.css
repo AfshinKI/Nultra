@@ -12,8 +12,8 @@
 .room-poster-canvas { pointer-events: none; }
 #room-stage[data-renderer="webgl"] .room-poster-canvas { display: none; }
 #room-stage::before, #room-stage::after { content: ""; position: absolute; inset: 0; pointer-events: none; background-size: 100% 100%; }
-#room-stage::before { background-image: url("assets/room/open-wide.webp?v=6"); }
-#room-stage[data-fallback="on"]::after { background-image: url("assets/room/lit-wide.webp?v=6"); }
+#room-stage::before { background-image: url("assets/room/open-wide.webp?v=7"); }
+#room-stage[data-fallback="on"]::after { background-image: url("assets/room/lit-wide.webp?v=7"); }
 #room-stage[data-renderer="webgl"]::before, #room-stage[data-renderer="webgl"]::after,
 #room-stage[data-poster-ready]::before, #room-stage[data-poster-ready]::after { display: none; }
 
@@ -180,8 +180,8 @@
   .switch-callout-copy { top: var(--leader-height); bottom: auto; transform: translateY(-50%); }
 }
 @media (max-aspect-ratio: 1/1) {
-  #room-stage::before { background-image: url("assets/room/open-tall.webp?v=6"); }
-  #room-stage[data-fallback="on"]::after { background-image: url("assets/room/lit-tall.webp?v=6"); }
+  #room-stage::before { background-image: url("assets/room/open-tall.webp?v=7"); }
+  #room-stage[data-fallback="on"]::after { background-image: url("assets/room/lit-tall.webp?v=7"); }
 }
 @media (min-width: 651px) and (max-height: 650px) {
   .room-intro h2 { font-size: clamp(3.9rem,6.8vw,6.5rem); }

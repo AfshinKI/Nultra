@@ -25,6 +25,23 @@ STOPS = [(.238, .252, 2), (.252, .323, 17), (.323, .36, 8), (.36, .434, 1),
          (.626, .693, 14), (.693, .751, 14)]
 
 
+def timeline_sheets():
+    """Keep each four-pose sheet family stable when adding local motion samples."""
+    times = [float(t) for a, b, n in STOPS for t in np.linspace(a, b, n, endpoint=False)] + [STOPS[-1][1]]
+    for start in range(0, len(times), 4):
+        samples = []
+        for i in range(start, min(start+4, len(times))):
+            t = times[i]
+            # Plate rotation and body extraction need real intervening geometry:
+            # blending two silhouettes doubles the carrier, cell and fasteners.
+            steps = 3 if .252 <= t < .345 else 4 if .468 <= t < .566 else 1
+            end = times[i+1] if i+1 < len(times) else t
+            samples.extend(t + (end-t)*j/steps for j in range(steps))
+        for tile in range(0, len(samples), 4):
+            extra = f'-{tile//4}' if tile else ''
+            yield f'{start//4:03d}{extra}.webp', samples[tile:tile+4]
+
+
 def ramp(t, a, b):
     return product.eased((t-a)/(b-a))
 
@@ -51,7 +68,9 @@ def move(m, p):
 
 
 def pose(t, aspect, service=None):
-    peel = ramp(t, .25, .323)
+    # Lift clear of the wall before rotating a 70 mm plate about its centre.
+    peel = ramp(t, .263, .323)
+    plate_z = 14*ramp(t, .25, .263) + 32*ramp(t, .262, .301)
     clear = ramp(t, .32, .36)
     back = ramp(t, .434, .468)
     withdraw = ramp(t, .468, .483)
@@ -65,7 +84,7 @@ def pose(t, aspect, service=None):
     look, right, up = product.axes(blend(12+35*studio+split*9, 15, inspect),
                                    blend(9+4*studio, 7, inspect), blend(-5*studio, -8, inspect))
     shifts = {
-        'plate': posed([67*peel+76*clear, 4*peel, 34*peel], rotate(151*peel, -5*peel), [0, 0, 20]),
+        'plate': posed([67*peel+76*clear, 4*peel, plate_z], rotate(151*peel, -5*peel), [0, 0, 20]),
         'carrier': posed([-124*inspect, 0, dz+15*split]),
         'shell': posed([135*inspect, 0, dz-88*split]),
         'pcb': posed([0, 0, dz-28*split]),
@@ -94,7 +113,7 @@ def pose(t, aspect, service=None):
         center = np.array([0, 0, 11])
         visible = {'carrier': {'carrier', 'shell', 'pcb', 'lower', 'upper'},
                    'seated': {'carrier', 'shell', 'pcb', 'lower', 'upper', 'battery'},
-                   'plate': {'plate'}, 'cell': {'battery'}}[service]
+                   'plate': {'plate'}, 'cell': {'battery'}, 'wallbox': {'box'}}[service]
     return shifts, visible, center, half, (look, right, up), studio, inspect
 
 
@@ -283,7 +302,10 @@ class Studio:
             scene[name] = product.light(center, world, scale, energy)
         rgba = self.render(scene, visible, shifts, inspect, size, spp)
         shadow = None
-        if 'box' in visible and .36 < t <= .468 and self.wall_hold is not None:
+        if service == 'wallbox':
+            bare = self.render(scene, {'wall'}, shifts, inspect, size, spp, shadow=True)
+            rgba *= 1-bare[:, :, 3:4].clip(0, 1)
+        elif 'box' in visible and .36 < t <= .468 and self.wall_hold is not None:
             # Only the fasteners move inside the aperture during unthreading.
             # Their changing reflections and occlusion remain fully path traced.
             outside, opening, shadow = self.wall_hold
@@ -296,7 +318,22 @@ class Studio:
             installed, wall_hit = self.render(scene, visible | {'wall'}, shifts, inspect, size, spp, shadow=True)
             opening = (1-bare[:, :, 3:4].clip(0, 1))*(1-studio)
             isolated = self.render(scene, visible - {'box'}, shifts, inspect, size, spp)
-            rgba = blend(isolated, rgba, opening)*(1-wall_hit)
+            # The empty aperture is part of the room photograph once the body
+            # starts moving. Never carry the box or its rim into the studio.
+            if t >= .49:
+                rgba = isolated*(1-wall_hit)
+            else:
+                rgba = blend(isolated, rgba, opening)*(1-wall_hit)
+            if .323 < t < .36:
+                # The moving plate and its cast shadow disappear together. The
+                # carrier stays opaque and retains its own contact shadow.
+                remain = visible - {'plate'}
+                plain = self.render(scene, remain, shifts, inspect, size, spp)
+                plain_isolated = self.render(scene, remain - {'box'}, shifts, inspect, size, spp)
+                plain_lit, plain_wall = self.render(scene, remain | {'wall'}, shifts, inspect, size, spp, shadow=True)
+                fade = ramp(t, .323, .345)
+                rgba = blend(rgba, blend(plain_isolated, plain, opening)*(1-plain_wall), fade)
+                installed = blend(installed, plain_lit, fade)
             luminance = np.array([.213, .715, .072], np.float32)
             lit_wall = bare[:, :, :3] @ luminance
             shadowed_wall = installed[:, :, :3] @ luminance
@@ -308,6 +345,8 @@ class Studio:
             dx = np.minimum(np.arange(w)+.5, w-.5-np.arange(w))/(w*.075)
             dy = np.minimum(np.arange(h)+.5, h-.5-np.arange(h))/(h*.075)
             shadow *= np.minimum(dx[None, :], dy[:, None]).clip(0, 1)
+            if t >= .49:
+                shadow *= 1-ramp(t,.50,.525)
             if abs(t-.36) < 1e-6:
                 self.wall_hold = (rgba.copy(), opening, shadow.copy())
 
@@ -331,6 +370,20 @@ class Studio:
         x0, y0, x1, y1 = cleaned.getchannel('A').point(lambda a:255 if a > 128 else 0).getbbox()
         points['bounds'] = [round(x0/w, 6), round(y0/h, 6), round(x1/w, 6), round(y1/h, 6)]
         return cleaned, points
+
+
+    def wall_texture(self, dest, spp):
+        # Rectify an actual view into the steel box onto the plaster plane.
+        # The room shader samples this in millimetres and fades it with the wall.
+        image, anchors = self.draw(.36, (1200, 1200), spp, 'wallbox')
+        origin, top, right = [np.array(anchors[key])*1200 for key in ('mount','top','right')]
+        dx, dy = (right-origin)/25.5, (top-origin)/41.65
+        width, height = 448, 800
+        mx, my = dx*(54/width), -dy*(100/height)
+        start = origin-27*dx+50*dy
+        matrix = (mx[0], my[0], start[0], mx[1], my[1], start[1])
+        image.transform((width,height), Image.Transform.AFFINE, matrix,
+                        resample=Image.Resampling.BICUBIC).save(dest, quality=93, method=6)
 
 
 def main():
@@ -366,31 +419,31 @@ def main():
             print(f'Service {part}, elapsed {time.monotonic()-started:.1f}s', flush=True)
     if 'sequence' not in args.shots:
         return
+    (args.dest/'room').mkdir(parents=True,exist_ok=True)
+    studio.wall_texture(args.dest/'room'/'recess.webp', max(112, args.spp))
     out = args.dest/'teardown'
     out.mkdir(parents=True, exist_ok=True)
-    timeline = [float(t) for a, b, n in STOPS for t in np.linspace(a, b, n, endpoint=False)]+[STOPS[-1][1]]
-    posters = {min(range(len(timeline)), key=lambda i:abs(timeline[i]-t)): name for t, name in
-             [(.303, "magnetic"), (.36, "mounted"), (.684, "exploded")]}
+    sheets = list(timeline_sheets())
+    times = [t for _, group in sheets for t in group]
+    posters = {min(times, key=lambda n:abs(n-t)): name for t, name in
+               [(.303, 'magnetic'), (.36, 'mounted'), (.684, 'exploded')]}
     frames = []
     still = None
-    for i, t in enumerate(timeline):
-        tile = i%4
-        if not tile:
-            atlas = Image.new('RGBA', (2*size[0], 2*size[1]))
-        if abs(t-.434) < 1e-6 and still:
-            img, points = still
-        else:
-            img, points = studio.draw(t, size, max(112, args.spp) if abs(t-.36) < 1e-6 else args.spp)
-        if abs(t-.36) < 1e-6:
-            still = img, points
-        if i in posters:
-            img.save(out/f'{posters[i]}.webp', quality=91, method=5)
-        file = f'{i//4:03d}.webp'
-        frames.append({'t': round(t, 7), 'sheet': file, 'tile': tile, **points})
-        atlas.paste(img, ((tile%2)*size[0], (tile // 2)*size[1]))
-        if tile == 3 or i == len(timeline)-1:
-            atlas.save(out/file, quality=87, method=5)
-            print(f'{file}: {i+1}/{len(timeline)} poses, elapsed {time.monotonic()-started:.1f}s', flush=True)
+    for file, times in sheets:
+        atlas = Image.new('RGBA', (2*size[0], 2*size[1]))
+        for tile, t in enumerate(times):
+            if abs(t-.434) < 1e-6 and still:
+                img, points = still
+            else:
+                img, points = studio.draw(t, size, max(112, args.spp) if abs(t-.36) < 1e-6 else args.spp)
+            if abs(t-.36) < 1e-6:
+                still = img, points
+            if t in posters:
+                img.save(out/f'{posters[t]}.webp', quality=91, method=5)
+            frames.append({'t': round(t, 7), 'sheet': file, 'tile': tile, **points})
+            atlas.paste(img, ((tile%2)*size[0], (tile//2)*size[1]))
+        atlas.save(out/file, quality=87, method=5)
+        print(f'{file}: {len(frames)} poses, elapsed {time.monotonic()-started:.1f}s', flush=True)
     manifest = {'width': size[0], 'height': size[1], 'columns': 2, 'rows': 2, 'frames': frames}
     (out / 'poses.json').write_text(json.dumps(manifest, separators=(',', ':')) + '\n')
 
