@@ -1,6 +1,6 @@
 # Room artwork
 
-The opening scene uses four original ImageGen images. The lamp-off and lamp-on views share a camera within each pair. The switch, phone, screen controls and reflections are rendered separately by [room.js](../docs/room.js). The artwork was encoded as RGB WebP at quality 88.
+The opening scene uses four original ImageGen images. The lamp-off and lamp-on views share a camera within each pair. The images provide the room, lamp and reflected light. The renderer adds the CAD switch, phone, screen and recessed wall box. The box is an illustrative single-gang steel enclosure. Its mounting tabs align with the Nultra carrier’s holes, 83.3 mm apart. [Interactive room renderer](../docs/room.js)
 
 | Plate | Input | Image direction |
 | --- | --- | --- |

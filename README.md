@@ -21,7 +21,7 @@ The KiCad project is an editable conversion with outstanding connectivity findin
 
 ## Project site
 
-The 3D demo opens the app on a titanium-finish phone and turns on the room lamp. The phone uses the Nultra app artwork, and the wall switch uses its CAD geometry. Matched, AI-generated interior views supply the lamp-off and lamp-on lighting for landscape and portrait screens. Scrolling carries the camera from the room into the teardown. Chapter buttons and a keyboard-accessible slider let you go straight to a part. [Interactive room renderer](docs/room.js) · [Room artwork and prompts](tools/room_artwork.md)
+The 3D demo opens the Nultra app on a titanium-finish phone and turns on the room lamp. The switch sits inside the plaster wall with its faceplate against the surface. As you scroll, the intact switch pulls forward and reveals the recessed single-gang box. The camera then follows the switch into the teardown. Chapter buttons and a keyboard-accessible slider let you go straight to a part. [Interactive room renderer](docs/room.js) · [Room artwork and prompts](tools/room_artwork.md)
 
 The faceplate lifts first. The AA cell moves forward, exposing the SWD debug pads beneath it. Both sides of the PCB stay in frame as the camera identifies the printed antenna, CPU, DC/DC converter and latching relay. The teardown uses the populated Altium PCB and the project's AA model. Its path-traced images load in small groups. [Render script](tools/render_product.py) · [AA model preparation](tools/prepare_render_battery.py)
 

@@ -73,7 +73,7 @@
     precision highp float;
     varying vec3 w,n;
     varying vec2 uv;
-    uniform vec3 uColor,uLamp,uEye,uPlate;
+    uniform vec3 uColor,uLamp,uEye,uPlate,uSocket;
     uniform vec2 uPixels;
     uniform vec2 uRing;
     uniform float uType,uLit,uFade,uOpen,uDetail,uStudio,uMount,uCadScale,uFacePixel;
@@ -89,6 +89,9 @@
       vec3 ambient=vec3(.47,.465,.455);
       float kind=uType;
       if(kind<.5){
+        vec2 mountXY=(w.xy-uSocket.xy)/uCadScale;
+        vec2 cut=abs(mountXY)-vec2(22.5,45.5);
+        if(abs(w.z-uSocket.z)<3.*uCadScale && length(max(cut,0.))+min(max(cut.x,cut.y),0.)<3.)discard;
         vec3 dark=texture2D(sDarkRoom,uv).rgb, light=texture2D(sLightRoom,uv).rgb;
         // Mix luminous energy; a half-lit lamp casts half its final illumination.
         vec3 radiance=sqrt(mix(dark*dark,light*light,uLit));
@@ -101,6 +104,19 @@
       }
       vec3 R=reflect(-V,N);
       float lampEdge=exp(-19.*(1.-max(0.,dot(R,normalize(uLamp-w)))))*uLit;
+      if(kind>7.5){
+        vec3 local=(w-uSocket)/uCadScale;
+        float depth=clamp(-local.z/41.,0.,1.);
+        float sideAO=(1.-smoothstep(0.,8.,24.-abs(local.x)))+(1.-smoothstep(0.,8.,46.-abs(local.y)));
+        float irradiance=(.69+.38*key+.06*max(0.,N.y))*(1.-.28*depth-.105*depth*min(sideAO,1.));
+        vec2 grainPlane=abs(N.z)>.65?local.xy:vec2(local.y,local.z);
+        float spangle=sin(dot(grainPlane,vec2(.63,.93))+.8*sin(grainPlane.y*.61))*sin(dot(grainPlane,vec2(-.93,.36)));
+        float grain=(hash(floor(grainPlane*5.))-.5)*.027+.016*spangle;
+        float softbox=pow(max(0.,dot(reflect(-V,N),normalize(vec3(.55,.38,.74)))),7.);
+        vec3 steel=color*(irradiance+grain)+vec3(.14,.14,.13)*softbox*(1.-.55*depth);
+        steel+=uLit*vec3(.045,.027,.011)*max(0.,dot(N,normalize(uLamp-w)));
+        gl_FragColor=vec4(steel,uFade);return;
+      }
       if(kind<3.5){
         // Broad window and narrow strip-card reflections describe the rounded
         // titanium chamfers; the reflected interior supplies lower frequencies.
@@ -194,7 +210,8 @@
         *(1-ramp(v,horizon+.038,horizon+.073));
       const corner=tall?.344:.372;
       const leftWall=.65*Math.max(0,(corner-u)/corner);
-      const z=.072+Math.max(leftWall,base,shade*(.43+.27*curve),foot*.57);
+      const mountDepth=20.005*mix(.00565,.0048,1-ramp(aspect,.72,1.34));
+      const z=mountDepth+Math.max(leftWall,base,shade*(.43+.27*curve),foot*.57);
       vertices.push(...vertexAt(at(x,y,z,aspect),[0,0,1],[u,1-v]));
       if(i<cols&&j<rows){
         const a=j*(cols+1)+i,b=a+cols+1;
@@ -285,6 +302,76 @@
     for(let i=1;i<boundary.length-1;i++)indices.push(0,i,i+1);
     return {vertices,indices,ring};
   }
+  // Generic single-gang installation hardware. The Nultra enclosure itself
+  // comes from switch.bin. The independent steel cavity stays in the wall.
+  function deviceBox(){
+    const pieces={};
+    function face(part,points,N){
+      const group=pieces[part]||(pieces[part]={vertices:[],indices:[]});
+      const start=group.vertices.length/8;
+      for(const p of points)group.vertices.push(...vertexAt(p,N));
+      for(let i=1;i<points.length-1;i++)group.indices.push(start,start+i,start+i+1);
+    }
+    function rim(x,y,r,z){
+      const result=[];
+      for(let c=0;c<4;c++)for(let j=0;j<=6;j++){
+        const a=(c+j/6)*Math.PI/2;
+        result.push([[1,-1,-1,1][c]*(x-r)+r*Math.cos(a),
+          [1,1,-1,-1][c]*(y-r)+r*Math.sin(a),z]);
+      }
+      return result;
+    }
+    function connect(part,out,inner,flat=false){
+      for(let i=0;i<out.length;i++){
+        const j=(i+1)%out.length,edge=sub(out[j],out[i]),down=sub(inner[i],out[i]);
+        const N=flat?[0,0,1]:normal(cross(edge,down));
+        face(part,[out[i],out[j],inner[j],inner[i]],N);
+      }
+    }
+    const opening=rim(25.5,48.5,3,0),cutback=rim(25.25,48.25,2.75,-2.4);
+    const flange=rim(23.8,46.65,2.2,-2.45),throat=rim(23.35,46.2,2.05,-3.6);
+    const rear=rim(22.8,44.2,2.8,-41);
+    connect("plasterEdge",opening,cutback);
+    connect("boxRim",cutback,flange,true);
+    connect("boxRim",flange,throat);
+    connect("boxSides",throat,rear);
+    face("boxBack",rear,[0,0,1]);
+    // Rounded mounting ears with actual through holes. The empty center
+    // exposes the dark box behind each folded tab.
+    for(const s of [-1,1]){
+      const cy=s*41.65,top=[],bore=[],under=[];
+      for(let i=0;i<48;i++){
+        const a=i*tau/48,x=Math.cos(a),y=Math.sin(a);
+        const d=Math.min(7.2/Math.max(.001,Math.abs(x)),5.0/Math.max(.001,Math.abs(y)));
+        top.push([x*d,cy+y*d,-2.0]);
+        bore.push([x*1.75,cy+y*1.75,-2.0]);under.push([x*1.54,cy+y*1.54,-3.1]);
+      }
+      connect("boxEars",top,bore,true);connect("boxBore",bore,under);
+    }
+    // Shallow pressings on the rear and both cheeks. Concentric drawn lips
+    // and narrow uncut bridges identify the removable metal knockouts.
+    function knockout(origin,U,W,N,r){
+      const depths=[[r+1,0],[r+.42,.31],[r+.10,.55],[r-.28,.06],[r-.72,.35],[r-1.04,.53]];
+      const ring=(radius,depth)=>Array.from({length:52},(_,i)=>{
+        const a=i*tau/52;
+        const bridge=Math.cos(3*a)>.974?.18:1;
+        return add(add(add(origin,scale(U,radius*Math.cos(a))),scale(W,radius*Math.sin(a))),scale(N,depth*bridge));
+      });
+      for(let j=0;j<depths.length-1;j++){
+        const a=ring(...depths[j]),b=ring(...depths[j+1]);
+        for(let i=0;i<a.length;i++){
+          const n=(i+1)%a.length;
+          const norm=normal(cross(sub(a[n],a[i]),sub(b[i],a[i])));
+          face(j===2?"boxStampDark":"boxStamp",[a[i],a[n],b[n],b[i]],dot(norm,N)<0?scale(norm,-1):norm);
+        }
+      }
+      face("boxStamp",ring(...depths[depths.length-1]),N);
+    }
+    knockout([0,-13,-40.9],[1,0,0],[0,1,0],[0,0,1],11.3);
+    knockout([0,19,-40.9],[1,0,0],[0,1,0],[0,0,1],9.25);
+    for(const s of [-1,1])knockout([s*22.9,3,-22],[0,0,s],[0,1,0],[-s,0,0],9.1);
+    return pieces;
+  }
   function imageAt(url) {
     return new Promise((resolve,reject)=>{
       const im=new Image(); im.onload=()=>resolve(im);im.onerror=reject;im.src=url;
@@ -354,34 +441,49 @@
       posterCanvas.width=Math.round(w*ratio);posterCanvas.height=Math.round(h*ratio);
     }
     context.setTransform(ratio,0,0,ratio,0,0);context.clearRect(0,0,w,h);
-    const roomImage=name=>requestPoster(name+format,"assets/room/"+name+"-"+format+".webp?v=4");
+    const roomImage=name=>requestPoster(name+format,"assets/room/"+name+"-"+format+".webp?v=5");
     const open=roomImage("open");
     if(!open)return;
     const app=override===null?ramp(progress,.055,.20):1,light=lit();
     const off=app>0 ? roomImage("off") : null;
     const on=light>0 ? roomImage("lit") : null;
     const detail=light>0&&progress>.375 ? roomImage("detail") : null;
-    const surface=progress>.52 ? requestPoster("surface","assets/product/frames/000.webp") : null;
+    const release=progress>.425&&light>.01?roomImage("release"):null;
+    const detached=progress>.53?roomImage(light>.5?"detached":"detached-dark"):null;
+    const surface=progress>.70?requestPoster("surface","assets/product/frames/000.webp"):null;
     const target=document.querySelector(".model-wrap")?.getBoundingClientRect();
-    const plateX=(m?.644:.66)*w, plateY=(m?.314:.35)*h;
     const targetW=target?.width||w*.74;
     const targetX=target?.width?target.left-rect.left+target.width/2:w*.65;
     const targetY=target?.height?target.top-rect.top+target.height/2:h*.5;
-    const travel=ramp(progress,.47,.935), toSurface=surface?ramp(progress,.60,.89):0;
-    const installedHeight=(m?.126:.152)*h;
-    const finalHeight=targetW*(753/1056);
-    const zoom=Math.exp(Math.log(Math.max(1,finalHeight/installedHeight))*travel);
-    const centerX=mix(plateX,targetX,travel),centerY=mix(plateY,targetY,travel);
-    context.save();
-    context.translate(centerX,centerY);context.scale(zoom,zoom);context.translate(-plateX,-plateY);
+    // The release photographs come from exactly the same camera and 3D
+    // geometry as the live scene. Keep the aperture in view through its hold.
+    const shotAspect=m?.5:16/9,unit=m?.0048:.00565;
+    const half=Math.max(127,103/shotAspect),axes=basis(-28,9,-2);
+    const bounds=[[-35,-57.5,20],[35,-57.5,20],[-35,57.5,20],[35,57.5,20],
+      [-22,-34.5,-9],[22,-34.5,-9],[-22,34.5,-9],[22,34.5,-9]].map(([x,y,z])=>{
+        const p=[x,y,z+92],f=1-dot(p,axes[2])*unit*.34/9;
+        return [.5+.5*((m?0:.23)+dot(p,axes[0])/(half*shotAspect*f)),.5-.5*(-.045+dot(p,axes[1])/(half*f))];
+      });
+    const xx=bounds.map(p=>p[0]),yy=bounds.map(p=>p[1]);
+    const heldX=(Math.min(...xx)+Math.max(...xx))*.5*w,heldY=(Math.min(...yy)+Math.max(...yy))*.5*h;
+    const heldHeight=(Math.max(...yy)-Math.min(...yy))*h;
+    const travel=ramp(progress,.81,.95),toSurface=surface?ramp(progress,.825,.955):0;
+    const zoom=Math.exp(Math.log(targetW*(753/1056)/heldHeight)*travel);
+    const centerX=mix(heldX,targetX,travel),centerY=mix(heldY,targetY,travel);
+    context.save();context.translate(centerX,centerY);context.scale(zoom,zoom);context.translate(-heldX,-heldY);
     function plate(im,opacity){
       if(im&&opacity>0){context.globalAlpha=opacity;context.drawImage(im,0,0,w,h);}
     }
-    plate(open,1-toSurface);plate(off,app*(1-toSurface));
-    plate(on,light*(1-toSurface));plate(detail,ramp(progress,.39,.49)*light*(1-toSurface));
+    if(toSurface<1){
+      plate(open,1);plate(off,app);plate(on,light);plate(detail,ramp(progress,.385,.47)*light);
+      plate(release,ramp(progress,.47,.614));
+      plate(detached,ramp(progress,release ? .610 : .47,.705));
+    }
     context.restore();
     if(surface&&toSurface){
-      const imageW=installedHeight*zoom*1056/753;
+      context.save();context.globalCompositeOperation="destination-out";context.globalAlpha=toSurface;
+      context.fillRect(0,0,w,h);context.restore();
+      const imageW=heldHeight*zoom*1056/753;
       context.globalAlpha=toSurface;
       context.drawImage(surface,centerX-imageW/2,centerY-imageW*864/2112,imageW,imageW*864/1056);
       context.globalAlpha=1;
@@ -400,7 +502,7 @@
     for(const [kind,source] of [[gl.VERTEX_SHADER,vertex],[gl.FRAGMENT_SHADER,fragment]])gl.attachShader(program,compile(kind,source));
     gl.linkProgram(program);if(!gl.getProgramParameter(program,gl.LINK_STATUS))throw new Error(gl.getProgramInfoLog(program));
     gl.useProgram(program);gl.enable(gl.DEPTH_TEST);gl.enable(gl.BLEND);gl.blendFuncSeparate(gl.SRC_ALPHA,gl.ONE_MINUS_SRC_ALPHA,gl.ONE,gl.ONE_MINUS_SRC_ALPHA);
-    const names=["uModel","uView","uOrigin","uFocus","uHalf","uOffset","uScale","uPerspective","uColor","uLamp","uEye","uPlate","uType","uLit","uFade","uOpen","uDetail","uStudio","uPixels","uMount","uCadScale","uFacePixel","uRing"];
+    const names=["uModel","uView","uOrigin","uFocus","uHalf","uOffset","uScale","uPerspective","uColor","uLamp","uEye","uPlate","uSocket","uType","uLit","uFade","uOpen","uDetail","uStudio","uPixels","uMount","uCadScale","uFacePixel","uRing"];
     const uniforms=Object.fromEntries(names.map(key=>[key,gl.getUniformLocation(program,key)]));
     const attrs=["aPos","aNorm","aUV"].map(name=>gl.getAttribLocation(program,name));
     attrs.forEach(i=>gl.enableVertexAttribArray(i));
@@ -443,6 +545,11 @@
       bezel:[.020,.020,.024], notch:[.008,.009,.012], lens:[.025,.032,.055], glint:[.12,.15,.20],
       face:[.818,.809,.79], ink:[.11,.108,.106], carrier:[.34,.335,.33], shell:[.256,.252,.25]
     };
+    const boxParts=deviceBox();
+    Object.entries(boxParts).forEach(([name,data])=>mesh(name,data));
+    Object.assign(colors,{plasterEdge:[.40,.34,.28],boxRim:[.65,.63,.59],boxSides:[.42,.43,.43],
+      boxBack:[.43,.425,.41],boxEars:[.60,.595,.57],boxBore:[.25,.24,.22],
+      boxStamp:[.45,.445,.425],boxStampDark:[.245,.25,.245]});
     let size, geometryReady=false, observer, activePhoto="", requestedPhoto="", photoAspect=16/9;
     const photoCache=new Map();
     function choosePhoto(format) {
@@ -481,34 +588,39 @@
       if(!size||!geometryReady||!activePhoto)return;
       const {aspect,ox,oy,endWidth,height,layout}=size;
       const t=progress, narrow=1-ramp(aspect,.72,1.34), half=halfOpening;
-      const plate=at(mix(.66,.644,narrow),mix(.35,.314,narrow),0,aspect);
+      const mount=at(mix(.66,.644,narrow),mix(.35,.314,narrow),0,aspect);
       const lampPos=layout.screen(...layout.lamp);
       const lamp=at(lampPos[0],lampPos[1],.72,aspect);
       const phone=at(mix(.502,.32,narrow),mix(.567,.612,narrow),2.45,aspect);
       const sizePhone=mix(1.24,.92,narrow);
       const sizeCAD=mix(.00565,.0048,narrow);
-      const depart=ramp(t,.47,.95);
-      const easeCamera=ramp(t,.47,.935);
-      const basisNow=basis(-43*easeCamera,mix(9,13,easeCamera),-15*easeCamera);
+      const approach=ramp(t,.47,.69), lift=ramp(t,.535,.705), leave=ramp(t,.81,.95);
+      const depart=ramp(t,.47,.663);
+      const plate=add(mount,[0,0,184*sizeCAD*lift]);
+      const retreat=leave*1.12, socket=add(mount,[0,0,20.005*sizeCAD-retreat]);
+      const basisNow=basis(-28*approach-15*leave,9+4*leave,-2*approach-13*leave);
       const [right,up,look]=basisNow;
       const cadCenter=add(scale(closing[0],10.05063),scale(closing[1],.32020));
       const dest=add(plate,scale(cadCenter,sizeCAD));
-      const focus=lerp([0,0,0],dest,easeCamera);
+      const displayCenter=add(mount,[0,0,92*sizeCAD*lift]);
+      const focus=lerp(scale(displayCenter,approach),dest,leave);
       const slice=91.36181*sizeCAD*height/endWidth;
-      const halfH=Math.exp(mix(Math.log(half),Math.log(slice),easeCamera));
-      const offset=[ox*easeCamera,oy*easeCamera], perspective=1-easeCamera;
+      const holdHalf=sizeCAD*Math.max(127,103/aspect);
+      const halfH=Math.exp(mix(mix(Math.log(half),Math.log(holdHalf),approach),Math.log(slice),leave));
+      const offset=[mix(mix(.23,0,narrow)*approach,ox,leave),mix(-.045*approach,oy,leave)];
+      const perspective=(1-.66*approach)*(1-leave);
       const phoneBasis=basis(mix(-25,-44,depart),mix(3,8,depart),mix(-5,-27,depart));
       const currentPhone=add(phone,[-depart*(4.25+1.5*aspect),-.85*depart,.65*depart]);
-      const roomAlpha=1-ramp(t,.74,.94);
-      const phoneAlpha=1-ramp(t,.59,.76);
+      const roomAlpha=1-ramp(t,.815,.94);
+      const phoneAlpha=1-ramp(t,.56,.65);
       const viewMatrix=[right[0],up[0],look[0],right[1],up[1],look[1],right[2],up[2],look[2]];
       scalar("uOpen",override===null?ramp(t,.055,.20):1);scalar("uDetail",ramp(t,.385,.48));scalar("uLit",lit());
-      scalar("uMount",1-ramp(t,.47,.68));scalar("uCadScale",sizeCAD);
+      scalar("uMount",1-lift);scalar("uCadScale",sizeCAD);
       scalar("uFacePixel",2*halfH/(canvas.height*sizeCAD));
-      scalar("uStudio",ramp(t,.72,.96));scalar("uPerspective",perspective);
+      scalar("uStudio",ramp(t,.82,.96));scalar("uPerspective",perspective);
       mat("uView",viewMatrix);vec2("uPixels",[canvas.width,canvas.height]);
       vec2("uHalf",[halfH*aspect,halfH]);vec2("uOffset",offset);
-      vec("uFocus",focus);vec("uEye",add(focus,scale(look,9)));vec("uPlate",plate);vec("uLamp",lamp);
+      vec("uFocus",focus);vec("uEye",add(focus,scale(look,9)));vec("uPlate",plate);vec("uSocket",socket);vec("uLamp",lamp);
       gl.clearColor(0,0,0,0);gl.clear(gl.COLOR_BUFFER_BIT|gl.DEPTH_BUFFER_BIT);
       function drawMesh(name,pos,type,color,scaleFactor=1,axes=straight) {
         const item=library[name];if(!item)return;
@@ -532,7 +644,8 @@
       }
       if(roomAlpha>.001){
         scalar("uFade",roomAlpha);
-        drawMesh("interior",[0,0,-depart*1.12],0,"face");
+        drawMesh("interior",[0,0,-retreat],0,"face");
+        for(const name of Object.keys(boxParts))drawMesh(name,socket,8,name,sizeCAD);
       }
       scalar("uFade",1);
       gl.enable(gl.CULL_FACE);

@@ -17,6 +17,7 @@
   const saveData = navigator.connection?.saveData === true;
   const hardwareStart = .37;
   const handoffStart = .346;
+  const boxRevealStart = .70 * hardwareStart, boxRevealEnd = .81 * hardwareStart;
   const lastFrame = 232;
   const atlasVersion = "?v=233b";
   const framesPerSheet = 4;
@@ -327,7 +328,9 @@
       lastPercent = number;
       slider.dataset.chapter = String(active);
       slider.value = String(number);
-      slider.setAttribute("aria-valuetext", (tabs[active]?.textContent.trim() || "") + ", " + number + "%");
+      const view = position >= boxRevealStart && position <= boxRevealEnd
+        ? "Switch withdrawn, recessed wall box visible" : tabs[active]?.textContent.trim() || "";
+      slider.setAttribute("aria-valuetext", view + ", " + number + "%");
       if (percent) percent.value = number + "%";
       sequence.style.setProperty("--sequence-progress", String(position));
     }
@@ -367,7 +370,10 @@
     const remaining = target - position;
     direction = Math.sign(remaining);
     const eased = Math.abs(remaining) * (1 - Math.exp(-dt / 60));
-    const step = Math.min(eased, dt * .00065, .012);
+    // Leave the exposed box in view even when a wheel fling requests the whole teardown.
+    const reveal = windowOpacity(position, .54 * hardwareStart, boxRevealStart, boxRevealEnd, .91 * hardwareStart);
+    const speed = .00065 / (1 + 6 * reveal);
+    const step = Math.min(eased, dt * speed, .012);
     let next = Math.abs(remaining) < .00012 ? target : position + direction * step;
     let frame = frameAt(next);
     // Keep the visual step bounded even after a long task or an abruptly reversed fling.

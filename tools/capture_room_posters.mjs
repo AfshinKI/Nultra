@@ -1,5 +1,5 @@
 /**
- * Capture the eight static fallback images from the site's actual WebGL scene.
+ * Capture the static room and wall-box reveal images from the site's WebGL scene.
  * Requires Node.js 22+ and a Chromium browser with headless WebGL support.
  * Run: node tools/capture_room_posters.mjs "/path/to/chrome" [output-directory]
  * The temporary preview binds to loopback. Browser control uses a private pipe.
@@ -88,7 +88,9 @@ try {
       ready = await evaluate('window.NultraRoom?.getState().renderer === "webgl"');
     }
     if (!ready) throw new Error("The " + format + " WebGL room did not load. Check its source assets.");
-    for (const [name, progress, lamp] of [["open", 0, null], ["off", .24, false], ["lit", .37, true], ["detail", .47, true]]) {
+    const poses = [["open", 0, null], ["off", .24, false], ["lit", .37, true], ["detail", .47, true],
+      ["release", .612, true], ["detached", .755, true], ["detached-dark", .755, false]];
+    for (const [name, progress, lamp] of poses) {
       await evaluate(`window.NultraRoom.setState(${progress}, ${lamp}); new Promise(done => requestAnimationFrame(() => requestAnimationFrame(done)))`);
       const shot = await command("Page.captureScreenshot", { format: "webp", quality: 88, fromSurface: true });
       const file = join(output, name + "-" + format + ".webp");
