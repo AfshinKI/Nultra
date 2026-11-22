@@ -197,6 +197,7 @@
   }
   function roomSurface(aspect,layout,tall) {
     const vertices=[],indices=[],cols=48,rows=36;
+    const mountDepth=20.005*mix(.00565,.0048,1-ramp(aspect,.72,1.34));
     for(let j=0;j<=rows;j++) for(let i=0;i<=cols;i++){
       const x=mix(-.34,1.34,i/cols),y=mix(-.21,1.21,j/rows);
       const [u,v]=layout.source(x,y);
@@ -210,7 +211,6 @@
         *(1-ramp(v,horizon+.038,horizon+.073));
       const corner=tall?.344:.372;
       const leftWall=.65*Math.max(0,(corner-u)/corner);
-      const mountDepth=20.005*mix(.00565,.0048,1-ramp(aspect,.72,1.34));
       const z=mountDepth+Math.max(leftWall,base,shade*(.43+.27*curve),foot*.57);
       vertices.push(...vertexAt(at(x,y,z,aspect),[0,0,1],[u,1-v]));
       if(i<cols&&j<rows){
@@ -450,6 +450,17 @@
     const detail=light>0&&progress>.375 ? roomImage("detail") : null;
     const release=progress>.425&&light>.01?roomImage("release"):null;
     const detached=progress>.53?roomImage(light>.5?"detached":"detached-dark"):null;
+    if(progress>.47&&progress<=.62){
+      // These normalized rectangles come from the CAD projection at each
+      // captured camera pose. Follow the visible control in the 2D dissolve.
+      const releaseHit=m?{x:.528,y:.314,w:.264,h:.248}:{x:.657,y:.256,w:.119,h:.359};
+      const detachedHit=m?{x:.612,y:.400,w:.300,h:.312}:{x:.662,y:.329,w:.146,h:.498};
+      const atRelease=release?ramp(progress,.47,.614):0;
+      const atDetach=detached?ramp(progress,release ? .610 : .47,.705):0;
+      const mounted=hitAreas[2];
+      hitAreas[2]=Object.fromEntries(Object.keys(mounted).map(k=>
+        [k,mix(mix(mounted[k],releaseHit[k],atRelease),detachedHit[k],atDetach)]));
+    }
     const surface=progress>.70?requestPoster("surface","assets/product/frames/000.webp"):null;
     const target=document.querySelector(".model-wrap")?.getBoundingClientRect();
     const targetW=target?.width||w*.74;
@@ -459,18 +470,30 @@
     // geometry as the live scene. Keep the aperture in view through its hold.
     const shotAspect=m?.5:16/9,unit=m?.0048:.00565;
     const half=Math.max(127,103/shotAspect),axes=basis(-28,9,-2);
-    const bounds=[[-35,-57.5,20],[35,-57.5,20],[-35,57.5,20],[35,57.5,20],
-      [-22,-34.5,-9],[22,-34.5,-9],[-22,34.5,-9],[22,34.5,-9]].map(([x,y,z])=>{
-        const p=[x,y,z+92],f=1-dot(p,axes[2])*unit*.34/9;
-        return [.5+.5*((m?0:.23)+dot(p,axes[0])/(half*shotAspect*f)),.5-.5*(-.045+dot(p,axes[1])/(half*f))];
-      });
-    const xx=bounds.map(p=>p[0]),yy=bounds.map(p=>p[1]);
-    const heldX=(Math.min(...xx)+Math.max(...xx))*.5*w,heldY=(Math.min(...yy)+Math.max(...yy))*.5*h;
-    const heldHeight=(Math.max(...yy)-Math.min(...yy))*h;
-    const travel=ramp(progress,.81,.95),toSurface=surface?ramp(progress,.825,.955):0;
-    const zoom=Math.exp(Math.log(targetW*(753/1056)/heldHeight)*travel);
-    const centerX=mix(heldX,targetX,travel),centerY=mix(heldY,targetY,travel);
-    context.save();context.translate(centerX,centerY);context.scale(zoom,zoom);context.translate(-heldX,-heldY);
+    const travel=ramp(progress,.81,.95),toSurface=surface?ramp(progress,.856,.902):0;
+    // Register three physical faceplate points in both photographs.
+    // The incoming model and departing installed-room capture follow exactly
+    // the same face plane throughout the dissolve, including its rotation.
+    const face=[[-29,-51.5,24],[29,-51.5,24],[-29,51.5,24]];
+    const captured=face.map(([x,y,z])=>{
+      const p=[x,y,z+92],f=1-dot(p,axes[2])*unit*.34/9;
+      return [w*(.5+.5*((m?0:.23)+dot(p,axes[0])/(half*shotAspect*f))),
+        h*(.5-.5*(-.045+dot(p,axes[1])/(half*f)))];
+    });
+    const closingScale=targetW/(2*91.36181);
+    const final=face.map(p=>[targetX+(dot(p,closing[0])-10.05063)*closingScale,
+      targetY-(dot(p,closing[1])-.32020)*closingScale]);
+    const current=captured.map((v,i)=>lerp(v,final[i],travel));
+    function register(from) {
+      const x=sub(from[1],from[0]),y=sub(from[2],from[0]);
+      const X=sub(current[1],current[0]),Y=sub(current[2],current[0]);
+      const det=x[0]*y[1]-x[1]*y[0];
+      const a=(X[0]*y[1]-Y[0]*x[1])/det, c=(Y[0]*x[0]-X[0]*y[0])/det;
+      const b=(X[1]*y[1]-Y[1]*x[1])/det, d=(Y[1]*x[0]-X[1]*y[0])/det;
+      context.transform(a,b,c,d,current[0][0]-a*from[0][0]-c*from[0][1],current[0][1]-b*from[0][0]-d*from[0][1]);
+    }
+    context.save();
+    if(travel>0)register(captured);
     function plate(im,opacity){
       if(im&&opacity>0){context.globalAlpha=opacity;context.drawImage(im,0,0,w,h);}
     }
@@ -483,10 +506,10 @@
     if(surface&&toSurface){
       context.save();context.globalCompositeOperation="destination-out";context.globalAlpha=toSurface;
       context.fillRect(0,0,w,h);context.restore();
-      const imageW=heldHeight*zoom*1056/753;
+      context.save();if(travel<1)register(final);
       context.globalAlpha=toSurface;
-      context.drawImage(surface,centerX-imageW/2,centerY-imageW*864/2112,imageW,imageW*864/1056);
-      context.globalAlpha=1;
+      context.drawImage(surface,targetX-targetW/2,targetY-targetW*864/2112,targetW,targetW*864/1056);
+      context.restore();context.globalAlpha=1;
     }
     stage.dataset.posterReady="";
   }
@@ -545,8 +568,7 @@
       bezel:[.020,.020,.024], notch:[.008,.009,.012], lens:[.025,.032,.055], glint:[.12,.15,.20],
       face:[.818,.809,.79], ink:[.11,.108,.106], carrier:[.34,.335,.33], shell:[.256,.252,.25]
     };
-    const boxParts=deviceBox();
-    Object.entries(boxParts).forEach(([name,data])=>mesh(name,data));
+    const boxParts=Object.entries(deviceBox()).map(([name,data])=>{mesh(name,data);return name;});
     Object.assign(colors,{plasterEdge:[.40,.34,.28],boxRim:[.65,.63,.59],boxSides:[.42,.43,.43],
       boxBack:[.43,.425,.41],boxEars:[.60,.595,.57],boxBore:[.25,.24,.22],
       boxStamp:[.45,.445,.425],boxStampDark:[.245,.25,.245]});
@@ -645,7 +667,7 @@
       if(roomAlpha>.001){
         scalar("uFade",roomAlpha);
         drawMesh("interior",[0,0,-retreat],0,"face");
-        for(const name of Object.keys(boxParts))drawMesh(name,socket,8,name,sizeCAD);
+        for(const name of boxParts)drawMesh(name,socket,8,name,sizeCAD);
       }
       scalar("uFade",1);
       gl.enable(gl.CULL_FACE);
