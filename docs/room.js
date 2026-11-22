@@ -494,6 +494,19 @@
     }
     context.save();
     if(travel>0)register(captured);
+    if(travel>0&&toSurface<1){
+      // Extend the marginal texels as the camera turns. The image always
+      // covers the viewport, including portrait corners outside its crop.
+      const backdrop=detached||release||on||off||open;
+      const iw=backdrop.naturalWidth,ih=backdrop.naturalHeight,pad=Math.max(w,h);
+      const columns=[[0,1,-pad,pad+1],[0,iw,0,w],[iw-1,1,w-1,pad+1]];
+      const rows=[[0,1,-pad,pad+1],[0,ih,0,h],[ih-1,1,h-1,pad+1]];
+      for(let j=0;j<3;j++)for(let i=0;i<3;i++){
+        if(i===1&&j===1)continue;
+        const [sx,sw,dx,dw]=columns[i],[sy,sh,dy,dh]=rows[j];
+        context.drawImage(backdrop,sx,sy,sw,sh,dx,dy,dw,dh);
+      }
+    }
     function plate(im,opacity){
       if(im&&opacity>0){context.globalAlpha=opacity;context.drawImage(im,0,0,w,h);}
     }
