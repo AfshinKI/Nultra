@@ -31,6 +31,31 @@
   const closing = basis(-43,13,-15);
   let progress=0, override=null, frame=0, draw=null, renderer="poster", hitAreas=[];
   const lit = () => override === null ? ramp(progress,.28,.36) : Number(override);
+  const appReveal = () => override === null ? ramp(progress,.085,.20) : 1;
+  const phoneCue = stage.querySelector(".phone-cue");
+  function updatePhoneCue(icon, lamp) {
+    if (!phoneCue) return;
+    const openingApp = progress < .18;
+    const contact = openingApp ? .085 : .28;
+    phoneCue.hidden = override !== null || progress <= contact-.075 || progress >= contact+.055;
+    if (phoneCue.hidden) return;
+    const [x,y] = openingApp ? icon : lamp;
+    const approach = ramp(progress,contact-.065,contact);
+    const release = ramp(progress,contact,contact+.055);
+    const style = phoneCue.style;
+    style.left = x*100+"%";
+    style.top = y*100+"%";
+    style.setProperty("--touch-alpha", ramp(progress,contact-.075,contact-.048)*(1-release));
+    style.setProperty("--travel", (1-approach)*14+release*4+"px");
+    style.setProperty("--press", 1-.24*approach*(1-release));
+    style.setProperty("--ring", .35+1.05*release);
+    style.setProperty("--ring-alpha", ramp(progress,contact-.005,contact+.007)*(1-release));
+  }
+  function posterPhoneCue(tall) {
+    // Normalized icon and desk-lamp bulb centers in the two opening captures.
+    if (tall) updatePhoneCue([.304,.627],[.279,.571]);
+    else updatePhoneCue([.496,.585],[.486,.506]);
+  }
   function schedule() {
     if (!frame && draw) frame=requestAnimationFrame(() => {frame=0; draw();});
   }
@@ -40,7 +65,19 @@
     const changed=next!==progress || light!==override;
     progress=next; override=light;
     stage.dataset.fallback=lit()>=.5 ? "on" : "off";
+    if (!draw) posterPhoneCue(stage.clientWidth < stage.clientHeight);
     if (changed) schedule();
+  }
+  const switchCallout = stage.querySelector(".switch-callout");
+  const switchLabelOpacity = t => ramp(t, .43, .50) * (1 - ramp(t, .69, .74));
+  function markSwitch(x, y) {
+    if (!switchCallout) return;
+    const alpha = switchLabelOpacity(progress);
+    if (switchCallout.hidden !== !alpha) switchCallout.hidden = !alpha;
+    if (!alpha) return;
+    switchCallout.style.left = (x * 100) + "%";
+    switchCallout.style.top = (y * 100) + "%";
+    switchCallout.style.opacity = String(alpha);
   }
   function hit(event) {
     if (progress>.62) return false;
@@ -51,7 +88,7 @@
     if (hit(e)) window.dispatchEvent(new CustomEvent("nultra-lamp-toggle"));
   });
   canvas.addEventListener("pointermove", e => {canvas.style.cursor=hit(e) ? "pointer" : "";}, {passive:true});
-  window.NultraRoom={setState,getState:() => ({progress,lit:lit(),renderer,hitAreas:hitAreas.map(a=>({...a}))})};
+  window.NultraRoom={setState,switchLabelOpacity,getState:() => ({progress,lit:lit(),renderer,hitAreas:hitAreas.map(a=>({...a}))})};
   window.dispatchEvent(new CustomEvent("nultra-room-ready"));
 
   const vertex = `
@@ -428,6 +465,7 @@
     const rect=stage.getBoundingClientRect(), w=rect.width,h=rect.height;
     if(!w||!h)return;
     const m=w<h, format=m?"tall":"wide";
+    posterPhoneCue(m);
     hitAreas=m?[{x:.055,y:.337,w:.55,h:.55},{x:.55,y:.54,w:.35,h:.18},{x:.55,y:.245,w:.175,h:.145}]
       :[{x:.393,y:.20,w:.23,h:.738},{x:.65,y:.44,w:.24,h:.35},{x:.628,y:.27,w:.07,h:.168}];
     if(!posterCanvas){
@@ -444,13 +482,13 @@
     const roomImage=name=>requestPoster(name+format,"assets/room/"+name+"-"+format+".webp?v=5");
     const open=roomImage("open");
     if(!open)return;
-    const app=override===null?ramp(progress,.055,.20):1,light=lit();
+    const app=appReveal(),light=lit();
     const off=app>0 ? roomImage("off") : null;
     const on=light>0 ? roomImage("lit") : null;
     const detail=light>0&&progress>.375 ? roomImage("detail") : null;
     const release=progress>.425&&light>.01?roomImage("release"):null;
     const detached=progress>.53?roomImage(light>.5?"detached":"detached-dark"):null;
-    if(progress>.47&&progress<=.62){
+    if(progress>.47&&progress<=.74){
       // These normalized rectangles come from the CAD projection at each
       // captured camera pose. Follow the visible control in the 2D dissolve.
       const releaseHit=m?{x:.528,y:.314,w:.264,h:.248}:{x:.657,y:.256,w:.119,h:.359};
@@ -461,6 +499,8 @@
       hitAreas[2]=Object.fromEntries(Object.keys(mounted).map(k=>
         [k,mix(mix(mounted[k],releaseHit[k],atRelease),detachedHit[k],atDetach)]));
     }
+    const faceBounds = hitAreas[2];
+    markSwitch(faceBounds.x + faceBounds.w / 2, faceBounds.y + faceBounds.h / 2);
     const surface=progress>.70?requestPoster("surface","assets/product/frames/000.webp"):null;
     const target=document.querySelector(".model-wrap")?.getBoundingClientRect();
     const targetW=target?.width||w*.74;
@@ -649,7 +689,7 @@
       const roomAlpha=1-ramp(t,.815,.94);
       const phoneAlpha=1-ramp(t,.56,.65);
       const viewMatrix=[right[0],up[0],look[0],right[1],up[1],look[1],right[2],up[2],look[2]];
-      scalar("uOpen",override===null?ramp(t,.055,.20):1);scalar("uDetail",ramp(t,.385,.48));scalar("uLit",lit());
+      scalar("uOpen",appReveal());scalar("uDetail",ramp(t,.385,.48));scalar("uLit",lit());
       scalar("uMount",1-lift);scalar("uCadScale",sizeCAD);
       scalar("uFacePixel",2*halfH/(canvas.height*sizeCAD));
       scalar("uStudio",ramp(t,.82,.96));scalar("uPerspective",perspective);
@@ -677,6 +717,10 @@
       function place(parent,axes,offset,factor=1) {
         return offset.reduce((v,val,i)=>add(v,scale(axes[i],val*factor)),parent);
       }
+      // Project the same artwork coordinates used for the iPhone screen texture.
+      const screenPoint=(u,v)=>project(place(currentPhone,phoneBasis,
+        [(u-.5)*(PW-.056),(.5-v)*(PH-.056),.0525],sizePhone));
+      updatePhoneCue(screenPoint(.5,640.5/1218),screenPoint(228/562,502/1218));
       if(roomAlpha>.001){
         scalar("uFade",roomAlpha);
         drawMesh("interior",[0,0,-retreat],0,"face");
@@ -715,6 +759,7 @@
       hitAreas=[region([[-PW/2,-PH/2,0],[-PW/2,PH/2,0],[PW/2,-PH/2,0],[PW/2,PH/2,0]].map(p=>place(currentPhone,phoneBasis,p,sizePhone))),
         region(lampCorners),
         region([[-35,-57,20],[35,57,20]].map(p=>add(plate,scale(p,sizeCAD))))];
+      markSwitch(...project(add(plate, [0, 0, 24 * sizeCAD])));
       if(stage.dataset.renderer!=="webgl"){renderer="webgl";stage.dataset.renderer=renderer;}
     }
     const run=()=>{

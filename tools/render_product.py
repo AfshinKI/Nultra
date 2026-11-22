@@ -89,6 +89,11 @@ def read_housing():
     anchors["debug"] = np.array([-10.271,-18.402,.78364])  # J5 pin 5 (SWDIO), below the AA.
     anchors["dcdc"] = np.array([-9.89,13.85,-2.32368])  # U4 TPS613221A, rear package face.
     anchors["relay"] = np.array([-1.144,-12.065,-6.29268])  # R5 AGQ21TA2H, rear molded lid.
+    anchors["terminal"] = np.array([10., .47, -8.82])  # J7, exposed rear edge of the screw terminal.
+    # Matching magnet pockets on the underside of the faceplate and front of the carrier.
+    for index, (x, y) in enumerate([(-12.5, 27.5), (12.5, 27.5), (12.5, -21.5)], 1):
+        for part in ("faceplate", "carrier"):
+            anchors[f"{part}.magnet{index}"] = np.array([x, y, 20.])
     return meshes, anchors
 
 
@@ -249,7 +254,8 @@ def project_anchors(anchors, shifts, right, up, center, half_w, aspect):
     for key, anchor in anchors.items():
         if key == "wordmark":
             continue
-        relative = anchor + shifts.get(key,shifts["pcb"]) - center
+        part = key.partition(".")[0]
+        relative = anchor + shifts.get(part, shifts["pcb"]) - center
         projected[key] = [round(.5+float(relative @ right)/(2*half_w),5),
                           round(.5-float(relative @ up)*aspect/(2*half_w),5)]
     return projected
