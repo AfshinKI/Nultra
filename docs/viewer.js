@@ -15,32 +15,34 @@
   const clamp = value => Math.max(0, Math.min(1, value));
   const motion = window.matchMedia("(prefers-reduced-motion: reduce)");
   const saveData = navigator.connection?.saveData === true;
-  const hardwareStart = .37;
-  const handoffStart = .346;
+  const hardwareStart = .777;
+  const firstFrame = 132;
+  const handoffStart = .751;
   const lampDemoEnd = .14;
   // Each leg ends at a change in the subject being shown. Durations leave time to read the callouts.
   const tourLegs = [
-    {end: .28, duration: 5700},       // Approach the tactile switch and reveal the wall box.
-    {end: hardwareStart, duration: 2400},
-    {end: .57, duration: 3700},      // Turn the switch and release the faceplate.
-    {end: .742, duration: 6000},     // Magnetic mounting and AA discharge.
+    {end: .237, duration: 3000},     // Track the installed switch.
+    {end: .345, duration: 3600},     // Peel the magnetic cover away from the carrier.
+    {end: .434, duration: 5700},     // Read the seated AA and its discharge profile.
+    {end: .561, duration: 3750},     // Back out the fasteners, then move the switch forward.
+    {end: .626, duration: 1900},     // Take the AA out of its contacts.
+    {end: hardwareStart, duration: 3950}, // Open the shell and settle on the PCB.
     {end: .815, duration: 3450},     // Expose the board and its debug pads.
     {end: .868, duration: 2700},     // Antenna and Bluetooth CPU.
     {end: .933, duration: 1600},     // Turn to the reverse side.
     {end: .962, duration: 1650},     // Bring the rear components into view together.
     {end: 1, duration: 3400},        // Finish the rear camera move slowly while the labels are readable.
   ];
-  const boxRevealStart = .70 * hardwareStart, boxRevealEnd = .81 * hardwareStart;
+  const boxRevealStart = .346, boxRevealEnd = .434;
   const lastFrame = 232;
   const atlasVersion = "?v=233b";
   const framesPerSheet = 4;
   const tileWidth = 1056;
   const tileHeight = 864;
   const sheetOf = frame => Math.floor(frame / framesPerSheet);
-  // The separated AA gets time on screen before the camera turns toward the board.
+  // The room renderer reaches the same projected board pose as the first inspection tile.
   const beats = [
-    [hardwareStart, 0], [.50, 36], [.583, 60], [.62, 78], [.665, 89], [.714, 92],
-    [.777, 132], [.80, 140], [.815, 146], [.868, 164], [.933, 204], [.962, 216], [1, lastFrame],
+    [hardwareStart, firstFrame], [.80, 140], [.815, 146], [.868, 164], [.933, 204], [.962, 216], [1, lastFrame],
   ];
   function interpolate(stops, value, from) {
     const to = 1 - from;
@@ -65,7 +67,6 @@
       part, key: part.dataset.part, line: part.querySelector("path"), dot: part.querySelector("circle"),
       text: part.querySelector("text"), bounds: null,
     })),
-    pairs: Array.from(element.querySelectorAll("[data-magnet]")),
   }));
   const tabs = Array.from(sequence.querySelectorAll("[data-chapter-at]"));
   const copies = sequence.querySelectorAll("[data-chapter-copy]");
@@ -74,9 +75,9 @@
   const lampText = lampButton?.querySelector("[data-room-action-text]");
   const mast = document.querySelector(".mast");
   const descriptions = [
-    "Assembled Nultra wall switch at a three-quarter angle.",
-    "Assembled Nultra wall switch turning to reveal its side profile.",
-    "Three magnets in the faceplate release from three matching magnets in the carrier. A single AA cell powers the switch’s ultra-low-power electronics.",
+    "Nultra switch mounted on the wall beside the desk lamp.",
+    "The faceplate lifts from its magnets to reveal the AA cell and two mounting screws.",
+    "The uncovered switch moves forward. The AA lifts out, then the carrier and rear shell separate from the circuit board.",
     "Both sides of the populated circuit board.",
   ];
   const inspectionDescriptions = {
@@ -87,7 +88,7 @@
     relay: "The reverse of the board carries the DC/DC converter, latching relay and AC load screw terminal.",
   };
 
-  let target = 0, position = 0, drawnFrame = 0;
+  let target = 0, position = 0, drawnFrame = firstFrame;
   let pendingSeek = false;
   let chapter = -1, lastPercent = -1, lastRoomProgress = -1;
   let lampOverride, lampAt = 0, lastLampState, lastOverride;
@@ -112,16 +113,16 @@
     return Math.min(smooth((value - from) / (to - from)), 1 - smooth((value - endFrom) / (endTo - endFrom)));
   }
 
-  const batteryVisibility = progress => windowOpacity(progress, .585, .605, .72, .742);
   const labelOpacity = {
-    magnets: frame => windowOpacity(frame, 43, 50, 60, 64),
-    "battery-life": frame => windowOpacity(frame, 70, 76, 94, 100),
     board: frame => windowOpacity(frame, 134, 138, 155, 160),
     relay: frame => smooth((frame - 208) / 5),
   };
   const productLabels = Object.values(labelOpacity);
   function readingWeight(progress) {
-    if (progress < hardwareStart) return window.NultraRoom?.switchLabelOpacity?.(progress / hardwareStart) ?? 0;
+    if (progress < hardwareStart) {
+      const {magnet=0,battery=0} = window.NultraRoom?.detailWeights(progress) || {};
+      return Math.max(magnet,battery,window.NultraRoom?.switchLabelOpacity(progress) ?? 0);
+    }
     const frame = frameAt(progress);
     // Overlapping labels share one reading interval.
     return productLabels.reduce((weight, opacity) => Math.max(weight, opacity(frame)), 0);
@@ -177,7 +178,7 @@
       const y = (a[1] + (b[1] - a[1]) * fraction) * area.height;
       return x >= 0 && y >= 0 && x <= area.width && y <= area.height ? {x, y} : null;
     }
-    for (const {element, parts, pairs} of labelGroups) {
+    for (const {element, parts} of labelGroups) {
       const opacity = labelOpacity[element.dataset.labelGroup]?.(frame) ?? 0;
       element.style.opacity = String(opacity);
       if (!opacity) continue;
@@ -189,15 +190,7 @@
         dot.setAttribute("cx", target.x);
         dot.setAttribute("cy", target.y);
       }
-      for (const line of pairs) {
-        const face = point("faceplate." + line.dataset.magnet), seat = point("carrier." + line.dataset.magnet);
-        line.style.visibility = face && seat ? "visible" : "hidden";
-        if (!face || !seat) continue;
-        line.setAttribute("x1", face.x);
-        line.setAttribute("y1", face.y);
-        line.setAttribute("x2", seat.x);
-        line.setAttribute("y2", seat.y);
-      }
+
     }
   }
 
@@ -245,7 +238,7 @@
   }
 
   function requestSheet(index, required) {
-    if (index < 0 || index > sheetOf(lastFrame) || sheets.has(index) || pending.has(index) || navigator.onLine === false) return;
+    if (index < sheetOf(firstFrame) || index > sheetOf(lastFrame) || sheets.has(index) || pending.has(index) || navigator.onLine === false) return;
     const retry = retries.get(index);
     if (retry && retry.time > performance.now()) {
       if (required) wakeForNetwork(retry.time);
@@ -269,13 +262,13 @@
   }
 
   function buffer(frame) {
-    if (!inView || document.hidden || Math.max(position, target) < .28) return;
+    if (!inView || document.hidden || Math.max(position, target) < .70) return;
     const limited = saveData || motion.matches;
     const concurrency = limited ? 1 : 2;
     const low = sheetOf(Math.floor(frame)), high = sheetOf(Math.ceil(frame));
     const candidates = [low, high];
     const ahead = direction > 0 ? high : low;
-    if (!limited && (frame > 0 || target > hardwareStart)) {
+    if (!limited && (frame > firstFrame || target > hardwareStart)) {
       candidates.push(ahead + direction, ahead + 2 * direction);
     } else if (saveData && !motion.matches && !pendingSeek && position !== target) {
       // One in flight. Fetch an adjacent sheet only if the scroll target already requires it.
@@ -285,13 +278,13 @@
     wantedSheets = [...new Set(candidates)].slice(0, limited ? 2 : 3);
     for (const index of wantedSheets) {
       if (pending.size >= concurrency) break;
-      requestSheet(index, frame > 0 && (index === low || index === high));
+      requestSheet(index, frame > firstFrame && (index === low || index === high));
     }
-    if (frame >= 40) loadAnchors();
+    loadAnchors();
   }
 
   function tile(frame) {
-    return frame === 0 && poster.complete && poster.naturalWidth ? poster : sheets.get(sheetOf(frame));
+    return frame === firstFrame && poster.complete && poster.naturalWidth ? poster : sheets.get(sheetOf(frame));
   }
 
   function drawTile(image, frame) {
@@ -308,14 +301,14 @@
   }
 
   function paint(frame) {
-    if (frame === 0) {
+    if (frame === firstFrame) {
       pendingSeek = false;
       sizeCanvas();
-      if (drawnFrame !== 0) {
+      if (drawnFrame !== firstFrame) {
         canvas.style.opacity = "0";
         poster.style.opacity = "1";
-        drawnFrame = 0;
-        renderLabels(0);
+        drawnFrame = firstFrame;
+        renderLabels(firstFrame);
       }
       return;
     }
@@ -326,7 +319,7 @@
     const fraction = hi === lo ? 0 : frame - lo;
     const actual = lo + fraction;
     if (!sizeCanvas() && Math.abs(actual - drawnFrame) < .002) return;
-    if (actual > 0) {
+    if (actual > firstFrame) {
       context.clearRect(0, 0, canvas.width, canvas.height);
       context.globalAlpha = 1 - fraction;
       drawTile(imageA, lo);
@@ -339,18 +332,18 @@
       }
       context.globalAlpha = 1;
     }
-    canvas.style.opacity = actual > 0 ? "1" : "0";
-    poster.style.opacity = actual > 0 ? "0" : "1";
+    canvas.style.opacity = actual > firstFrame ? "1" : "0";
+    poster.style.opacity = actual > firstFrame ? "0" : "1";
     drawnFrame = actual;
     renderLabels(actual);
   }
 
   function renderRoom(progress) {
-    const lit = lampOverride ?? progress >= .36;
+    const lit = lampOverride ?? progress >= .36 * .37;
     if (progress !== lastRoomProgress || lit !== lastLampState || lampOverride !== lastOverride) {
       window.NultraRoom?.setState(progress, lampOverride);
-      sequence.style.setProperty("--room-progress", String(progress));
-      if (roomIntro) roomIntro.inert = progress >= .59;
+      sequence.style.setProperty("--room-progress", String(progress/.37));
+      if (roomIntro) roomIntro.inert = progress >= .59*.37;
       lastRoomProgress = progress;
       lastLampState = lit;
       lastOverride = lampOverride;
@@ -369,20 +362,19 @@
     sequence.style.setProperty("--hardware-opacity", position >= handoffStart ? "1" : "0");
     room.inert = mix >= .5;
     hardware.inert = mix < .5;
-    renderRoom(clamp(position / hardwareStart));
+    renderRoom(Math.min(position,hardwareStart));
     const frame = frameAt(position);
     buffer(requestedFrame);
     paint(frame);
     sequence.style.setProperty("--closing-scale", String(1 + .024 * closingMove(drawnFrame)));
-    const batteryProgress = smooth((position - .598) / (.709 - .598));
+    const batteryProgress = smooth((position - .348) / (.387 - .348));
     sequence.style.setProperty("--battery-life-progress", String(batteryProgress));
-    sequence.style.setProperty("--battery-life-visibility", String(batteryVisibility(position)));
-    const active = position < hardwareStart - .0006 ? 0 : drawnFrame < 36 ? 1 : drawnFrame < 123 ? 2 : 3;
+    const active = position < .237 ? 0 : position < .512 ? 1 : position < .751 ? 2 : 3;
     if (chapter !== active) {
       chapter = active;
       sequence.dataset.chapter = String(active);
       tabs.forEach((button, i) => button.setAttribute("aria-pressed", String(i === active)));
-      copies.forEach((copy, i) => { copy.hidden = i !== active; });
+      copies.forEach(copy => { copy.hidden = Number(copy.dataset.chapterCopy) !== active; });
     }
     const shot = drawnFrame < 134 ? "debug" : drawnFrame < 164 ? "board" :
       drawnFrame < 204 ? "turn" : drawnFrame < 208 ? "power" : "relay";
@@ -395,8 +387,15 @@
       lastPercent = number;
       slider.dataset.chapter = String(active);
       slider.value = String(number);
-      const view = position >= boxRevealStart && position <= boxRevealEnd
-        ? "Switch withdrawn, recessed wall box visible" : tabs[active]?.textContent.trim() || "";
+      const wallView = [
+        [.237,.346,"Magnetic faceplate lifting from its three attachment points"],
+        [boxRevealStart,boxRevealEnd,"AA battery seated in the switch, held in its wall box by two screws"],
+        [.434,.494,"Two mounting screws backing out of the carrier"],
+        [.494,.562,"Uncovered switch moving out of its wall box"],
+        [.562,.626,"AA battery lifting out of the carrier"],
+        [.626,.751,"Exploded battery, carrier, circuit board and rear shell"],
+      ].find(([from,to])=>position>=from&&position<to);
+      const view = wallView?.[2] || tabs[active]?.textContent.trim() || "";
       slider.setAttribute("aria-valuetext", view + ", " + number + "%");
       if (percent) percent.value = number + "%";
       sequence.style.setProperty("--sequence-progress", String(position));
@@ -422,7 +421,7 @@
       // Ignore the subpixel rounding of our own scrollTo while a direct seek decodes.
       if (Math.abs(next - position) < Math.max(.0001, 1 / Math.max(span, 1))) return;
       pendingSeek = false;
-      position = drawnFrame > 0 ? positionAt(drawnFrame) : Math.min(position, hardwareStart);
+      position = drawnFrame > firstFrame ? positionAt(drawnFrame) : Math.min(position, hardwareStart);
     }
     if (next !== position) direction = Math.sign(next - position);
     target = next;
@@ -450,7 +449,7 @@
       frame = drawnFrame + direction * maxFrames;
       next = positionAt(frame);
     }
-    if (frame > 0 && (!tile(Math.floor(frame)) || !tile(Math.ceil(frame)))) {
+    if (frame > firstFrame && (!tile(Math.floor(frame)) || !tile(Math.ceil(frame)))) {
       // Finish the available edge pose, then let the missing sheet's decode wake the player.
       const edge = direction > 0 ? Math.ceil(drawnFrame + .00001) : Math.floor(drawnFrame - .00001);
       if ((frame - edge) * direction >= 0 && edge >= 0 && tile(edge)) position = positionAt(edge);
@@ -529,6 +528,15 @@
   }
 
   function playIntro(time) {
+    if (introState === "stepping") {
+      // A visitor who requests Replay with reduced motion sees stills of each action.
+      const stops = [0, .14, .303, .415, .478, .561, .622, .684, .815, 1];
+      target = position = stops[tourLeg++];
+      render();
+      if (tourLeg === stops.length) stopIntro(false);
+      else holdIntro("stepping", position === .415 ? 3200 : 1650);
+      return true;
+    }
     if (introState === "waiting") {
       if (Math.abs(window.scrollY - start) > 3 || !inView || motion.matches) {
         stopIntro(false);
@@ -557,7 +565,7 @@
       return true;
     }
     if (introState === "tour-rewind") {
-      const reveal = windowOpacity(position, .54 * hardwareStart, boxRevealStart, boxRevealEnd, .91 * hardwareStart);
+      const reveal = windowOpacity(position, .295, boxRevealStart, boxRevealEnd, .478);
       if (advanceIntro(dt, 0, Math.min(1 / 3600, .00065 / (1 + 6 * reveal)))) holdIntro("playing", 1000);
       return true;
     }
@@ -618,11 +626,11 @@
   }
 
   function toggleLamp() {
-    if (position >= hardwareStart) return;
+    if (position >= .218) return;
     stopIntro(true);
     lampAt = target;
-    lampOverride = !(lampOverride ?? position / hardwareStart >= .36);
-    renderRoom(clamp(position / hardwareStart));
+    lampOverride = !(lampOverride ?? position / .37 >= .36);
+    renderRoom(Math.min(position,hardwareStart));
   }
 
   function remeasure() {
@@ -643,7 +651,9 @@
   window.addEventListener("nultra-lamp-toggle", toggleLamp);
   window.addEventListener("nultra-room-ready", () => { lastRoomProgress = -1; schedule(); });
   const takeoverInputs = ["touchstart", "pointerdown", "keydown"];
-  const takeControl = () => stopIntro(true);
+  const takeControl = event => {
+    if (!event.target?.closest?.("[data-tour-replay]")) stopIntro(true);
+  };
   function takeWheel(event) {
     if (introOwnsTimeline() && span && event.cancelable && event.deltaY && !event.ctrlKey) {
       // A compositor can otherwise discard the first upward delta because the physical document is still at zero.
@@ -656,10 +666,21 @@
     }
     stopIntro(true);
   }
-  if (introState !== "done") {
+  function listenForTakeover() {
     window.addEventListener("wheel", takeWheel, {capture:true, passive:false});
     for (const type of takeoverInputs) window.addEventListener(type, takeControl, {capture:true, passive:true});
   }
+  if (introState !== "done") listenForTakeover();
+  sequence.querySelector("[data-tour-replay]")?.addEventListener("click", () => {
+    lampOverride = undefined;
+    seek(0, true);
+    pendingSeek = false;
+    introOrigin = window.scrollY;
+    introElapsed = introTime = tourLeg = 0;
+    setIntroState(motion.matches ? "stepping" : "opening");
+    listenForTakeover();
+    schedule();
+  });
   window.addEventListener("scroll", () => {
     // Scrollbar and accessibility scrolls can arrive without a preceding input event.
     if (introOwnsTimeline() && Math.abs(window.scrollY - introOrigin) > 1) {
